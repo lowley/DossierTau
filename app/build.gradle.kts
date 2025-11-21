@@ -67,8 +67,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     testImplementation("app.cash.turbine:turbine:1.1.0")        // test des Flow
-    testImplementation("io.mockk:mockk:1.13.12")
-    testImplementation("com.google.dagger:hilt-android-testing:2.56.2")
+    testImplementation("io.mockk:mockk:1.14.6")
     //tester si méthode existe
     testImplementation("org.jetbrains.kotlin:kotlin-reflect:1.9.0")
 
@@ -168,6 +167,8 @@ dependencies {
     // injection de dépendances //
     //////////////////////////////
     implementation("io.insert-koin:koin-android:4.2.0-alpha1")
+    implementation("io.insert-koin:koin-test:4.2.0-alpha1")
+    implementation("io.insert-koin:koin-core:4.2.0-alpha1")
 
     ///////////////
     // WriterAPI //
