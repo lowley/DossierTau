@@ -38,8 +38,8 @@ class FileListDisplayTests {
 
             every { folderExplorer.getItemsOfPath(TauPath(PATH)) } returns diskItems
 
-                    //act
-                    viewModel.setFolderPath(path = PATH)
+            //act
+            viewModel.setFolderPath(path = PATH)
 
             //ass
             verify { folderExplorer.getItemsOfPath(TauPath(PATH)) }
