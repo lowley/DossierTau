@@ -60,6 +60,11 @@ android {
             excludes += "/META-INF/LICENSE-notice.md"
         }
     }
+
+    tasks.withType<Test> {
+        jvmArgs("-XX:+EnableDynamicAgentLoading")
+        // Pour diagnostiquer : "-Djdk.instrument.traceUsage"
+    }
 }
 
 dependencies {
@@ -175,7 +180,7 @@ dependencies {
     ///////////////
     //github -> https://jitpack.io/#lowley/WriterAPI
 //    implementation("com.github.lowley:periscope:v1.0.17")
-    implementation("io.github.lowley:periscope:1.0.4")
+//    implementation("io.github.lowley:periscope:1.0.4")
 
     implementation("androidx.localbroadcastmanager:localbroadcastmanager:1.1.0")
 }

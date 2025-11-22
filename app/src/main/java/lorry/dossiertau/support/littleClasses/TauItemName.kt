@@ -20,4 +20,7 @@ value class TauItemName(val value: String) {
 fun String.toTauFileName() = TauItemName(this)
 
 inline val TauItemName.extension
-    get() = this.value.substringAfterLast(".")
+    get() = {
+        val extCandidate = this.value.substringAfterLast(".")
+        if (hasExtension()) extCandidate.toTauExtension() else TauExtension.EMPTY
+    }.invoke()

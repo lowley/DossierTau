@@ -5,7 +5,7 @@ import androidx.annotation.DrawableRes
 
 sealed class TauPicture {
 
-    object EMPTY : TauPicture()
+    object NONE : TauPicture()
     data class Bitmap(val bitmap: android.graphics.Bitmap) : TauPicture()
     data class Drawableresource(@DrawableRes val drawableresource: Int) : TauPicture()
 

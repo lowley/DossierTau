@@ -1,22 +1,23 @@
-package lorry.dossiertau.data.model
+package lorry.dossiertau.data.transfer
 
+import lorry.dossiertau.data.model.TauFolder
+import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauIdentifier
 import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
 
-data class TauFolder(
+data class TauRepoFolder (
     override val id: TauIdentifier = TauIdentifier.random(),
     override val parentPath: TauPath = TauPath.EMPTY,
     override val name: TauItemName = TauItemName.EMPTY,
-    override val picture: TauPicture = TauPicture.NONE,
     override val modificationDate: TauDate = TauDate.now(),
 
-    val children: List<TauItem> = emptyList()
 
 
-) : TauItem {
+
+): TauRepoItem {
 
     constructor(
         fullPath: TauPath,
@@ -27,9 +28,7 @@ data class TauFolder(
     ) : this(
         parentPath = splitParentAndName(fullPath).first,
         name = splitParentAndName(fullPath).second,
-        picture = picture,
         modificationDate = modificationDate,
-        children = children,
         id = id,
     )
 
@@ -42,4 +41,15 @@ data class TauFolder(
             return parent to TauItemName(base)
         }
     }
+}
+
+fun TauRepoFolder.toTauFolder(): TauFolder{
+    return TauFolder(
+        id = this.id,
+        parentPath = this.parentPath,
+        name = this.name,
+        picture = TauPicture.NONE,
+        modificationDate = this.modificationDate,
+        children = emptyList(),
+    )
 }

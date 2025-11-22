@@ -1,33 +1,33 @@
-package lorry.dossiertau.data.model
+package lorry.dossiertau.data.transfer
 
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import kotlinx.serialization.Serializable
+import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauIdentifier
 import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.support.littleClasses.TauPath
-import lorry.dossiertau.support.littleClasses.TauPicture
 
 @Serializable
-sealed interface TauItem {
+sealed interface TauRepoItem {
     val id: TauIdentifier
     val parentPath: TauPath
     val name: TauItemName
-    val picture: TauPicture
     val modificationDate: TauDate
-
 
 
 }
 
-fun Collection<TauItem>.files() = this.filterIsInstance<TauFile>()
-fun Collection<TauItem>.folders() = this.filterIsInstance<TauFolder>()
+fun Collection<TauRepoItem>.files() = this.filter { it is TauRepoFile }
+fun Collection<TauRepoItem>.folders() = this.filter { it is TauRepoFolder }
 
-fun Collection<TauItem>.computeParentFolderDate(): TauDate {
+fun Collection<TauRepoItem>.toTauItems(): List<TauItem> {
+    val result = this.map {
+        when (it){
+            is TauRepoFile -> it.toTauFile()
+            is TauRepoFolder -> it.toTauFolder()
+        }
+    }
 
-    if (this.size == 0)
-        return TauDate.now()
-
-    val result = this.map { it.modificationDate }.maxBy { it.value }
     return result
 }
