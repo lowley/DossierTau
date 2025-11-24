@@ -12,8 +12,10 @@ import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.TauViewModel
 import lorry.dossiertau.data.model.TauFile
 import lorry.dossiertau.data.model.TauFolder
+import lorry.dossiertau.data.model.sameContentAs
 import lorry.dossiertau.data.transfer.TauRepoFile
 import lorry.dossiertau.data.transfer.TauRepoFolder
+import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.usecases.folderContent.FolderCompo
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
@@ -47,17 +49,22 @@ class FileListDisplayTests : KoinTest {
             TauFile(
                 parentPath = TauPath(PATH),
                 name = TauItemName("toto.mp4"),
+                modificationDate = TauDate.fromLong(825)
             ),
             TauFolder(
-                fullPath = TauPath("$PATH/divers")
+                fullPath = TauPath("$PATH/divers"),
+                modificationDate = TauDate(834)
             )
         )
         val repoItems = listOf(
             TauRepoFile(
-                name = TauItemName("$PATH/toto.mp4"),
+                parentPath = TauPath(PATH),
+                name = TauItemName("toto.mp4"),
+                modificationDate = TauDate.fromLong(825)
             ),
             TauRepoFolder(
-                fullPath = TauPath("$PATH/divers")
+                fullPath = TauPath("$PATH/divers"),
+                modificationDate = TauDate(834)
             )
         )
 
@@ -70,7 +77,11 @@ class FileListDisplayTests : KoinTest {
             //ass
             verify { fakeRepo.getItemsInFullPath(TauPath(PATH)) }
             val newItems = awaitItem()
-            assert(newItems == compoItems)
+            assert(
+                newItems.fold(
+                    ifEmpty = { false },
+                    ifSome = { folder -> folder.children.sameContentAs(compoItems) }
+                ))
         }
     }
 
