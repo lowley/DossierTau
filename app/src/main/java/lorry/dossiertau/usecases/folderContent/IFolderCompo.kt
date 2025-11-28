@@ -11,4 +11,7 @@ interface IFolderCompo {
     val folderFlow: StateFlow<Option<TauFolder>>
     fun setFolderFlow(folder: TauPath)
 
+    val folderPathFlow: StateFlow<Option<TauPath>>
+
+
 }

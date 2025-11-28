@@ -1,12 +1,22 @@
 package lorry.dossiertau.usecases.folderContent
 
+import android.app.job.JobScheduler
 import arrow.core.None
 import arrow.core.Option
 import arrow.core.raise.fold
 import arrow.core.toOption
+import com.petertackage.kotlinoptions.optionOf
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import lorry.dossiertau.data.model.TauFolder
 import lorry.dossiertau.data.model.computeParentFolderDate
 import lorry.dossiertau.data.transfer.toTauItems
@@ -20,6 +30,8 @@ class FolderCompo(
     val folderRepo: IFolderRepo
 ): IFolderCompo {
 
+    val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
     private val _folderFlow = MutableStateFlow<Option<TauFolder>>(None)
     override val folderFlow = _folderFlow.asStateFlow()
 
@@ -32,20 +44,32 @@ class FolderCompo(
      * set folderFlow à "folder"
      */
     override fun setFolderFlow(folderFullPath: TauPath) {
-        val repoItems = folderRepo.getItemsInFullPath(folderFullPath)
-        val compoItems = repoItems.toTauItems()
+        scope.launch {
+            val repoItems = folderRepo.getItemsInFullPath(folderFullPath)
+            val compoItems = repoItems.toTauItems()
 
-        val folderDate = compoItems.computeParentFolderDate()
+            val folderDate = compoItems.computeParentFolderDate()
 
-        val result = TauFolder(
-            parentPath = folderFullPath.parentPath,
-            name = folderFullPath.name,
-            picture = TauPicture.NONE,
-            modificationDate = folderDate,
-            children = compoItems
-        )
-        println("DEBUG: result=$result")
+            val result = TauFolder(
+                parentPath = folderFullPath.parentPath,
+                name = folderFullPath.name,
+                picture = TauPicture.NONE,
+                modificationDate = folderDate,
+                children = compoItems
+            )
+            println("DEBUG: result=$result")
 
-        changeFolderFlow(result.toOption())
+            changeFolderFlow(result.toOption())
+        }
     }
+
+    override val folderPathFlow: StateFlow<Option<TauPath>>
+        get() = folderFlow.map { it.fold(
+            ifEmpty = { None },
+            ifSome = { it.parentPath.toOption() }
+        ) }.stateIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            initialValue = Option.fromNullable(null)
+        )
 }

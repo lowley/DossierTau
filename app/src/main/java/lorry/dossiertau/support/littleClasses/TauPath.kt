@@ -1,5 +1,8 @@
 package lorry.dossiertau.support.littleClasses
 
+import arrow.core.Option
+import java.io.File
+
 
 /////////////////////////
 // value class : τPath //
@@ -40,8 +43,7 @@ sealed class TauPath {
     }
 
 
-    inline
-    fun equalsTo(other: TauPath) = {
+    inline fun equalsTo(other: TauPath) = {
         when (listOf(this::class.java, other::class.java)) {
             listOf(EMPTY::class.java, EMPTY::class.java) -> true
             listOf(EMPTY::class.java, Data::class.java) -> false
@@ -51,6 +53,13 @@ sealed class TauPath {
                 val theirs = other as Data
                 mine.normalizeData() == other.normalizeData()
             }
+        }
+    }
+
+    fun toFile(): Option<File> {
+        return when (this) {
+            is EMPTY -> Option.fromNullable(null)
+            is Data -> Option.fromNullable(File(value))
         }
     }
 }

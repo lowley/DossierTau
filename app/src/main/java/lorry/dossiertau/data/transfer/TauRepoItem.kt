@@ -15,7 +15,6 @@ sealed interface TauRepoItem {
     val name: TauItemName
     val modificationDate: TauDate
 
-
 }
 
 fun Collection<TauRepoItem>.files() = this.filter { it is TauRepoFile }
