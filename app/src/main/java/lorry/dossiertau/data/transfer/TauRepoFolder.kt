@@ -36,7 +36,7 @@ data class TauRepoFolder (
         private fun splitParentAndName(full: TauPath): Pair<TauPath, TauItemName> {
             val s = full.toString()
             val i = s.lastIndexOf('/')
-            val parent = if (i <= 0) TauPath.EMPTY else TauPath(s.take(i))
+            val parent = if (i <= 0) TauPath.EMPTY else TauPath.of(s.take(i))
             val base = if (i < 0) s else s.substring(i + 1)
             return parent to TauItemName(base)
         }

@@ -33,9 +33,7 @@ class FolderCompo(
      */
     override fun setFolderFlow(folderFullPath: TauPath) {
         val repoItems = folderRepo.getItemsInFullPath(folderFullPath)
-        println("DEBUG: repoItems=${repoItems.size}")
         val compoItems = repoItems.toTauItems()
-        println("DEBUG: compoItems=${compoItems.size}")
 
         val folderDate = compoItems.computeParentFolderDate()
 

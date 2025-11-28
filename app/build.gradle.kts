@@ -183,4 +183,13 @@ dependencies {
 //    implementation("io.github.lowley:periscope:1.0.4")
 
     implementation("androidx.localbroadcastmanager:localbroadcastmanager:1.1.0")
+
+    ////////////////////////////////////////
+    // constraintLayout dans MainActivity //
+    ////////////////////////////////////////
+    implementation("androidx.constraintlayout:constraintlayout:2.2.1")
+// To use constraintlayout in compose
+    implementation("androidx.constraintlayout:constraintlayout-compose:1.1.1")
+
+
 }

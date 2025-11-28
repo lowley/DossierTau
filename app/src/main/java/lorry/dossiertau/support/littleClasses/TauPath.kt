@@ -4,15 +4,24 @@ package lorry.dossiertau.support.littleClasses
 /////////////////////////
 // value class : τPath //
 /////////////////////////
-@JvmInline
-value class TauPath(val value: String){
+sealed class TauPath {
 
-    fun normalize(): TauPath{
+    data class Data(val value: String) : TauPath()
+    data object EMPTY : TauPath()
 
-        if (this.value.isEmpty())
+    companion object {
+        fun of(value: String) = when (value) {
+            "" -> EMPTY
+            else -> Data(value)
+        }
+    }
+
+    fun normalize(): TauPath {
+
+        if (this is EMPTY)
             return this
 
-        var normalized = this.value.trim()
+        var normalized = (this as Data).value.trim()
             .replace("//", "/")
             .replace("\\", "/")
 
@@ -22,22 +31,59 @@ value class TauPath(val value: String){
         if (!normalized.startsWith("/"))
             normalized = "/$normalized"
 
-        return TauPath(normalized)
+        return TauPath.Data(normalized)
     }
 
-    override fun toString(): String = "τPath($value)"
-    fun equalsTo(other: TauPath) = this.normalize().value == other.normalize().value
-
-    companion object{
-        val EMPTY = TauPath("")
+    override fun toString(): String = when (this) {
+        is Data -> "τPath($value)"
+        is EMPTY -> "τPath(EMPTY)"
     }
 
+
+    inline
+    fun equalsTo(other: TauPath) = {
+        when (listOf(this::class.java, other::class.java)) {
+            listOf(EMPTY::class.java, EMPTY::class.java) -> true
+            listOf(EMPTY::class.java, Data::class.java) -> false
+            listOf(Data::class.java, EMPTY::class.java) -> false
+            else -> {
+                val mine = this as Data
+                val theirs = other as Data
+                mine.normalizeData() == other.normalizeData()
+            }
+        }
+    }
 }
 
-fun String.toTauPath() = TauPath(this).normalize()
+fun String.toTauPath() = when (this) {
+    "" -> TauPath.EMPTY
+    else -> TauPath.Data(this).normalizeData()
+}
 
 inline val TauPath.parentPath
-    get() = this.normalize().value.substringBeforeLast("/").toTauPath()
+    get() = when (this) {
+        is TauPath.EMPTY -> TauPath.EMPTY
+        is TauPath.Data -> this.normalizeData().value.substringBeforeLast("/").toTauPath()
+    }
+
 
 inline val TauPath.name
-    get() = this.normalize().value.substringAfterLast("/").toTauFileName()
+    get() = when (this) {
+        is TauPath.EMPTY -> "".toTauFileName()
+        is TauPath.Data -> this.normalizeData().value.substringAfterLast("/").toTauFileName()
+    }
+
+fun TauPath.Data.normalizeData(): TauPath.Data {
+
+    var normalized = this.value.trim()
+        .replace("//", "/")
+        .replace("\\", "/")
+
+    if (!normalized.endsWith("/"))
+        normalized = "$normalized/"
+
+    if (!normalized.startsWith("/"))
+        normalized = "/$normalized"
+
+    return TauPath.Data(normalized)
+}

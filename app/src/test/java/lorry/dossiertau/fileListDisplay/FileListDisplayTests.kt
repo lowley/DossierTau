@@ -17,6 +17,7 @@ import lorry.dossiertau.data.transfer.TauRepoFile
 import lorry.dossiertau.data.transfer.TauRepoFolder
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauItemName
+import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.usecases.folderContent.FolderCompo
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
 import lorry.dossiertau.usecases.folderContent.support.FolderRepo
@@ -44,38 +45,24 @@ class FileListDisplayTests : KoinTest {
         val fakeVM: TauViewModel by inject()
 
         //* input
-        val PATH = "/storage/emulated/0/Download"
+        val PATH = "/storage/emulated/0/Download".toTauPath()
         val compoItems = listOf(
-            TauFile(
-                parentPath = TauPath(PATH),
-                name = TauItemName("toto.mp4"),
-                modificationDate = TauDate.fromLong(825)
-            ),
-            TauFolder(
-                fullPath = TauPath("$PATH/divers"),
-                modificationDate = TauDate(834)
-            )
+            FILE_TOTO(PATH),
+            FOLDER_DIVERS(PATH)
         )
         val repoItems = listOf(
-            TauRepoFile(
-                parentPath = TauPath(PATH),
-                name = TauItemName("toto.mp4"),
-                modificationDate = TauDate.fromLong(825)
-            ),
-            TauRepoFolder(
-                fullPath = TauPath("$PATH/divers"),
-                modificationDate = TauDate(834)
-            )
+            REPOFILE_TOTO(PATH),
+            REPOFOLDER_DIVERS(PATH)
         )
 
         fakeCompo.folderFlow.drop(1).test {
-            every { fakeRepo.getItemsInFullPath(TauPath(PATH)) } returns repoItems
+            every { fakeRepo.getItemsInFullPath(PATH) } returns repoItems
 
             //act
-            fakeVM.setTauFolder(folderPath = TauPath(PATH))
+            fakeVM.setTauFolder(folderPath = PATH)
 
             //ass
-            verify { fakeRepo.getItemsInFullPath(TauPath(PATH)) }
+            verify { fakeRepo.getItemsInFullPath(PATH) }
             val newItems = awaitItem()
             assert(
                 newItems.fold(
@@ -86,7 +73,6 @@ class FileListDisplayTests : KoinTest {
     }
 
     private fun prepareKoin() {
-
         startKoin {
             modules(
                 TauInjections,
@@ -99,6 +85,28 @@ class FileListDisplayTests : KoinTest {
             )
         }
     }
+
+    fun FILE_TOTO(parentPath: TauPath) = TauFile(
+        parentPath = parentPath,
+        name = TauItemName("toto.mp4"),
+        modificationDate = TauDate.fromLong(825)
+    )
+
+    fun REPOFILE_TOTO(parentPath: TauPath) = TauRepoFile(
+        parentPath = parentPath,
+        name = TauItemName("toto.mp4"),
+        modificationDate = TauDate.fromLong(825)
+    )
+
+    fun FOLDER_DIVERS(parentPath: TauPath) = TauFolder(
+        fullPath = TauPath.of("$parentPath/divers"),
+        modificationDate = TauDate(834)
+    )
+
+    fun REPOFOLDER_DIVERS(parentPath: TauPath) = TauRepoFolder(
+        fullPath = TauPath.of("$parentPath/divers"),
+        modificationDate = TauDate(834)
+    )
 
     @After
     fun tearDownKoin() {
