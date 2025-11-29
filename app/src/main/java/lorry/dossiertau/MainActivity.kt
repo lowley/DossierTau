@@ -35,10 +35,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
+import arrow.core.Either
 import arrow.core.None
 import arrow.core.Option
 import arrow.core.Some
 import arrow.core.raise.fold
+import lorry.dossiertau.support.littleClasses.EMPTY
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.ui.theme.DossierTauTheme
@@ -220,9 +222,9 @@ fun currentFoldePathText(
             .fillMaxSize()
             .padding(0.dp),
         value = when (currentFolder) {
-            is Some<TauPath> -> when (currentFolder.value) {
-                is TauPath.EMPTY -> "<aucun chemin sélectionné>"
-                is TauPath.Data -> (currentFolder.value as TauPath.Data).value
+            is Some<TauPath> -> when (currentFolder.value.value) {
+                is Either.Left -> "<aucun chemin sélectionné>"
+                is Either.Right -> (currentFolder.value.value as Either.Right<TauPath.Companion.Data>).value.value
             }
             is None -> "<aucun chemin sélectionné>"
         },

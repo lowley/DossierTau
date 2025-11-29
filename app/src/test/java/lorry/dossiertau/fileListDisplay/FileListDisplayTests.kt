@@ -1,11 +1,13 @@
 package lorry.dossiertau.fileListDisplay
 
 import app.cash.turbine.test
-import io.mockk.every
-import io.mockk.mockk
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.spyk
-import io.mockk.verify
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.runTest
 import lorry.basics.TauInjections
 import lorry.dossiertau.support.littleClasses.TauPath
@@ -20,18 +22,14 @@ import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.usecases.folderContent.FolderCompo
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
-import lorry.dossiertau.usecases.folderContent.support.FolderRepo
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 import org.junit.After
 import org.junit.Test
 import org.koin.core.context.GlobalContext.startKoin
 import org.koin.core.context.GlobalContext.stopKoin
-import org.koin.core.context.loadKoinModules
 import org.koin.core.qualifier.named
-import org.koin.dsl.ModuleDeclaration
 import org.koin.dsl.module
 import org.koin.test.KoinTest
-import org.koin.test.get
 import org.koin.test.inject
 
 class FileListDisplayTests : KoinTest {
@@ -39,7 +37,8 @@ class FileListDisplayTests : KoinTest {
     @Test
     fun `IFolderCompo récupère le contenu d'un répertoire`() = runTest {
 
-        prepareKoin()
+        prepareKoin(testScheduler)
+
         val fakeRepo: IFolderRepo by inject()
         val fakeCompo: IFolderCompo by inject()
         val fakeVM: TauViewModel by inject()
@@ -55,15 +54,22 @@ class FileListDisplayTests : KoinTest {
             REPOFOLDER_DIVERS(PATH)
         )
 
-        fakeCompo.folderFlow.drop(1).test {
-            every { fakeRepo.getItemsInFullPath(PATH) } returns repoItems
+        // premier droppé: celui de la déclaration du MutableStateFlow: [[folderFlowDeclaration]]
+        // deuxième droppé: celui de l'init{} du TauViewModel: [[tauViewModelInit]]
+        fakeCompo.folderFlow.drop(2).test {
+            coEvery { fakeRepo.getItemsInFullPath(PATH) } returns repoItems
 
             //act
             fakeVM.setTauFolder(folderPath = PATH)
 
             //ass
-            verify { fakeRepo.getItemsInFullPath(PATH) }
             val newItems = awaitItem()
+
+            //le coVerify est après le awaitItem car ce dernier lance un scope.launch
+            //[[coroutine longue]] qui est explicitement attendu pas awaitItem()
+            //la vérification se fait après le awaitItem()
+            coVerify { fakeRepo.getItemsInFullPath(PATH) }
+
             assert(
                 newItems.fold(
                     ifEmpty = { false },
@@ -72,15 +78,15 @@ class FileListDisplayTests : KoinTest {
         }
     }
 
-    private fun prepareKoin() {
+    private fun prepareKoin(testScheduler: TestCoroutineScheduler) {
         startKoin {
             modules(
                 TauInjections,
                 module {
                     allowOverride(true)
                     single<IFolderRepo> { spyk(get<IFolderRepo>(named("real"))) }
-                    single<IFolderCompo> { spyk(get<IFolderCompo>(named("real"))) }
-                    single<TauViewModel> { spyk(get<TauViewModel>(named("real"))) }
+                    single<IFolderCompo> { spyk(FolderCompo(get(), StandardTestDispatcher(testScheduler))) }
+                    single<TauViewModel> { spyk(TauViewModel(get())) }
                 }
             )
         }

@@ -8,6 +8,8 @@ import lorry.dossiertau.support.littleClasses.TauPath.Companion.Data
 import lorry.dossiertau.support.littleClasses.TauPath.Companion.EMPTY
 import java.io.File
 
+typealias EMPTY = TauPath.Companion.EMPTYTAG
+
 //////////////////////////
 // value class : τPath2 //
 //////////////////////////
@@ -15,11 +17,13 @@ import java.io.File
 value class TauPath(val value: Either<EMPTY, Data>) {
 
     companion object {
-        object EMPTY
+        object EMPTYTAG
+        val EMPTY = TauPath(EMPTYTAG.left())
+
         data class Data(val value: String)
 
         fun of(value: String): TauPath = when (value) {
-            "" -> EMPTY.left().toTauPath()
+            "" -> EMPTY
             else -> Data(normalize(value)).right().toTauPath()
         }
 
@@ -63,7 +67,7 @@ fun String.toTauPath() = TauPath.of(this)
 
 inline val TauPath.parentPath
     get() = when (this.value) {
-        is Either.Left -> EMPTY.left().toTauPath()
+        is Either.Left -> EMPTY
         is Either.Right -> this.value.value.value.substringBeforeLast("/").toTauPath()
     }
 

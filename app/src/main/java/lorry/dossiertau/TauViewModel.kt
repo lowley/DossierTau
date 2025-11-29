@@ -15,6 +15,7 @@ class TauViewModel(
         folderCompo.setFolderFlow(folderPath)
     }
 
+    //#[[tauViewModelInit]]
     init{
         setTauFolder("/storage/emulated/0/Download".toTauPath())
     }

@@ -6,6 +6,7 @@ import arrow.core.Option
 import arrow.core.raise.fold
 import arrow.core.toOption
 import com.petertackage.kotlinoptions.optionOf
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -27,11 +28,13 @@ import lorry.dossiertau.support.littleClasses.parentPath
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 
 class FolderCompo(
-    val folderRepo: IFolderRepo
+    val folderRepo: IFolderRepo,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
 ): IFolderCompo {
 
-    val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val scope = CoroutineScope(dispatcher + SupervisorJob())
 
+    //#[[folderFlowDeclaration]]
     private val _folderFlow = MutableStateFlow<Option<TauFolder>>(None)
     override val folderFlow = _folderFlow.asStateFlow()
 
@@ -44,6 +47,7 @@ class FolderCompo(
      * set folderFlow à "folder"
      */
     override fun setFolderFlow(folderFullPath: TauPath) {
+        //#[[coroutine longue]]
         scope.launch {
             val repoItems = folderRepo.getItemsInFullPath(folderFullPath)
             val compoItems = repoItems.toTauItems()
