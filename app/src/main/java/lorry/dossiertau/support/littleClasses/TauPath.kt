@@ -60,6 +60,19 @@ value class TauPath(val value: Either<EMPTY, Data>) {
             is Either.Right -> Option.fromNullable(File(this.value.value.value))
         }
     }
+
+    fun appendToTauPath(end: String): TauPath {
+        val result = this.value.fold(
+            ifLeft = {
+                end.toTauPath()
+            },
+            ifRight = {
+                (it.value + end).toTauPath()
+            }
+        )
+
+        return result
+    }
 }
 
 fun Either<EMPTY, Data>.toTauPath() = TauPath(this)

@@ -39,11 +39,16 @@ class FolderRepo : IFolderRepo {
 
     override suspend fun getItemsInFullPath(tauPath: TauPath): List<TauRepoItem> {
 
-        return withContext(Dispatchers.IO) {
             val items = try {
                 tauPath.toFile().fold(
                     ifEmpty = { emptyList<File>() },
-                    ifSome = { file -> file.listFiles()?.toList() ?: emptyList<File>() }
+                    ifSome = { file ->
+                        val result = withContext(Dispatchers.IO){
+                            val files = file.listFiles()?.toList() ?: emptyList<File>()
+                            files
+                        }
+                        result
+                    }
                 ).map { file ->
                     convertFileToTauRepoItem(file)
                 }
@@ -56,9 +61,8 @@ class FolderRepo : IFolderRepo {
                 emptyList<TauRepoItem>()
             }.filterNotNull()
 
-            return@withContext items
+            return items
         }
-    }
 }
 
 

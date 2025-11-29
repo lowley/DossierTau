@@ -26,6 +26,14 @@ sealed interface TauItem {
 fun Collection<TauItem>.files() = this.filterIsInstance<TauFile>()
 fun Collection<TauItem>.folders() = this.filterIsInstance<TauFolder>()
 
+fun TauItem.isFolder() = this is TauFolder
+fun TauItem.isFile() = this is TauFile
+
+inline val TauItem.fullPath: TauPath
+    get() = this.parentPath.appendToTauPath(this.name.value)
+
+
+
 fun Collection<TauItem>.computeParentFolderDate(): TauDate {
 
     if (this.size == 0)

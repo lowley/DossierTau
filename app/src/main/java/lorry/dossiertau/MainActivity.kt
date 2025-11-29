@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -40,6 +41,8 @@ import arrow.core.None
 import arrow.core.Option
 import arrow.core.Some
 import arrow.core.raise.fold
+import lorry.dossiertau.data.model.fullPath
+import lorry.dossiertau.data.model.isFolder
 import lorry.dossiertau.support.littleClasses.EMPTY
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.toTauPath
@@ -54,6 +57,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 //        enableEdgeToEdge()
+
+        val permissionsManager = PermissionsManager()
+        if (!permissionsManager.hasExternalStoragePermission())
+            permissionsManager.requestExternalStoragePermission(this)
+
         setContent {
             DossierTauTheme {
                 Scaffold(
@@ -96,7 +104,10 @@ class MainActivity : ComponentActivity() {
                                     end.linkTo(parent.end)
                                     height = Dimension.matchParent
                                     width = Dimension.fillToConstraints
-                                }
+                                },
+                            setCurrentFolder = { newFolder: TauPath ->
+                                viewModel.setTauFolder(newFolder)
+                            }
                         )
                     }
                 }
@@ -121,7 +132,10 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    fun MainPage(modifier: Modifier = Modifier) {
+    fun MainPage(
+        modifier: Modifier = Modifier,
+        setCurrentFolder: (TauPath) -> Unit,
+        ) {
 
         //faire dans le ViewModel plusieurs State
         //chacun comportant plusieurs valeurs & fonctions fonctionnellement groupées
@@ -147,6 +161,10 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier
                                 .size(175.dp)
                                 .border(1.dp, Color.DarkGray, shape = RoundedCornerShape(8.dp))
+                                .clickable{
+                                    if (item.isFolder())
+                                        setCurrentFolder(item.fullPath)
+                                }
                         ) {
                             Text(
                                 text = item.name.value,
