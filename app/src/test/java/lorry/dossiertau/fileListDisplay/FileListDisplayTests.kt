@@ -78,45 +78,6 @@ class FileListDisplayTests : KoinTest {
         }
     }
 
-    private fun prepareKoin(testScheduler: TestCoroutineScheduler) {
-        startKoin {
-            modules(
-                TauInjections,
-                module {
-                    allowOverride(true)
-                    single<IFolderRepo> { spyk(get<IFolderRepo>(named("real"))) }
-                    single<IFolderCompo> { spyk(FolderCompo(get(), StandardTestDispatcher(testScheduler))) }
-                    single<TauViewModel> { spyk(TauViewModel(get())) }
-                }
-            )
-        }
-    }
 
-    fun FILE_TOTO(parentPath: TauPath) = TauFile(
-        parentPath = parentPath,
-        name = TauItemName("toto.mp4"),
-        modificationDate = TauDate.fromLong(825)
-    )
-
-    fun REPOFILE_TOTO(parentPath: TauPath) = TauRepoFile(
-        parentPath = parentPath,
-        name = TauItemName("toto.mp4"),
-        modificationDate = TauDate.fromLong(825)
-    )
-
-    fun FOLDER_DIVERS(parentPath: TauPath) = TauFolder(
-        fullPath = TauPath.of("$parentPath/divers"),
-        modificationDate = TauDate(834)
-    )
-
-    fun REPOFOLDER_DIVERS(parentPath: TauPath) = TauRepoFolder(
-        fullPath = TauPath.of("$parentPath/divers"),
-        modificationDate = TauDate(834)
-    )
-
-    @After
-    fun tearDownKoin() {
-        stopKoin()
-    }
 }
 
