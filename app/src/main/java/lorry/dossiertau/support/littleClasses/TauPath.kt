@@ -1,27 +1,26 @@
 package lorry.dossiertau.support.littleClasses
 
 import arrow.core.Either
-import arrow.core.Ior
 import arrow.core.Option
 import arrow.core.left
 import arrow.core.right
-import lorry.dossiertau.support.littleClasses.TauPath2.Companion.Data2
-import lorry.dossiertau.support.littleClasses.TauPath2.Companion.EMPTY2
+import lorry.dossiertau.support.littleClasses.TauPath.Companion.Data
+import lorry.dossiertau.support.littleClasses.TauPath.Companion.EMPTY
 import java.io.File
 
 //////////////////////////
 // value class : τPath2 //
 //////////////////////////
 @JvmInline
-value class TauPath2(val value: Either<EMPTY2, Data2>) {
+value class TauPath(val value: Either<EMPTY, Data>) {
 
     companion object {
-        object EMPTY2
-        data class Data2(val value: String)
+        object EMPTY
+        data class Data(val value: String)
 
-        fun of(value: String): TauPath2 = when (value) {
-            "" -> EMPTY2.left().toTauPath2()
-            else -> Data2(normalize(value)).right().toTauPath2()
+        fun of(value: String): TauPath = when (value) {
+            "" -> EMPTY.left().toTauPath()
+            else -> Data(normalize(value)).right().toTauPath()
         }
 
         private fun normalize(value: String): String {
@@ -38,14 +37,14 @@ value class TauPath2(val value: Either<EMPTY2, Data2>) {
         is Either.Left -> "τPath(EMPTY)"
     }
 
-    fun equalsTo(other: TauPath2) = {
+    fun equalsTo(other: TauPath) = {
         val result = when (listOf(this.value::class.java, other.value::class.java)) {
-            listOf(EMPTY2::class.java, EMPTY2::class.java) -> true
-            listOf(EMPTY2::class.java, Data2::class.java) -> false
-            listOf(Data2::class.java, EMPTY2::class.java) -> false
+            listOf(EMPTY::class.java, EMPTY::class.java) -> true
+            listOf(EMPTY::class.java, Data::class.java) -> false
+            listOf(Data::class.java, EMPTY::class.java) -> false
             else -> {
-                val mine = this.value as Data2
-                val theirs = other.value as Data2
+                val mine = this.value as Data
+                val theirs = other.value as Data
                 mine == theirs
             }
         }
@@ -59,19 +58,17 @@ value class TauPath2(val value: Either<EMPTY2, Data2>) {
     }
 }
 
+fun Either<EMPTY, Data>.toTauPath() = TauPath(this)
+fun String.toTauPath() = TauPath.of(this)
 
-fun Either<EMPTY2, Data2>.toTauPath2() = TauPath2(this)
-fun String.toTauPath2() = TauPath2.of(this)
-
-
-inline val TauPath2.parentPath
+inline val TauPath.parentPath
     get() = when (this.value) {
-        is Either.Left -> EMPTY2.left().toTauPath2()
-        is Either.Right -> this.value.value.value.substringBeforeLast("/").toTauPath2()
+        is Either.Left -> EMPTY.left().toTauPath()
+        is Either.Right -> this.value.value.value.substringBeforeLast("/").toTauPath()
     }
 
 
-inline val TauPath2.name
+inline val TauPath.name
     get() = when (this.value) {
         is Either.Left -> "".toTauFileName()
         is Either.Right -> this.value.value.value.substringAfterLast("/").toTauFileName()
