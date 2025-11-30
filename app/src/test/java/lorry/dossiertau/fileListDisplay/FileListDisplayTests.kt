@@ -3,34 +3,28 @@ package lorry.dossiertau.fileListDisplay
 import app.cash.turbine.test
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.spyk
-import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.runTest
-import lorry.basics.TauInjections
-import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.TauViewModel
-import lorry.dossiertau.data.model.TauFile
-import lorry.dossiertau.data.model.TauFolder
+import lorry.dossiertau.data.intelligenceService.FBI
+import lorry.dossiertau.data.intelligenceService.Spy
+import lorry.dossiertau.data.intelligenceService.utils.TransferingDecision
+import lorry.dossiertau.data.model.fullPath
 import lorry.dossiertau.data.model.sameContentAs
-import lorry.dossiertau.data.transfer.TauRepoFile
-import lorry.dossiertau.data.transfer.TauRepoFolder
-import lorry.dossiertau.support.littleClasses.TauDate
-import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.support.littleClasses.toTauPath
-import lorry.dossiertau.usecases.folderContent.FolderCompo
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
-import org.junit.After
 import org.junit.Test
-import org.koin.core.context.GlobalContext.startKoin
-import org.koin.core.context.GlobalContext.stopKoin
-import org.koin.core.qualifier.named
-import org.koin.dsl.module
 import org.koin.test.KoinTest
 import org.koin.test.inject
+import lorry.dossiertau.data.intelligenceService.AirForce
+import lorry.dossiertau.data.intelligenceService.utils.ItemType
+import lorry.dossiertau.support.littleClasses.path
+import lorry.dossiertau.support.littleClasses.toTauDate
+
 
 class FileListDisplayTests : KoinTest {
 
@@ -78,6 +72,46 @@ class FileListDisplayTests : KoinTest {
         }
     }
 
+    @Test
+    fun `SpyService observe les changements d'un dossier`() = runTest {
 
+        //* SPY ----   events on items   ---->  FBI ---- treated infos     ----> AIRFORCE
+        //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
+
+        prepareKoin(testScheduler)
+
+        val fakeRepo: IFolderRepo by inject()
+        val fakeCompo: IFolderCompo by inject()
+        val fakeVM: TauViewModel by inject()
+
+
+        //assert
+        //* répertoire à observer
+        val PATH = "/storage/emulated/0/Download".toTauPath()
+
+        val spy = Spy(StandardTestDispatcher(testScheduler))
+        val airForce = AirForce()
+//        val decisionLogic = FBI::makeYourMind(spy.DiskEventFlow)
+        spy.setObservedFolder(PATH)
+        //spy.startSurveillance()
+
+        //act
+        val toto = FILE_TOTO(PATH)
+        //TODO remanier
+        val fileToEmit = toto.fullPath
+
+        spy.incomingEventFlow.test {
+
+            spy.emitFake_CREATEFILE(fileToEmit, ItemType.FILE, 817L.toTauDate())
+            //act + arrange
+            val event = awaitItem()
+            val decision = FBI.makeYourMind(event)
+
+            //assert
+            assert(decision is TransferingDecision.CREATEFILE)
+            assert(decision?.filePath == toto.fullPath)
+            assert((decision as TransferingDecision.CREATEFILE).modificationDate == 817L.toTauDate())
+        }
+    }
 }
 

@@ -1,6 +1,5 @@
-package lorry.dossiertau.data.transfer
+package lorry.dossiertau.data.diskTransfer
 
-import androidx.compose.foundation.text.input.rememberTextFieldState
 import kotlinx.serialization.Serializable
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.support.littleClasses.TauDate

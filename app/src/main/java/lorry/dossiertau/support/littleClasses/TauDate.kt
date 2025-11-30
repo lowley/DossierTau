@@ -25,7 +25,9 @@ value class TauDate(val value: Long) {
 
     companion object{
 
-        fun fromLong(value: Long): TauDate = TauDate(value)
+        fun fromLong(value: Long?): TauDate = TauDate(value ?: 0L)
         fun now(): TauDate = TauDate(System.currentTimeMillis())
     }
 }
+
+fun Long?.toTauDate()= TauDate.fromLong(this)
