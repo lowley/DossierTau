@@ -78,6 +78,7 @@ dependencies {
     //tester si méthode existe
     testImplementation("org.jetbrains.kotlin:kotlin-reflect:1.9.0")
 
+
     // --- Android instrumented tests (androidTestImplementation) ---
     androidTestImplementation(libs.androidx.junit)              // AndroidX JUnit 1.2.1
     androidTestImplementation(platform(libs.androidx.compose.bom)) // BOM Compose 2025.04.01

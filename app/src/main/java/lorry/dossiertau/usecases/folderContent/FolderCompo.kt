@@ -1,11 +1,8 @@
 package lorry.dossiertau.usecases.folderContent
 
-import android.app.job.JobScheduler
 import arrow.core.None
 import arrow.core.Option
-import arrow.core.raise.fold
 import arrow.core.toOption
-import com.petertackage.kotlinoptions.optionOf
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +17,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import lorry.dossiertau.data.model.TauFolder
 import lorry.dossiertau.data.model.computeParentFolderDate
-import lorry.dossiertau.data.transfer.toTauItems
+import lorry.dossiertau.data.diskTransfer.toTauItems
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
 import lorry.dossiertau.support.littleClasses.name

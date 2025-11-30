@@ -1,4 +1,4 @@
-package lorry.dossiertau.data.transfer
+package lorry.dossiertau.data.diskTransfer
 
 import lorry.dossiertau.data.model.TauFile
 import lorry.dossiertau.support.littleClasses.TauDate

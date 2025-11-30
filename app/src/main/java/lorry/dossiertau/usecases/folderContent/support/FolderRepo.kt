@@ -1,16 +1,11 @@
 package lorry.dossiertau.usecases.folderContent.support
 
 import android.util.Log
-import androidx.compose.material3.rememberTooltipState
-import arrow.core.Option
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
-import lorry.dossiertau.data.model.TauFolder
-import lorry.dossiertau.data.model.TauItem
-import lorry.dossiertau.data.transfer.TauRepoFile
-import lorry.dossiertau.data.transfer.TauRepoFolder
-import lorry.dossiertau.data.transfer.TauRepoItem
+import lorry.dossiertau.data.diskTransfer.TauRepoFile
+import lorry.dossiertau.data.diskTransfer.TauRepoFolder
+import lorry.dossiertau.data.diskTransfer.TauRepoItem
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.toTauFileName

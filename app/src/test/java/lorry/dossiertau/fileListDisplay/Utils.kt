@@ -7,8 +7,8 @@ import lorry.basics.TauInjections
 import lorry.dossiertau.TauViewModel
 import lorry.dossiertau.data.model.TauFile
 import lorry.dossiertau.data.model.TauFolder
-import lorry.dossiertau.data.transfer.TauRepoFile
-import lorry.dossiertau.data.transfer.TauRepoFolder
+import lorry.dossiertau.data.diskTransfer.TauRepoFile
+import lorry.dossiertau.data.diskTransfer.TauRepoFolder
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.support.littleClasses.TauPath
