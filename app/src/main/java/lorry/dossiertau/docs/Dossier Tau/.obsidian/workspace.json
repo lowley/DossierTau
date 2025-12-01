@@ -55,12 +55,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "FileObserver/TODO.md",
+                "file": "FileObserver/File observer.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "TODO"
+              "title": "File observer"
             }
           }
         ],
@@ -199,13 +199,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "FileObserver/TODO.md",
+                "file": "FileObserver/File observer.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Plan de TODO"
+              "title": "Plan de File observer"
             }
           },
           {
@@ -240,9 +240,9 @@
   },
   "active": "761f308293bcce0f",
   "lastOpenFiles": [
-    "Bienvenue.md",
     "FileObserver/TODO.md",
     "FileObserver/File observer.md",
+    "Bienvenue.md",
     "FileObserver",
     "créez un lien.md",
     "mockk.md",
