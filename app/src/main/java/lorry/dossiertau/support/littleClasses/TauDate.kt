@@ -15,6 +15,8 @@ value class TauDate(val value: Long) {
         return format.format(date)
     }
 
+    override fun toString(): String = "(${toddMMyyyyHHmmss()})"
+
     fun compareTo(other: TauDate): Int {
         return value.compareTo(other.value)
     }

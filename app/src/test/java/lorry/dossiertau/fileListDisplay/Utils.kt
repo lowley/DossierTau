@@ -52,6 +52,15 @@ fun FileListDisplayTests.FOLDER_DIVERS(parentPath: TauPath) = TauFolder(
     modificationDate = TauDate(834)
 )
 
+fun FileListDisplayTests.FOLDER_FULL(path: TauPath) = TauFolder(
+    fullPath = path,
+    children = listOf(
+        FILE_TOTO(path),
+        FOLDER_DIVERS(path)
+    ),
+    modificationDate = TauDate(834)
+)
+
 fun FileListDisplayTests.REPOFOLDER_DIVERS(parentPath: TauPath) = TauRepoFolder(
     fullPath = TauPath.of("$parentPath/divers"),
     modificationDate = TauDate(834)
