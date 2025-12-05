@@ -3,6 +3,7 @@ package lorry.dossiertau.fileListDisplay
 import app.cash.turbine.test
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.confirmVerified
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -23,12 +24,17 @@ import lorry.dossiertau.data.intelligenceService.AirForce
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.data.model.*
 import lorry.dossiertau.support.littleClasses.toTauDate
+import ch.tutteli.atrium.api.fluent.en_GB.*
+import ch.tutteli.atrium.api.verbs.expect
 
 
 class FileListDisplayTests : KoinTest {
 
+    //////////////
+    // test n°1 //
+    //////////////
     @Test
-    fun `IFolderCompo récupère le contenu d'un répertoire`() = runTest {
+    fun `#1 IFolderCompo récupère le contenu d'un répertoire`() = runTest {
 
         prepareKoin(testScheduler)
 
@@ -63,6 +69,7 @@ class FileListDisplayTests : KoinTest {
             //[[coroutine longue]] qui est explicitement attendu pas awaitItem()
             //la vérification se fait après le awaitItem()
             coVerify { fakeRepo.getItemsInFullPath(PATH) }
+            confirmVerified(fakeRepo)
 
             assert(
                 newItems.fold(
@@ -72,8 +79,11 @@ class FileListDisplayTests : KoinTest {
         }
     }
 
+    //////////////
+    // test n°2 //
+    //////////////
     @Test
-    fun `SpyService observe les changements d'un dossier`() = runTest {
+    fun `#2 SpyService observe les changements d'un dossier`() = runTest {
 
         //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
         //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
@@ -84,7 +94,6 @@ class FileListDisplayTests : KoinTest {
         val fakeCompo: IFolderCompo by inject()
         val fakeVM: TauViewModel by inject()
 
-
         //assert
         //* répertoire à observer
         val PATH = "/storage/emulated/0/Download".toTauPath()
@@ -92,48 +101,48 @@ class FileListDisplayTests : KoinTest {
         val spy = Spy(StandardTestDispatcher(testScheduler))
         val airForce = AirForce()
 //        val decisionLogic = FBI::makeYourMind(spy.DiskEventFlow)
-        spy.setObservedFolder(PATH)
-        //spy.startSurveillance()
-
-        //act
-        val toto = FILE_TOTO(PATH)
-        val fileToEmit = toto.fullPath
-
+//            .drop(1)
         spy.updateEventFlow.test {
+
+            spy.setObservedFolder(PATH)
+            //spy.startSurveillance()
+
+            //act
+            val toto = FILE_TOTO(PATH)
+            val fileToEmit = toto.fullPath
+
 
             spy.emitFake_CREATEFILE(fileToEmit, ItemType.FILE, 817L.toTauDate())
             //act + arrange
+            advanceUntilIdle()
             val event = awaitItem()
             val decision = CIA.sortUpdateEvents(event)
 
             //assert
-            assert(decision is TransferingDecision.CREATEFILE)
-            assert(decision?.filePath == toto.fullPath)
-            assert((decision as TransferingDecision.CREATEFILE).modificationDate == 817L.toTauDate())
+            expect(decision).notToEqualNull(){
+                toBeAnInstanceOf<TransferingDecision.CreateFile>()
+                feature { f((it as TransferingDecision.CreateFile)::modificationDate)}.toEqual(817L.toTauDate())
+            }
+
+            cancelAndIgnoreRemainingEvents()
         }
     }
 
-//    @Test
-    fun `SpyService envoie une image de dossier au démarrage`() = runTest {
+    //////////////
+    // test n°3 //
+    //////////////
+    @Test
+    fun `#3 SpyService envoie une image de dossier au démarrage`() = runTest {
 
         //* SPY ----   events on items   ---->  FBI ---- treated infos     ----> AIRFORCE
         //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
 
-        prepareKoin(testScheduler)
+//        prepareKoin(testScheduler)
 
-        val fakeRepo: IFolderRepo by inject()
-        val fakeCompo: IFolderCompo by inject()
-        val fakeVM: TauViewModel by inject()
-
-        //assert
+        //arrange
         //* répertoire à observer
         val PATH = "/storage/emulated/0/Download".toTauPath()
-        val returnedFolder = FOLDER_FULL(PATH)
-
         val spy = Spy(StandardTestDispatcher(testScheduler))
-        val airForce = AirForce()
-//        val decisionLogic = FBI::makeYourMind(spy.DiskEventFlow)
-        //spy.startSurveillance()
 
         /**
          * au démarrage -> EMPTY
@@ -147,7 +156,6 @@ class FileListDisplayTests : KoinTest {
 
         //act
         val toto = FILE_TOTO(PATH)
-        val fileToEmit = toto.fullPath
 
         spy.updateEventFlow.test {
 
@@ -158,17 +166,22 @@ class FileListDisplayTests : KoinTest {
              **/
             //act
             spy.setObservedFolder(PATH)
+            advanceUntilIdle()
 
             //assert
             val event = awaitItem()
             val decision = CIA.sortUpdateEvents(event)
 
-            assert(decision is TransferingDecision.CREATEFILE)
-            assert(decision?.filePath == toto.fullPath)
-            assert((decision as TransferingDecision.CREATEFILE).modificationDate == 817L.toTauDate())
+            expect(decision).notToEqualNull() {
+                toBeAnInstanceOf<TransferingDecision.GlobalRefresh>()
+                feature{ f(it::filePath) }.toEqual(PATH)
+            }
         }
     }
 
+    //////////////
+    // test n°4 //
+    //////////////
     //#[[room se mêle du scan de démarrage]]
     fun `SpyService envoie au démarrage ancien si ∃ dans room && même`() = runTest {
 
@@ -204,9 +217,17 @@ class FileListDisplayTests : KoinTest {
             val decision = CIA.sortUpdateEvents(event)
 
             //assert
-            assert(decision is TransferingDecision.CREATEFILE)
-            assert(decision?.filePath == toto.fullPath)
-            assert((decision as TransferingDecision.CREATEFILE).modificationDate == 817L.toTauDate())
+            expect(decision){
+                toBeAnInstanceOf<TransferingDecision.CreateFile>()
+                notToEqualNull()
+                feature ({f(it!!::filePath)}){ toEqual(toto.fullPath)}
+                feature {f((it!! as TransferingDecision.CreateFile)::modificationDate)}.toEqual(817L.toTauDate())
+            }
+
+
+//            assert(decision is TransferingDecision.CREATEFILE)
+//            assert(decision?.filePath == toto.fullPath)
+//            assert((decision as TransferingDecision.CREATEFILE).modificationDate == 817L.toTauDate())
         }
     }
 }

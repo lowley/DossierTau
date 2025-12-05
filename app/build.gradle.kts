@@ -194,5 +194,9 @@ dependencies {
 // To use constraintlayout in compose
     implementation("androidx.constraintlayout:constraintlayout-compose:1.1.1")
 
-
+    /////////////
+    // assertJ //
+    /////////////
+//    testImplementation("com.google.truth:truth:1.4.5")
+    implementation("ch.tutteli.atrium:atrium-fluent:1.2.0")
 }

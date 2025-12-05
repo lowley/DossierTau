@@ -14,7 +14,7 @@ interface ISpy {
     // évènements créés par l'espion suite à une opération sur le disque //
     ///////////////////////////////////////////////////////////////////////
     val updateEventFlow: SharedFlow<IUpdateEvent>
-    fun emitIncomingEvent(event: AtomicUpdateEvent)
+    fun emitIncomingEvent(event: IUpdateEvent)
 
 
     ////////////////////////////////////
