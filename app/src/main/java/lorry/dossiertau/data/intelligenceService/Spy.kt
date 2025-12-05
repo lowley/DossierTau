@@ -17,6 +17,7 @@ import lorry.dossiertau.data.intelligenceService.utils.events.AtomicEventType
 import lorry.dossiertau.data.intelligenceService.utils.events.AtomicUpdateEvent
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
+import lorry.dossiertau.data.intelligenceService.utils.events.GlobalUpdateEvent
 import lorry.dossiertau.data.intelligenceService.utils.events.IUpdateEvent
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauPath
@@ -68,7 +69,7 @@ class Spy(
 
     override val updateEventFlow: SharedFlow<IUpdateEvent> = _updateEventFlow.asSharedFlow()
 
-    override fun emitIncomingEvent(event: AtomicUpdateEvent) {
+    override fun emitIncomingEvent(event: IUpdateEvent) {
         scope.launch {
             _updateEventFlow.emit(event)
         }
@@ -102,6 +103,11 @@ class Spy(
         observedFolderFlow.onEach { folderPath ->
             disableObservation()
             fileObserver = createObserverWith(folderPath)
+
+            //TODO une méthode pour décider de quoi faire dans CIA? existe déjà?
+            //ici on émet un GlobalScan
+            val event = GlobalUpdateEvent(folderPath)
+            emitIncomingEvent(event)
 
         }.launchIn(scope)
 

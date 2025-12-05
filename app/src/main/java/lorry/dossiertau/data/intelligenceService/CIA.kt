@@ -21,9 +21,9 @@ class CIA : LifecycleService() {
     val spy: ISpy = Spy()
     val airForce = AirForce()
 
-    //////////////////////////////////////////////////////////////////////////////////////
-    // la production du Fbi: informer TauFolder des changements dans le disque via Room //
-    //////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////
+    // la production de la  Cia: informer TauFolder des changements dans le disque via Room //
+    //////////////////////////////////////////////////////////////////////////////////////////
     val _ciaDecisions = MutableSharedFlow<TransferingDecision>()
     val ciaDecisions: SharedFlow<TransferingDecision> = _ciaDecisions.asSharedFlow()
 
@@ -54,12 +54,17 @@ class CIA : LifecycleService() {
     companion object {
         fun sortUpdateEvents(event: IUpdateEvent): TransferingDecision? {
 
-            val result = when (event){
+            val result = when (event) {
                 is AtomicUpdateEvent -> manageAtomicEvent(event)
-                is GlobalUpdateEvent -> null
+                is GlobalUpdateEvent -> manageGlobalEvent(event)
                 else -> null
             }
 
+            return result
+        }
+
+        private fun manageGlobalEvent(event: GlobalUpdateEvent): TransferingDecision? {
+            val result = TransferingDecision.GlobalRefresh(event.path)
             return result
         }
 
@@ -72,7 +77,7 @@ class CIA : LifecycleService() {
                     return null
                 }
                 AtomicEventType.CREATE -> {
-                    TransferingDecision.CREATEFILE(
+                    TransferingDecision.CreateFile(
                         eventFilePath = event.path,
                         modificationDate = event.modificationDate
                     )
