@@ -6,34 +6,73 @@ import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
 
-data class TauFolder(
-    override val id: TauIdentifier = TauIdentifier.random(),
-    override val parentPath: TauPath,
-    override val name: TauItemName,
-    override val picture: TauPicture = TauPicture.NONE,
-    override val modificationDate: TauDate = TauDate.now(),
+sealed class TauFolder private constructor(): TauItem {
+    inline val asData: Data? get() = this as? Data
 
-    val children: List<TauItem> = emptyList()
+    data object EMPTY : TauFolder()
+    data class Data(
+        override val id: TauIdentifier = TauIdentifier.random(),
+        override val parentPath: TauPath,
+        override val name: TauItemName,
+        override val picture: TauPicture = TauPicture.NONE,
+        override val modificationDate: TauDate = TauDate.now(),
 
+        val children: List<TauItem> = emptyList<TauItem>()
 
-) : TauItem {
+    ) : TauDataCommon, TauFolder() {
 
-    constructor(
-        id: TauIdentifier = TauIdentifier.random(),
-        fullPath: TauPath,
-        picture: TauPicture = TauPicture.NONE,
-        modificationDate: TauDate = TauDate.now(),
-        children: List<TauItem> = emptyList(),
-    ) : this(
-        parentPath = splitParentAndName(fullPath).first,
-        name = splitParentAndName(fullPath).second,
-        picture = picture,
-        modificationDate = modificationDate,
-        children = children,
-        id = id,
-    )
+        constructor(
+            id: TauIdentifier = TauIdentifier.random(),
+            fullPath: TauPath,
+            picture: TauPicture = TauPicture.NONE,
+            modificationDate: TauDate = TauDate.now(),
+            children: List<TauItem> = emptyList<TauItem>(),
+        ) : this(
+            parentPath = splitParentAndName(fullPath).first,
+            name = splitParentAndName(fullPath).second,
+            picture = picture,
+            modificationDate = modificationDate,
+            children = children,
+            id = id,
+        )
+    }
 
     companion object {
+        operator fun invoke(
+            id: TauIdentifier = TauIdentifier.random(),
+            fullPath: TauPath,
+            picture: TauPicture = TauPicture.NONE,
+            modificationDate: TauDate = TauDate.now(),
+            children: List<TauItem> = emptyList<TauItem>(),
+        ): TauFolder {
+            return Data(
+                id = id,
+                parentPath = splitParentAndName(fullPath).first,
+                name = splitParentAndName(fullPath).second,
+                picture = picture,
+                modificationDate = modificationDate,
+                children = children,
+            )
+        }
+
+        operator fun invoke(
+            id: TauIdentifier = TauIdentifier.random(),
+            parentPath: TauPath,
+            name: TauItemName,
+            picture: TauPicture = TauPicture.NONE,
+            modificationDate: TauDate = TauDate.now(),
+            children: List<TauItem> = emptyList<TauItem>(),
+        ): TauFolder {
+            return Data(
+                id = id,
+                parentPath = parentPath,
+                name = name,
+                picture = picture,
+                modificationDate = modificationDate,
+                children = children,
+            )
+        }
+
         private fun splitParentAndName(full: TauPath): Pair<TauPath, TauItemName> {
             val s = full.toString()
             val i = s.lastIndexOf('/')
@@ -43,4 +82,14 @@ data class TauFolder(
         }
     }
 }
+
+inline val TauFolder.name: TauItemName get() = asData?.name ?: TauItemName.EMPTY
+inline val TauFolder.parentPath: TauPath get() = asData?.parentPath ?: TauPath.EMPTY
+inline val TauFolder.picture: TauPicture get() = asData?.picture ?: TauPicture.NONE
+inline val TauFolder.modificationDate: TauDate
+    get() = asData?.modificationDate ?: TauDate.fromLong(0L)
+
+inline val TauFolder.children: List<TauItem> get() = asData?.children ?: emptyList()
+
+
 

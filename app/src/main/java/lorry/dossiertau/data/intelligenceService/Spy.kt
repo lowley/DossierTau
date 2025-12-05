@@ -13,10 +13,11 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import lorry.dossiertau.data.intelligenceService.utils.EventType
-import lorry.dossiertau.data.intelligenceService.utils.IncomingEvent
-import lorry.dossiertau.data.intelligenceService.utils.ItemType
+import lorry.dossiertau.data.intelligenceService.utils.events.AtomicEventType
+import lorry.dossiertau.data.intelligenceService.utils.events.AtomicUpdateEvent
+import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
+import lorry.dossiertau.data.intelligenceService.utils.events.IUpdateEvent
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauPath
 
@@ -63,13 +64,13 @@ class Spy(
     ///////////////////////////////////////////////////////////////////////
     // évènements créés par l'espion suite à une opération sur le disque //
     ///////////////////////////////////////////////////////////////////////
-    val _incomingEventFlow = MutableSharedFlow<IncomingEvent>()
+    val _updateEventFlow = MutableSharedFlow<IUpdateEvent>()
 
-    override val incomingEventFlow: SharedFlow<IncomingEvent> = _incomingEventFlow.asSharedFlow()
+    override val updateEventFlow: SharedFlow<IUpdateEvent> = _updateEventFlow.asSharedFlow()
 
-    override fun emitIncomingEvent(event: IncomingEvent) {
+    override fun emitIncomingEvent(event: AtomicUpdateEvent) {
         scope.launch {
-            _incomingEventFlow.emit(event)
+            _updateEventFlow.emit(event)
         }
     }
 
@@ -78,8 +79,8 @@ class Spy(
         itemType: ItemType,
         modificationDate: TauDate
     ) {
-        val fakeEvent = IncomingEvent(
-            eventType = EventType.CREATE,
+        val fakeEvent = AtomicUpdateEvent(
+            eventType = AtomicEventType.CREATE,
             path = fileToEmit,
             itemType = itemType,
             modificationDate = modificationDate,
@@ -88,8 +89,8 @@ class Spy(
         emitIncomingEvent(fakeEvent)
     }
 
-    suspend fun doOnEvent(incomingEvent: IncomingEvent) {
-        emitIncomingEvent(incomingEvent)
+    suspend fun doOnEvent(atomicUpdateEvent: AtomicUpdateEvent) {
+        emitIncomingEvent(atomicUpdateEvent)
 
     }
 

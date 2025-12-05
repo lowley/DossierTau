@@ -2,8 +2,9 @@ package lorry.dossiertau.data.intelligenceService
 
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import lorry.dossiertau.data.intelligenceService.utils.IncomingEvent
-import lorry.dossiertau.data.intelligenceService.utils.ItemType
+import lorry.dossiertau.data.intelligenceService.utils.events.AtomicUpdateEvent
+import lorry.dossiertau.data.intelligenceService.utils.events.IUpdateEvent
+import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauPath
 
@@ -12,8 +13,8 @@ interface ISpy {
     ///////////////////////////////////////////////////////////////////////
     // évènements créés par l'espion suite à une opération sur le disque //
     ///////////////////////////////////////////////////////////////////////
-    val incomingEventFlow: SharedFlow<IncomingEvent>
-    fun emitIncomingEvent(event: IncomingEvent)
+    val updateEventFlow: SharedFlow<IUpdateEvent>
+    fun emitIncomingEvent(event: AtomicUpdateEvent)
 
 
     ////////////////////////////////////

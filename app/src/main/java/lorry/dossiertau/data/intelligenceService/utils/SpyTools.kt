@@ -1,8 +1,7 @@
 package lorry.dossiertau.data.intelligenceService
 
-import lorry.dossiertau.data.intelligenceService.Spy
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
-import lorry.dossiertau.data.intelligenceService.utils.createIncomingEvent
+import lorry.dossiertau.data.intelligenceService.utils.events.createIncomingEvent
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.path
 import java.io.File

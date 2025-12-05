@@ -172,7 +172,6 @@ mindmap
       Pen and paper
       Mermaid
 
-
 ```
 
 ```mermaid

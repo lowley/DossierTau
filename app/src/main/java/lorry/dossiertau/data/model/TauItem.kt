@@ -1,26 +1,27 @@
 package lorry.dossiertau.data.model
 
-import androidx.compose.foundation.text.input.rememberTextFieldState
 import kotlinx.serialization.Serializable
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauIdentifier
 import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
-import java.util.UUID
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 @Serializable
-sealed interface TauItem {
+sealed interface TauItem {}
+
+// Contrat commun uniquement pour les variantes Data :
+interface TauDataCommon {
     val id: TauIdentifier
     val parentPath: TauPath
     val name: TauItemName
     val picture: TauPicture
     val modificationDate: TauDate
 
-
-
+    val fullPath: TauPath
+        get() = parentPath.appendToTauPath(name)
 }
 
 fun Collection<TauItem>.files() = this.filterIsInstance<TauFile>()
@@ -29,14 +30,8 @@ fun Collection<TauItem>.folders() = this.filterIsInstance<TauFolder>()
 fun TauItem.isFolder() = this is TauFolder
 fun TauItem.isFile() = this is TauFile
 
-inline val TauItem.fullPath: TauPath
-    get() = this.parentPath.appendToTauPath(this.name.value)
-
-
-
 fun Collection<TauItem>.computeParentFolderDate(): TauDate {
-
-    if (this.size == 0)
+    if (this.isEmpty())
         return TauDate.now()
 
     val result = this.map { it.modificationDate }.maxBy { it.value }
@@ -72,15 +67,34 @@ fun TauItem.sameAs(other: TauItem): Boolean {
         if (result == false)
             return false
 
-        val neutral1 = folder1.copy(id = TauIdentifier(Uuid.NIL), children = emptyList())
-        val neutral2 = folder1.copy(id = TauIdentifier(Uuid.NIL), children = emptyList())
+        val neutral1 = folder1.asData?.copy(
+            id = TauIdentifier(Uuid.NIL),
+            children = emptyList()
+        )
+        val neutral2 = folder1.asData?.copy(
+            id = TauIdentifier(Uuid.NIL),
+            children = emptyList())
 
         result = result && neutral1 == neutral2
         return result
 
-    }
-
-    else
+    } else
     //TauFile n'override aucune propriété
         return true
 }
+
+inline val TauItem.asDataCommon: TauDataCommon?
+    get() = when (this) {
+        is TauFolder -> this.asData
+        is TauFile   -> this.asData
+    }
+
+inline val TauItem.name: TauItemName
+    get() = asDataCommon?.name ?: TauItemName.EMPTY
+
+inline val TauItem.fullPath: TauPath
+    get() = asDataCommon?.fullPath ?: TauPath.EMPTY
+
+//TODO TauDate.EMPTY
+inline val TauItem.modificationDate: TauDate
+    get() = asDataCommon?.modificationDate ?: TauDate(0L)

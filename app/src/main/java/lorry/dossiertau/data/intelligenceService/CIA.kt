@@ -10,9 +10,11 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import lorry.dossiertau.data.intelligenceService.utils.EventType
-import lorry.dossiertau.data.intelligenceService.utils.IncomingEvent
+import lorry.dossiertau.data.intelligenceService.utils.events.AtomicEventType
 import lorry.dossiertau.data.intelligenceService.utils.TransferingDecision
+import lorry.dossiertau.data.intelligenceService.utils.events.AtomicUpdateEvent
+import lorry.dossiertau.data.intelligenceService.utils.events.GlobalUpdateEvent
+import lorry.dossiertau.data.intelligenceService.utils.events.IUpdateEvent
 
 class CIA : LifecycleService() {
 
@@ -39,8 +41,9 @@ class CIA : LifecycleService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
 
-        spy.incomingEventFlow.onEach { event ->
-            makeYourMind(event)?.let { decision ->
+        //makeYourMind n'est pas branchée directement sur le flux pour la testabilité
+        spy.updateEventFlow.onEach { event ->
+            sortUpdateEvents(event)?.let { decision ->
                 emitCIADecision(decision)
             }
         }.launchIn(scope = lifecycleScope)
@@ -49,42 +52,52 @@ class CIA : LifecycleService() {
     }
 
     companion object {
-        fun makeYourMind(event: IncomingEvent): TransferingDecision? {
+        fun sortUpdateEvents(event: IUpdateEvent): TransferingDecision? {
 
+            val result = when (event){
+                is AtomicUpdateEvent -> manageAtomicEvent(event)
+                is GlobalUpdateEvent -> null
+                else -> null
+            }
+
+            return result
+        }
+
+        private fun manageAtomicEvent(event: AtomicUpdateEvent): TransferingDecision? {
             return when (event.eventType){
-                EventType.ATTRIB -> {
+                AtomicEventType.ATTRIB -> {
                     return null
                 }
-                EventType.CLOSE_WRITE -> {
+                AtomicEventType.CLOSE_WRITE -> {
                     return null
                 }
-                EventType.CREATE -> {
+                AtomicEventType.CREATE -> {
                     TransferingDecision.CREATEFILE(
                         eventFilePath = event.path,
                         modificationDate = event.modificationDate
                     )
                 }
-                EventType.DELETE -> {
+                AtomicEventType.DELETE -> {
                     return null
                 }
-                EventType.DELETE_SELF -> {
+                AtomicEventType.DELETE_SELF -> {
                     return null
                 }
-                EventType.MODIFY -> {
+                AtomicEventType.MODIFY -> {
                     return null
                 }
-                EventType.MOVED_FROM -> {
+                AtomicEventType.MOVED_FROM -> {
                     return null
                 }
-                EventType.MOVED_TO -> {
+                AtomicEventType.MOVED_TO -> {
                     return null
                 }
-                EventType.MOVE_SELF -> {
+                AtomicEventType.MOVE_SELF -> {
                     return null
 
                 }
 
-                EventType.UNKNOWN -> {
+                AtomicEventType.UNKNOWN -> {
                     return null
                 }
             }

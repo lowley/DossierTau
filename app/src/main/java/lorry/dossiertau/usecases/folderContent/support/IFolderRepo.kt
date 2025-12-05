@@ -5,6 +5,7 @@ import lorry.dossiertau.support.littleClasses.TauPath
 
 interface IFolderRepo {
     suspend fun getItemsInFullPath(tauPath: TauPath): List<TauRepoItem>
+    suspend fun readFolder(path: Any)
 
 
 }

@@ -41,8 +41,10 @@ import arrow.core.None
 import arrow.core.Option
 import arrow.core.Some
 import arrow.core.raise.fold
+import lorry.dossiertau.data.model.children
 import lorry.dossiertau.data.model.fullPath
 import lorry.dossiertau.data.model.isFolder
+import lorry.dossiertau.data.model.name
 import lorry.dossiertau.support.littleClasses.EMPTY
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.toTauPath

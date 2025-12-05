@@ -73,6 +73,19 @@ value class TauPath(val value: Either<EMPTY, Data>) {
 
         return result
     }
+
+    fun appendToTauPath(end: TauItemName): TauPath {
+        val result = this.value.fold(
+            ifLeft = {
+                end.value.toTauPath()
+            },
+            ifRight = {
+                (it.value + end.value).toTauPath()
+            }
+        )
+
+        return result
+    }
 }
 
 fun Either<EMPTY, Data>.toTauPath() = TauPath(this)

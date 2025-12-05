@@ -7,13 +7,13 @@ import lorry.dossiertau.support.littleClasses.TauIdentifier
 import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
+import kotlin.collections.emptyList
 
 data class TauRepoFolder (
     override val id: TauIdentifier = TauIdentifier.random(),
     override val parentPath: TauPath = TauPath.EMPTY,
     override val name: TauItemName = TauItemName.EMPTY,
     override val modificationDate: TauDate = TauDate.now(),
-
 
 
 
@@ -50,6 +50,6 @@ fun TauRepoFolder.toTauFolder(): TauFolder{
         name = this.name,
         picture = TauPicture.NONE,
         modificationDate = this.modificationDate,
-        children = emptyList(),
+        children = listOf<TauItem>(),
     )
 }
