@@ -28,8 +28,6 @@ import lorry.dossiertau.support.littleClasses.toTauDate
 import ch.tutteli.atrium.api.fluent.en_GB.*
 import ch.tutteli.atrium.api.verbs.expect
 import io.mockk.spyk
-import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.plus
 import lorry.dossiertau.data.planes.DbCommand
 import org.junit.Rule
@@ -246,8 +244,6 @@ class FileListDisplayTests : KoinTest {
         prepareKoin(testScheduler)
         val testScope = this
         val dispatcher = StandardTestDispatcher(testScheduler)
-        val ciaScope = CoroutineScope(dispatcher + CoroutineName("CIA-scope"))
-        val airScope = CoroutineScope(dispatcher + CoroutineName("AirForce-scope"))
 
         //assert
         //* répertoire à observer
@@ -265,7 +261,7 @@ class FileListDisplayTests : KoinTest {
         )
 
         val airForce = spyk<AirForce>(airForceOne)
-        val job = airForce.start(cia.ciaDecisions)
+        val job = airForce.startListeningForCIADecisions()
 
         val createFileDecision = TransferingDecision.CreateFile(
             eventFilePath = toto.fullPath,

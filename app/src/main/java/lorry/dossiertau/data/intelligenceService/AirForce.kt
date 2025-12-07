@@ -1,10 +1,8 @@
 package lorry.dossiertau.data.intelligenceService
 
-import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import lorry.dossiertau.data.intelligenceService.utils.TransferingDecision
@@ -20,9 +18,10 @@ class AirForce(
     val scope: CoroutineScope
 ) {
 
-    fun start(decisions: SharedFlow<TransferingDecision>): Job {
-        return decisions.onEach { decision ->
+    fun startListeningForCIADecisions(): Job {
+        return cia.ciaDecisions.onEach { decision ->
             println("COLLECT| name=${coroutineContext[CoroutineName]} thread=${Thread.currentThread().name} disp=${coroutineContext[ContinuationInterceptor]}")
+
             when (decision){
                 is TransferingDecision.CreateFile -> {
 
