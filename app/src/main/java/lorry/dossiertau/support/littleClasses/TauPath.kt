@@ -37,7 +37,7 @@ value class TauPath(val value: Either<EMPTY, Data>) {
 
 
     override fun toString(): String = when (this.value) {
-        is Either.Right -> "τPath($value)"
+        is Either.Right -> "τPath(${value.right().getOrNull()?.value?.value ?: "EMPTY/PB"})"
         is Either.Left -> "τPath(EMPTY)"
     }
 

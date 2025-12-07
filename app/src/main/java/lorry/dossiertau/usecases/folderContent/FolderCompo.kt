@@ -1,5 +1,6 @@
 package lorry.dossiertau.usecases.folderContent
 
+import androidx.compose.material3.rememberTooltipState
 import arrow.core.None
 import arrow.core.Option
 import arrow.core.toOption
@@ -28,7 +29,7 @@ import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 class FolderCompo(
     val folderRepo: IFolderRepo,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
-): IFolderCompo {
+) : IFolderCompo {
 
     private val scope = CoroutineScope(dispatcher + SupervisorJob())
 
@@ -36,8 +37,8 @@ class FolderCompo(
     private val _folderFlow = MutableStateFlow<Option<TauFolder>>(None)
     override val folderFlow = _folderFlow.asStateFlow()
 
-    private fun changeFolderFlow(folder: Option<TauFolder>){
-        println("DEBUG: changeFolderFlow($folder)")
+    private fun changeFolderFlow(folder: Option<TauFolder>) {
+        println("DEBUG: changeFolderFlow: ${folder.display()}")
         _folderFlow.update { folder }
     }
 
@@ -66,12 +67,30 @@ class FolderCompo(
     }
 
     override val folderPathFlow: StateFlow<Option<TauPath>>
-        get() = folderFlow.map { it.fold(
-            ifEmpty = { None },
-            ifSome = { it.parentPath.toOption() }
-        ) }.stateIn(
+        get() = folderFlow.map {
+            it.fold(
+                ifEmpty = { None },
+                ifSome = { it.parentPath.toOption() }
+            )
+        }.stateIn(
             scope = scope,
             started = SharingStarted.Eagerly,
             initialValue = Option.fromNullable(null)
         )
 }
+
+fun Option<TauFolder>.display(): String {
+
+    val PB = "\uD835\uDED5Folder(PB)"
+    val NONE = "\uD835\uDED5Folder(NONE)"
+
+    val isNull = this.getOrNull() == null
+    if (isNull)
+        return NONE
+
+    val parentPath = this.getOrNull()?.parentPath?.toString() ?: return PB
+
+    val data = this.getOrNull()?.toString() ?: NONE
+    return data
+}
+

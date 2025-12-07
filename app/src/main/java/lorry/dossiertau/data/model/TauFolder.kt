@@ -1,5 +1,6 @@
 package lorry.dossiertau.data.model
 
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.data.planes.DbItem
 import lorry.dossiertau.support.littleClasses.TauDate
@@ -37,6 +38,16 @@ sealed class TauFolder private constructor(): TauItem {
             children = children,
             id = id,
         )
+
+        override fun toString(): String {
+            val name = name.value
+            val hasPicture = if (picture != TauPicture.NONE) "✅" else "❌"
+            val modificationDate = modificationDate.toddMMyyyyHHmmss()
+            val children = children.size
+            val path = parentPath
+
+            return "\uD835\uDED5Folder ▶ 🪧($name) 🌿$path 🪁(${children}) 🖼️${hasPicture} 📆${modificationDate} ◀"
+        }
     }
 
     companion object {
@@ -83,6 +94,12 @@ sealed class TauFolder private constructor(): TauItem {
             return parent to TauItemName(base)
         }
     }
+
+    override fun toString(): String {
+        val PB = "\uD835\uDED5Folder(PB)"
+
+        return asData?.toString() ?: PB
+    }
 }
 
 inline val TauFolder.name: TauItemName get() = asData?.name ?: TauItemName.EMPTY
@@ -98,4 +115,3 @@ fun TauFolder.toDbFile() = DbItem(
     modificationDate = this.modificationDate,
     type = ItemType.FOLDER
 )
-
