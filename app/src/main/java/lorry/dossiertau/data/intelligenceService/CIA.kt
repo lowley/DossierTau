@@ -3,7 +3,12 @@ package lorry.dossiertau.data.intelligenceService
 import android.content.Intent
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.GlobalScope.coroutineContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -15,11 +20,15 @@ import lorry.dossiertau.data.intelligenceService.utils.TransferingDecision
 import lorry.dossiertau.data.intelligenceService.utils.events.AtomicUpdateEvent
 import lorry.dossiertau.data.intelligenceService.utils.events.GlobalUpdateEvent
 import lorry.dossiertau.data.intelligenceService.utils.events.IUpdateEvent
+import kotlin.coroutines.ContinuationInterceptor
+import kotlin.io.println
 
-class CIA : LifecycleService() {
+class CIA(
+    private val scope: CoroutineScope,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.Default
+) : LifecycleService() {
 
     val spy: ISpy = Spy()
-    val airForce = AirForce()
 
     //////////////////////////////////////////////////////////////////////////////////////////
     // la production de la  Cia: informer TauFolder des changements dans le disque via Room //
@@ -28,9 +37,14 @@ class CIA : LifecycleService() {
     val ciaDecisions: SharedFlow<TransferingDecision> = _ciaDecisions.asSharedFlow()
 
     fun emitCIADecision(decision: TransferingDecision){
-        lifecycleScope.launch(Dispatchers.Default) {
+        scope.launch(dispatcher) {
+            println("EMIT  | name=${GlobalScope.coroutineContext[CoroutineName]} thread=${Thread.currentThread().name} disp=${GlobalScope.coroutineContext[ContinuationInterceptor]}")
             _ciaDecisions.emit(decision)
         }
+    }
+
+    private suspend fun emitAction(decision: TransferingDecision) {
+
     }
 
     override fun onCreate() {
@@ -43,16 +57,16 @@ class CIA : LifecycleService() {
 
         //makeYourMind n'est pas branchée directement sur le flux pour la testabilité
         spy.updateEventFlow.onEach { event ->
-            sortUpdateEvents(event)?.let { decision ->
+            manageUpdateEvents(event)?.let { decision ->
                 emitCIADecision(decision)
             }
-        }.launchIn(scope = lifecycleScope)
+        }.launchIn(scope = scope)
 
         return START_STICKY
     }
 
     companion object {
-        fun sortUpdateEvents(event: IUpdateEvent): TransferingDecision? {
+        fun manageUpdateEvents(event: IUpdateEvent): TransferingDecision? {
 
             val result = when (event) {
                 is AtomicUpdateEvent -> manageAtomicEvent(event)

@@ -1,6 +1,8 @@
 package lorry.dossiertau.data.model
 
+import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.data.model.TauFolder.Data
+import lorry.dossiertau.data.planes.DbItem
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauExtension
 import lorry.dossiertau.support.littleClasses.TauIdentifier
@@ -73,8 +75,6 @@ sealed class TauFile private constructor() : TauItem {
             return parent to TauItemName(base)
         }
     }
-
-
 }
 
 inline val TauFile.name: TauItemName get() = asData?.name ?: TauItemName.EMPTY
@@ -84,3 +84,9 @@ inline val TauFile.modificationDate: TauDate
     get() = asData?.modificationDate ?: TauDate.fromLong(0L)
 
 inline val TauFile.size: Long get() = asData?.size ?: 0L
+
+fun TauFile.toDbFile() = DbItem(
+    fullPath = this.fullPath,
+    modificationDate = this.modificationDate,
+    type = ItemType.FILE
+)

@@ -1,5 +1,6 @@
 package lorry.dossiertau.fileListDisplay
 
+import androidx.room.Ignore
 import app.cash.turbine.test
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -26,9 +27,18 @@ import lorry.dossiertau.data.model.*
 import lorry.dossiertau.support.littleClasses.toTauDate
 import ch.tutteli.atrium.api.fluent.en_GB.*
 import ch.tutteli.atrium.api.verbs.expect
+import io.mockk.spyk
+import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.plus
+import lorry.dossiertau.data.planes.DbCommand
+import org.junit.Rule
 
 
 class FileListDisplayTests : KoinTest {
+
+    @get:Rule
+    val mainDispatcherRule = MainDispatcherRule()
 
     //////////////
     // test n°1 //
@@ -82,6 +92,7 @@ class FileListDisplayTests : KoinTest {
     //////////////
     // test n°2 //
     //////////////
+    // le diff est émis mais pas encore envoyé (c'est le rôle d'AirForce)
     @Test
     fun `#2 SpyService + file created ⇒ diff emitted`() = runTest {
 
@@ -108,12 +119,12 @@ class FileListDisplayTests : KoinTest {
             //act + arrange
             advanceUntilIdle()
             val event = awaitItem()
-            val decision = CIA.sortUpdateEvents(event)
+            val decision = CIA.manageUpdateEvents(event)
 
             //assert
-            expect(decision).notToEqualNull(){
+            expect(decision).notToEqualNull() {
                 toBeAnInstanceOf<TransferingDecision.CreateFile>()
-                feature { f((it as TransferingDecision.CreateFile)::modificationDate)}.toEqual(817L.toTauDate())
+                feature { f((it as TransferingDecision.CreateFile)::modificationDate) }.toEqual(817L.toTauDate())
             }
 
             cancelAndIgnoreRemainingEvents()
@@ -123,6 +134,8 @@ class FileListDisplayTests : KoinTest {
     //////////////
     // test n°3 //
     //////////////
+    // changer de répertoire observé courant (ROC) ⇒ full émis
+    // mais NI collecte ni envoi à room
     @Test
     fun `#3 SpyService + folder changed ⇒ global emitted`() = runTest {
 
@@ -157,11 +170,11 @@ class FileListDisplayTests : KoinTest {
 
             //assert
             val event = awaitItem()
-            val decision = CIA.sortUpdateEvents(event)
+            val decision = CIA.manageUpdateEvents(event)
 
             expect(decision).notToEqualNull() {
                 toBeAnInstanceOf<TransferingDecision.GlobalRefresh>()
-                feature{ f(it::filePath) }.toEqual(PATH)
+                feature { f(it::filePath) }.toEqual(PATH)
             }
         }
     }
@@ -169,25 +182,25 @@ class FileListDisplayTests : KoinTest {
     //////////////
     // test n°4 //
     //////////////
+    @Ignore
     //#[[room se mêle du scan de démarrage]]
-    fun `SpyService envoie au démarrage ancien si ∃ dans room && même`() = runTest {
+    fun `#4 SpyService envoie au démarrage ancien si ∃ dans room && même`() = runTest {
 
         //* SPY ----   events on items   ---->  FBI ---- treated infos     ----> AIRFORCE
         //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
 
         prepareKoin(testScheduler)
-
-        val fakeRepo: IFolderRepo by inject()
-        val fakeCompo: IFolderCompo by inject()
-        val fakeVM: TauViewModel by inject()
-
-
+        val testScope = this
         //assert
         //* répertoire à observer
         val PATH = "/storage/emulated/0/Download".toTauPath()
 
         val spy = Spy(StandardTestDispatcher(testScheduler))
-        val airForce = AirForce()
+        val cia = CIA(
+            scope = testScope,
+            dispatcher = StandardTestDispatcher(testScheduler)
+        )
+        val airForce = AirForce(cia, testScope)
 //        val decisionLogic = FBI::makeYourMind(spy.DiskEventFlow)
         spy.setObservedFolder(PATH)
         //spy.startSurveillance()
@@ -201,16 +214,74 @@ class FileListDisplayTests : KoinTest {
             spy.emitFake_CREATEFILE(fileToEmit, ItemType.FILE, 817L.toTauDate())
             //act + arrange
             val event = awaitItem()
-            val decision = CIA.sortUpdateEvents(event)
+            val decision = CIA.manageUpdateEvents(event)
 
             //assert
-            expect(decision){
+            expect(decision) {
                 toBeAnInstanceOf<TransferingDecision.CreateFile>()
                 notToEqualNull()
-                feature ({f(it!!::filePath)}){ toEqual(toto.fullPath)}
-                feature {f((it!! as TransferingDecision.CreateFile)::modificationDate)}.toEqual(817L.toTauDate())
+                feature({ f(it!!::filePath) }) { toEqual(toto.fullPath) }
+                feature { f((it!! as TransferingDecision.CreateFile)::modificationDate) }.toEqual(
+                    817L.toTauDate()
+                )
             }
         }
     }
+
+    //////////////
+    // test n°5 //
+    //////////////
+    @Test
+    fun `#5 Airforce envoie le diff CREATE_FILE`() = runTest {
+
+        //* SPY ----   events on items   ---->  FBI ---- treated infos     ----> AIRFORCE
+        //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
+
+        /**
+         * idées à retenir
+         * - le même scope pour émission de flux & réception
+         * - un flux.each{}.stateIn() doit être un job cancellé à la fin du test
+         */
+
+        prepareKoin(testScheduler)
+        val testScope = this
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val ciaScope = CoroutineScope(dispatcher + CoroutineName("CIA-scope"))
+        val airScope = CoroutineScope(dispatcher + CoroutineName("AirForce-scope"))
+
+        //assert
+        //* répertoire à observer
+        val PATH = "/storage/emulated/0/Download".toTauPath()
+        val toto = FILE_TOTO(PATH)
+
+        val cia = CIA(
+            scope = testScope + dispatcher,
+            dispatcher = dispatcher
+        )
+
+        val airForceOne = AirForce(
+            cia = cia,
+            scope = testScope + dispatcher,
+        )
+
+        val airForce = spyk<AirForce>(airForceOne)
+        val job = airForce.start(cia.ciaDecisions)
+
+        val createFileDecision = TransferingDecision.CreateFile(
+            eventFilePath = toto.fullPath,
+            modificationDate = toto.modificationDate
+        )
+
+        //act
+        cia.emitCIADecision(createFileDecision)
+        advanceUntilIdle()
+
+        //assert
+        val dbCommand = DbCommand.CreateItem(toto.toDbFile())
+        coVerify { airForce.modifyDatabaseBy(dbCommand) }
+
+        job.cancel()
+    }
 }
+
 

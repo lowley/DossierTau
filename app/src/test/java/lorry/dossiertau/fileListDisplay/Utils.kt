@@ -1,8 +1,12 @@
 package lorry.dossiertau.fileListDisplay
 
 import io.mockk.spyk
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
+import kotlinx.coroutines.test.TestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
 import lorry.basics.TauInjections
 import lorry.dossiertau.TauViewModel
 import lorry.dossiertau.data.model.TauFile
@@ -16,6 +20,8 @@ import lorry.dossiertau.usecases.folderContent.FolderCompo
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 import org.junit.After
+import org.junit.rules.TestWatcher
+import org.junit.runner.Description
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.GlobalContext.startKoin
 import org.koin.core.context.GlobalContext.stopKoin
@@ -80,4 +86,15 @@ fun FileListDisplayTests.REPOFOLDER_DIVERS(parentPath: TauPath) = TauRepoFolder(
 @After
 fun FileListDisplayTests.tearDownKoin() {
     stopKoin()
+}
+
+class MainDispatcherRule(
+    val dispatcher: TestDispatcher = StandardTestDispatcher()
+) : TestWatcher() {
+    override fun starting(description: Description) {
+        Dispatchers.setMain(dispatcher)
+    }
+    override fun finished(description: Description) {
+        Dispatchers.resetMain()
+    }
 }

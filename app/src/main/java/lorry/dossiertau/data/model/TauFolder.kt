@@ -1,5 +1,7 @@
 package lorry.dossiertau.data.model
 
+import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
+import lorry.dossiertau.data.planes.DbItem
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauIdentifier
 import lorry.dossiertau.support.littleClasses.TauItemName
@@ -17,7 +19,7 @@ sealed class TauFolder private constructor(): TauItem {
         override val picture: TauPicture = TauPicture.NONE,
         override val modificationDate: TauDate = TauDate.now(),
 
-        val children: List<TauItem> = emptyList<TauItem>()
+        val children: List<TauItem> = emptyList()
 
     ) : TauDataCommon, TauFolder() {
 
@@ -91,5 +93,9 @@ inline val TauFolder.modificationDate: TauDate
 
 inline val TauFolder.children: List<TauItem> get() = asData?.children ?: emptyList()
 
-
+fun TauFolder.toDbFile() = DbItem(
+    fullPath = this.fullPath,
+    modificationDate = this.modificationDate,
+    type = ItemType.FOLDER
+)
 
