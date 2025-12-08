@@ -14,6 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.GlobalScope.coroutineContext
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -41,6 +42,7 @@ class CIA() : LifecycleService() {
 
     val spy: ISpy = koin.get()
     val airForce: AirForce = koin.get()
+    private var eventsJob: Job? = null
 
     //////////////////////////////////////////////////////////////////////////////////////////
     // la production de la  Cia: informer TauFolder des changements dans le disque via Room //
@@ -55,28 +57,24 @@ class CIA() : LifecycleService() {
         }
     }
 
-    private suspend fun emitAction(decision: TransferingDecision) {
-
-    }
-
     override fun onCreate() {
         super.onCreate()
         startForegroundServiceWithNotification()
-    }
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        super.onStartCommand(intent, flags, startId)
-
         airForce.cia = this
         airForce.startListeningForCIADecisions()
 
-        //makeYourMind n'est pas branchée directement sur le flux pour la testabilité
-        spy.updateEventFlow.onEach { event ->
-            manageUpdateEvents(event)?.let { decision ->
-                emitCIADecision(decision)
-            }
-        }.launchIn(scope = scope)
+        if (eventsJob?.isActive != true) {
+            eventsJob = spy.updateEventFlow
+                .onEach { event ->
+                    manageUpdateEvents(event)?.let { emitCIADecision(it) }
+                }
+                .launchIn(lifecycleScope) // LifecycleService fournit lifecycleScope
+        }
+    }
 
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+
+        super.onStartCommand(intent, flags, startId)
         return START_STICKY
     }
 
@@ -166,4 +164,8 @@ class CIA() : LifecycleService() {
         )
     }
 
+    override fun onDestroy() {
+        eventsJob?.cancel()
+        super.onDestroy()
+    }
 }
