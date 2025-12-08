@@ -11,7 +11,7 @@ import kotlin.uuid.Uuid
 value class TauIdentifier @OptIn(ExperimentalUuidApi::class)
 constructor(val value: Uuid = Uuid.random()) {
 
-    companion object{
+    companion object {
         @OptIn(ExperimentalUuidApi::class)
         fun random(): TauIdentifier = TauIdentifier()
     }
@@ -28,4 +28,36 @@ constructor(val value: Uuid = Uuid.random()) {
         return toString().take(5)
     }
 
+}
+
+@OptIn(ExperimentalUuidApi::class)
+fun String.toTauIdentifier(): TauIdentifier {
+
+    if (this == null)
+        return TauIdentifier.random()
+
+    val result = try {
+        TauIdentifier(Uuid.parse(this))
+    } catch (ex: Exception) {
+        println("String.toTauIdentifier(): erreur de conversion")
+        TauIdentifier.random()
+    }
+
+    return result
+}
+
+@OptIn(ExperimentalUuidApi::class)
+fun Uuid.toTauIdentifier(): TauIdentifier {
+
+    if (this == null)
+        return TauIdentifier.random()
+
+    val result = try {
+        TauIdentifier(this)
+    } catch (ex: Exception) {
+        println("Uuid.toTauIdentifier(): erreur de conversion")
+        TauIdentifier.random()
+    }
+
+    return result
 }

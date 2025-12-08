@@ -1,3 +1,4 @@
+import org.gradle.kotlin.dsl.testImplementation
 import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
@@ -159,10 +160,15 @@ dependencies {
     //https://github.com/peter-tackage/kotlin-options
     implementation("com.github.peter-tackage.kotlin-options:kotlin-options:0.10")
 
-    val room1 = "2.7.0"
+    val room1 = "2.8.4"
     implementation("androidx.room:room-runtime:$room1")
     implementation("androidx.room:room-ktx:$room1")   // coroutines, Flow, transactions suspend
     ksp("androidx.room:room-compiler:$room1") // annotation processor (remplace kapt
+    // versions récentes (ex. fin 2025)
+    testImplementation("androidx.room:room-runtime:$room1")
+    testImplementation("androidx.sqlite:sqlite-bundled:2.6.2")
+    // KSP si tu compiles les entités/DAO dans ce module de test :
+    kspTest("androidx.room:room-compiler:$room1")
 
     implementation("org.jetbrains.kotlin:kotlin-reflect:2.0.21")
 

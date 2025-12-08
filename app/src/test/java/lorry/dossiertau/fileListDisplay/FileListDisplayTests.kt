@@ -27,11 +27,19 @@ import lorry.dossiertau.data.model.*
 import lorry.dossiertau.support.littleClasses.toTauDate
 import ch.tutteli.atrium.api.fluent.en_GB.*
 import ch.tutteli.atrium.api.verbs.expect
+import io.mockk.Runs
+import io.mockk.coJustRun
+import io.mockk.just
+import io.mockk.mockk
 import io.mockk.spyk
+import io.mockk.verify
 import kotlinx.coroutines.plus
+import lorry.dossiertau.data.dbModel.DiffRepository
+import lorry.dossiertau.data.dbModel.FileDiffDao
+import lorry.dossiertau.data.dbModel.FileDiffDao_Impl
+import lorry.dossiertau.data.dbModel.toFileDiffEntity
 import lorry.dossiertau.data.planes.DbCommand
 import org.junit.Rule
-
 
 class FileListDisplayTests : KoinTest {
 
@@ -189,6 +197,7 @@ class FileListDisplayTests : KoinTest {
 
         prepareKoin(testScheduler)
         val testScope = this
+        val dispatcher = StandardTestDispatcher(testScheduler)
         //assert
         //* répertoire à observer
         val PATH = "/storage/emulated/0/Download".toTauPath()
@@ -198,8 +207,21 @@ class FileListDisplayTests : KoinTest {
             scope = testScope,
             dispatcher = StandardTestDispatcher(testScheduler)
         )
-        val airForce = AirForce(cia, testScope)
-//        val decisionLogic = FBI::makeYourMind(spy.DiskEventFlow)
+
+//        val db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), AppDb::class.java)
+//            .allowMainThreadQueries() // OK en test
+//            .build()
+//        val dao = db.fileDiffDao()
+//        val repo = DiffRepository(dao, StandardTestDispatcher(testScheduler))
+
+//        val airForceOne = AirForce(
+//            cia = cia,
+//            scope = testScope + dispatcher,
+//            repo = repo
+//        )
+
+//        val airForce = spyk<AirForce>(airForceOne)
+
         spy.setObservedFolder(PATH)
         //spy.startSurveillance()
 
@@ -255,9 +277,13 @@ class FileListDisplayTests : KoinTest {
             dispatcher = dispatcher
         )
 
+
+        val repo = mockk<DiffRepository>()
+
         val airForceOne = AirForce(
             cia = cia,
             scope = testScope + dispatcher,
+            repo = repo
         )
 
         val airForce = spyk<AirForce>(airForceOne)
@@ -267,6 +293,9 @@ class FileListDisplayTests : KoinTest {
             eventFilePath = toto.fullPath,
             modificationDate = toto.modificationDate
         )
+
+        //elle ne fait rien
+        coEvery { airForce.modifyDatabaseBy(any()) } just Runs
 
         //act
         cia.emitCIADecision(createFileDecision)
@@ -278,6 +307,59 @@ class FileListDisplayTests : KoinTest {
 
         job.cancel()
     }
+
+    //////////////
+    // test n°6 //
+    //////////////
+    @Test
+    fun `#6 Airforce + repo transmettent DbCommand⬝CreateItem`() = runTest {
+
+        //* SPY ----   events on items   ---->  FBI ---- treated infos     ----> AIRFORCE
+        //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
+
+        /**
+         * idées à retenir
+         * - le même scope pour émission de flux & réception
+         * - un flux.each{}.stateIn() doit être un job cancellé à la fin du test
+         */
+
+        prepareKoin(testScheduler)
+        val testScope = this
+        val dispatcher = StandardTestDispatcher(testScheduler)
+
+        //assert
+        //* répertoire à observer
+        val PATH = "/storage/emulated/0/Download".toTauPath()
+        val toto = FILE_TOTO(PATH)
+
+        val cia = CIA(
+            scope = testScope + dispatcher,
+            dispatcher = dispatcher
+        )
+
+        val dao = mockk<FileDiffDao>()
+        val repo = DiffRepository(dao, StandardTestDispatcher(testScheduler))
+
+        val airForceOne = AirForce(
+            cia = cia,
+            scope = testScope + dispatcher,
+            repo = repo
+        )
+
+        val airForce = spyk<AirForce>(airForceOne)
+        val dbCommand = DbCommand.CreateItem(toto.toDbFile())
+
+        coEvery { dao.insert(any()) } returns 1L
+
+        //act
+        airForce.modifyDatabaseBy(dbCommand)
+        advanceUntilIdle()
+
+        //assert
+        coVerify(exactly = 1) { dao.insert(dbCommand.toFileDiffEntity()) }
+    }
+
+
 }
 
 

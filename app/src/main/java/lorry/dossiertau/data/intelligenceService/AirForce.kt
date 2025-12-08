@@ -5,6 +5,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
+import lorry.dossiertau.data.dbModel.DiffRepository
+import lorry.dossiertau.data.dbModel.toFileDiffEntity
 import lorry.dossiertau.data.intelligenceService.utils.TransferingDecision
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.data.planes.DbCommand
@@ -15,6 +18,7 @@ import kotlin.io.println
 
 class AirForce(
     val cia: CIA,
+    private val repo: DiffRepository,
     val scope: CoroutineScope
 ) {
 
@@ -46,11 +50,13 @@ class AirForce(
     }
 
 
-    fun modifyDatabaseBy(dbCommand: DbCommand) {
-
-
-
-
-
+    fun modifyDatabaseBy(command: DbCommand) {
+        when(command){
+            is DbCommand.CreateItem -> {
+                scope.launch {
+                    repo.insertDiff(command)
+                }
+            }
+        }
     }
 }

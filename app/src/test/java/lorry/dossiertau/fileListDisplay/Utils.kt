@@ -1,5 +1,7 @@
 package lorry.dossiertau.fileListDisplay
 
+import androidx.room.Room
+import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import io.mockk.spyk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -9,6 +11,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import lorry.basics.TauInjections
 import lorry.dossiertau.TauViewModel
+import lorry.dossiertau.data.dbModel.AppDb
 import lorry.dossiertau.data.model.TauFile
 import lorry.dossiertau.data.diskTransfer.TauRepoFile
 import lorry.dossiertau.data.diskTransfer.TauRepoFolder
@@ -27,6 +30,7 @@ import org.koin.core.context.GlobalContext.startKoin
 import org.koin.core.context.GlobalContext.stopKoin
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
+import java.io.File
 
 fun FileListDisplayTests.prepareKoin(testScheduler: TestCoroutineScheduler) {
 
@@ -98,3 +102,11 @@ class MainDispatcherRule(
         Dispatchers.resetMain()
     }
 }
+
+//private fun buildTestDb(): AppDb {
+//    val dbFile = File.createTempFile("room-test-", ".db").apply { deleteOnExit() }
+//    val db = Room.databaseBuilder<AppDb>(name = ":memory:")
+//        .setDriver(BundledSQLiteDriver())   // ← pas de Context requis
+//        .build()
+//    return db
+//}
