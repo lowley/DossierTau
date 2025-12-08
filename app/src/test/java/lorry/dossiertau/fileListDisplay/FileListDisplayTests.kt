@@ -203,10 +203,10 @@ class FileListDisplayTests : KoinTest {
         val PATH = "/storage/emulated/0/Download".toTauPath()
 
         val spy = Spy(StandardTestDispatcher(testScheduler))
-        val cia = CIA(
-            scope = testScope,
-            dispatcher = StandardTestDispatcher(testScheduler)
-        )
+        val cia = CIA()
+
+        cia.scope = testScope
+        cia.dispatcher = StandardTestDispatcher(testScheduler)
 
 //        val db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), AppDb::class.java)
 //            .allowMainThreadQueries() // OK en test
@@ -272,11 +272,10 @@ class FileListDisplayTests : KoinTest {
         val PATH = "/storage/emulated/0/Download".toTauPath()
         val toto = FILE_TOTO(PATH)
 
-        val cia = CIA(
-            scope = testScope + dispatcher,
-            dispatcher = dispatcher
-        )
+        val cia = CIA()
 
+        cia.scope = testScope + dispatcher
+        cia.dispatcher = dispatcher
 
         val repo = mockk<DiffRepository>()
 
@@ -332,10 +331,10 @@ class FileListDisplayTests : KoinTest {
         val PATH = "/storage/emulated/0/Download".toTauPath()
         val toto = FILE_TOTO(PATH)
 
-        val cia = CIA(
-            scope = testScope + dispatcher,
-            dispatcher = dispatcher
-        )
+        val cia = CIA()
+
+        cia.scope = testScope + dispatcher
+        cia.dispatcher = dispatcher
 
         val dao = mockk<FileDiffDao>()
         val repo = DiffRepository(dao, StandardTestDispatcher(testScheduler))

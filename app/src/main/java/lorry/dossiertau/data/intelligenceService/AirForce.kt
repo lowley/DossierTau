@@ -17,10 +17,11 @@ import kotlin.coroutines.coroutineContext
 import kotlin.io.println
 
 class AirForce(
-    val cia: CIA,
     private val repo: DiffRepository,
     val scope: CoroutineScope
 ) {
+
+    lateinit var cia: CIA
 
     fun startListeningForCIADecisions(): Job {
         return cia.ciaDecisions.onEach { decision ->
@@ -48,7 +49,6 @@ class AirForce(
 
         }.launchIn(scope)
     }
-
 
     fun modifyDatabaseBy(command: DbCommand) {
         when(command){

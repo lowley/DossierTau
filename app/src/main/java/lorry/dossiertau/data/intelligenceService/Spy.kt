@@ -70,7 +70,7 @@ class Spy(
     override val updateEventFlow: SharedFlow<IUpdateEvent> = _updateEventFlow.asSharedFlow()
 
     override fun emitIncomingEvent(event: IUpdateEvent) {
-        scope.launch {
+        scope.launch(dispatcher) {
             _updateEventFlow.emit(event)
         }
     }
@@ -101,13 +101,17 @@ class Spy(
         // réglages //
         //////////////
         observedFolderFlow.onEach { folderPath ->
-            disableObservation()
-            fileObserver = createObserverWith(folderPath)
+            if (folderPath.value.isRight()) {
 
-            //TODO une méthode pour décider de quoi faire dans CIA? existe déjà?
-            //ici on émet un GlobalScan
-            val event = GlobalUpdateEvent(folderPath)
-            emitIncomingEvent(event)
+                disableObservation()
+                fileObserver = createObserverWith(folderPath)
+                //TODO voir légitimité
+                fileObserver?.startWatching()
+                //TODO une méthode pour décider de quoi faire dans CIA? existe déjà?
+                //ici on émet un GlobalScan
+                val event = GlobalUpdateEvent(folderPath)
+                emitIncomingEvent(event)
+            }
 
         }.launchIn(scope)
 

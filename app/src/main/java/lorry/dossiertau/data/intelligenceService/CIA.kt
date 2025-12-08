@@ -1,6 +1,11 @@
 package lorry.dossiertau.data.intelligenceService
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.os.Build
+import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CoroutineDispatcher
@@ -15,20 +20,27 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import lorry.dossiertau.R
+import lorry.dossiertau.TauApp
 import lorry.dossiertau.data.intelligenceService.utils.events.AtomicEventType
 import lorry.dossiertau.data.intelligenceService.utils.TransferingDecision
 import lorry.dossiertau.data.intelligenceService.utils.events.AtomicUpdateEvent
 import lorry.dossiertau.data.intelligenceService.utils.events.GlobalUpdateEvent
 import lorry.dossiertau.data.intelligenceService.utils.events.IUpdateEvent
+import lorry.dossiertau.support.littleClasses.path
+import org.koin.android.ext.android.inject
+import org.koin.core.context.GlobalContext
 import kotlin.coroutines.ContinuationInterceptor
 import kotlin.io.println
 
-class CIA(
-    private val scope: CoroutineScope,
-    private val dispatcher: CoroutineDispatcher = Dispatchers.Default
-) : LifecycleService() {
+class CIA() : LifecycleService() {
 
-    val spy: ISpy = Spy()
+    val koin = GlobalContext.get()
+    var scope: CoroutineScope = koin.get()
+    var dispatcher: CoroutineDispatcher = Dispatchers.Default
+
+    val spy: ISpy = koin.get()
+    val airForce: AirForce = koin.get()
 
     //////////////////////////////////////////////////////////////////////////////////////////
     // la production de la  Cia: informer TauFolder des changements dans le disque via Room //
@@ -49,11 +61,14 @@ class CIA(
 
     override fun onCreate() {
         super.onCreate()
-
+        startForegroundServiceWithNotification()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
+
+        airForce.cia = this
+        airForce.startListeningForCIADecisions()
 
         //makeYourMind n'est pas branchée directement sur le flux pour la testabilité
         spy.updateEventFlow.onEach { event ->
@@ -121,6 +136,34 @@ class CIA(
                 }
             }
         }
+    }
+
+    private fun startForegroundServiceWithNotification() {
+        val channelId = "cia_channel"
+        val channelName = "CIA Surveillance"
+        val notificationId = 1
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                channelName,
+                NotificationManager.IMPORTANCE_LOW
+            )
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(channel)
+        }
+
+        val notification = NotificationCompat.Builder(this, channelId)
+            .setContentTitle("CIA active")
+            .setContentText("Service ok. Répertoire courant: ${spy.observedFolderFlow.value.path}")
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .build()
+
+        startForeground(
+            notificationId,
+            notification,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+        )
     }
 
 }

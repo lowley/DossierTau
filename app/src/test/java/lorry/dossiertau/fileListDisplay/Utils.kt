@@ -3,6 +3,7 @@ package lorry.dossiertau.fileListDisplay
 import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import io.mockk.spyk
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
@@ -12,6 +13,7 @@ import kotlinx.coroutines.test.setMain
 import lorry.basics.TauInjections
 import lorry.dossiertau.TauViewModel
 import lorry.dossiertau.data.dbModel.AppDb
+import lorry.dossiertau.data.dbModel.DiffRepository
 import lorry.dossiertau.data.model.TauFile
 import lorry.dossiertau.data.diskTransfer.TauRepoFile
 import lorry.dossiertau.data.diskTransfer.TauRepoFolder
@@ -25,6 +27,7 @@ import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 import org.junit.After
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
+import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.GlobalContext.startKoin
 import org.koin.core.context.GlobalContext.stopKoin
@@ -51,6 +54,21 @@ fun FileListDisplayTests.prepareKoin(testScheduler: TestCoroutineScheduler) {
                     )
                 }
                 single<TauViewModel> { spyk(TauViewModel(get())) }
+
+                single<CoroutineDispatcher> { Dispatchers.IO }
+
+                single {
+                    Room.databaseBuilder(
+                        androidContext(),
+                        AppDb::class.java,
+                        "tau-db.sqlite"
+                    )
+                        // .fallbackToDestructiveMigration() // si tu veux démarrer simple
+                        .build()
+                }
+
+                single { get<AppDb>().fileDiffDao() }
+                single { DiffRepository(get(), get()) }
             }
         )
     }

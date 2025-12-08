@@ -1,5 +1,7 @@
 package lorry.dossiertau
 
+import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -41,6 +43,7 @@ import arrow.core.None
 import arrow.core.Option
 import arrow.core.Some
 import arrow.core.raise.fold
+import lorry.dossiertau.data.intelligenceService.CIA
 import lorry.dossiertau.data.model.children
 import lorry.dossiertau.data.model.fullPath
 import lorry.dossiertau.data.model.isFolder
@@ -63,6 +66,8 @@ class MainActivity : ComponentActivity() {
         val permissionsManager = PermissionsManager()
         if (!permissionsManager.hasExternalStoragePermission())
             permissionsManager.requestExternalStoragePermission(this)
+
+        startSpying()
 
         setContent {
             DossierTauTheme {
@@ -224,6 +229,16 @@ class MainActivity : ComponentActivity() {
         ) {
 
         }
+    }
+
+    private fun startSpying() {
+        val intent = Intent(this, CIA::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
+
     }
 
 }
