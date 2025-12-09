@@ -71,6 +71,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.core.ktx)
     // --- Unit tests (testImplementation) ---
     testImplementation(libs.junit)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
@@ -205,4 +206,9 @@ dependencies {
     /////////////
 //    testImplementation("com.google.truth:truth:1.4.5")
     implementation("ch.tutteli.atrium:atrium-fluent:1.2.0")
+
+    ////////////////
+    // tests room //
+    ////////////////
+    testImplementation("org.robolectric:robolectric:4.16")
 }

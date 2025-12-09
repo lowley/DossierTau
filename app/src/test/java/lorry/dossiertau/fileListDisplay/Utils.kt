@@ -25,6 +25,7 @@ import lorry.dossiertau.usecases.folderContent.FolderCompo
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 import org.junit.After
+import org.junit.Before
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 import org.koin.android.ext.koin.androidContext
@@ -53,21 +54,21 @@ fun FileListDisplayTests.prepareKoin(testScheduler: TestCoroutineScheduler) {
                         )
                     )
                 }
-                single<TauViewModel> { spyk(TauViewModel(get())) }
+                single<TauViewModel> { spyk(TauViewModel(get(), get())) }
 
                 single<CoroutineDispatcher> { Dispatchers.IO }
 
-                single {
-                    Room.databaseBuilder(
-                        androidContext(),
-                        AppDb::class.java,
-                        "tau-db.sqlite"
-                    )
-                        // .fallbackToDestructiveMigration() // si tu veux démarrer simple
-                        .build()
-                }
-
-                single { get<AppDb>().fileDiffDao() }
+//                single {
+//                    Room.databaseBuilder(
+//                        androidContext(),
+//                        AppDb::class.java,
+//                        "tau-db.sqlite"
+//                    )
+//                        // .fallbackToDestructiveMigration() // si tu veux démarrer simple
+//                        .build()
+//                }
+//
+//                single { get<AppDb>().fileDiffDao() }
                 single { DiffRepository(get(), get()) }
             }
         )
@@ -105,10 +106,6 @@ fun FileListDisplayTests.REPOFOLDER_DIVERS(parentPath: TauPath) = TauRepoFolder(
     modificationDate = TauDate(834)
 )
 
-@After
-fun FileListDisplayTests.tearDownKoin() {
-    stopKoin()
-}
 
 class MainDispatcherRule(
     val dispatcher: TestDispatcher = StandardTestDispatcher()
@@ -116,6 +113,7 @@ class MainDispatcherRule(
     override fun starting(description: Description) {
         Dispatchers.setMain(dispatcher)
     }
+
     override fun finished(description: Description) {
         Dispatchers.resetMain()
     }
@@ -128,3 +126,4 @@ class MainDispatcherRule(
 //        .build()
 //    return db
 //}
+

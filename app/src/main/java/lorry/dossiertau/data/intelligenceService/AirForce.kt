@@ -16,11 +16,13 @@ import kotlin.coroutines.ContinuationInterceptor
 import kotlin.coroutines.coroutineContext
 import kotlin.io.println
 
+/**
+ * Necesitos injectar con cia
+ */
 class AirForce(
     private val repo: DiffRepository,
     val scope: CoroutineScope
 ) {
-
     lateinit var cia: CIA
 
     fun startListeningForCIADecisions(): Job {

@@ -18,4 +18,10 @@ interface FileDiffDao {
     ORDER BY modified_at_epoch_ms DESC
   """)
     fun diffsForFolder(folder: String): Flow<List<DiffEntity>>
+
+    @Query("""
+    SELECT * FROM file_diffs
+    ORDER BY modified_at_epoch_ms DESC
+  """)
+    fun dbForFolder(): Flow<List<DiffEntity>>
 }

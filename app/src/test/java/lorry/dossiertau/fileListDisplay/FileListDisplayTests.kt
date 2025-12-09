@@ -1,7 +1,11 @@
 package lorry.dossiertau.fileListDisplay
 
 import androidx.room.Ignore
+import androidx.room.Room
+import androidx.sqlite.driver.bundled.BundledSQLiteDriver
+import androidx.test.core.app.ApplicationProvider
 import app.cash.turbine.test
+import arrow.core.raise.catch
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.confirmVerified
@@ -33,18 +37,32 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.spyk
 import io.mockk.verify
+import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.plus
+import lorry.dossiertau.data.dbModel.AppDb
 import lorry.dossiertau.data.dbModel.DiffRepository
 import lorry.dossiertau.data.dbModel.FileDiffDao
 import lorry.dossiertau.data.dbModel.FileDiffDao_Impl
 import lorry.dossiertau.data.dbModel.toFileDiffEntity
 import lorry.dossiertau.data.planes.DbCommand
+import lorry.dossiertau.support.littleClasses.path
+import org.junit.After
+import org.junit.Before
 import org.junit.Rule
+import org.junit.runner.RunWith
+import org.koin.android.ext.koin.androidContext
+import org.koin.core.context.GlobalContext.stopKoin
+import org.robolectric.RobolectricTestRunner
+import java.io.File
 
+@RunWith(RobolectricTestRunner::class)
 class FileListDisplayTests : KoinTest {
 
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
+
+    var db: AppDb? = null
+    var dbDao: FileDiffDao? = null
 
     //////////////
     // test n°1 //
@@ -280,10 +298,11 @@ class FileListDisplayTests : KoinTest {
         val repo = mockk<DiffRepository>()
 
         val airForceOne = AirForce(
-            cia = cia,
             scope = testScope + dispatcher,
             repo = repo
         )
+
+        airForceOne.cia = cia
 
         val airForce = spyk<AirForce>(airForceOne)
         val job = airForce.startListeningForCIADecisions()
@@ -340,10 +359,10 @@ class FileListDisplayTests : KoinTest {
         val repo = DiffRepository(dao, StandardTestDispatcher(testScheduler))
 
         val airForceOne = AirForce(
-            cia = cia,
             scope = testScope + dispatcher,
             repo = repo
-        )
+        ).apply { this.cia = cia }
+
 
         val airForce = spyk<AirForce>(airForceOne)
         val dbCommand = DbCommand.CreateItem(toto.toDbFile())
@@ -359,6 +378,75 @@ class FileListDisplayTests : KoinTest {
     }
 
 
+    //////////////
+    // test n°7 //
+    //////////////
+    @Test
+    fun `#7 DB ajout createFile ⇒ modif items courants si pertinent`() = runTest {
+
+        prepareKoin(testScheduler)
+        val appDb: AppDb = Room.databaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            AppDb::class.java,
+            "tau-db.sqlite"
+        ).build()
+
+        try {
+            dbDao = appDb.fileDiffDao()
+
+            val PATH = "/storage/emulated/0/Download".toTauPath()
+            val toto = FILE_TOTO(PATH)
+
+            dbDao!!.diffsForFolder(PATH.path.dropLast(1)).test {
+
+                val dbCommand = DbCommand.CreateItem(toto.toDbFile())
+                dbDao!!.insert(dbCommand.toFileDiffEntity())
+                advanceUntilIdle()
+
+                val dbFile = File("/Users/olivier/Downloads", "tau-db-snapshot.sqlite")
+                if (dbFile.exists())
+                    dbFile.delete()
+                advanceUntilIdle()
+
+                val snap = dbFile.absolutePath
+                appDb.openHelper.writableDatabase.execSQL("VACUUM INTO '$snap';")
+                println("Snapshot -> $snap")
+
+                var entry = awaitItem()
+                println(entry.size)
+            }
+
+        } catch (ex: Exception) {
+            println(ex.message)
+
+        }
+        finally {
+            db?.close()
+            appDb.close()
+        }
+    }
+
+    @Before
+    fun setUp() {
+//        db = Room.inMemoryDatabaseBuilder(
+//            androidContext(),
+//            AppDb::class.java
+//        )
+//            .allowMainThreadQueries()
+//            .build()
+//
+//        dbDao = db?.fileDiffDao()
+
+    }
+
+    @After
+    fun tearDownKoin() {
+        stopKoin()
+        db?.close()
+//        val dbFile = File("/Users/olivier/Downloads", "tau-db-snapshot.sqlite")
+
+
+    }
 }
 
 
