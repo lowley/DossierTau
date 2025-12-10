@@ -6,12 +6,12 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
 open class RecursiveFileObserver(
-    private val root: File,
-    private val mask: Int =
+    var root: File,
+    var mask: Int =
         FileObserver.CREATE or FileObserver.DELETE or FileObserver.MODIFY or
                 FileObserver.MOVED_FROM or FileObserver.MOVED_TO or
                 FileObserver.ATTRIB or FileObserver.DELETE_SELF or FileObserver.MOVE_SELF,
-    private val dispatch: (Event) -> Unit
+    var dispatch: (Event) -> Unit
 ) {
     data class Event(
         val event: Int,

@@ -95,6 +95,25 @@ sealed class TauFolder private constructor(): TauItem {
         }
     }
 
+    fun addItem(itemToAdd: TauItem): TauFolder{
+
+        val children = asData?.children
+
+        //sans path, on ne créé pas de nouvel élément
+        if (this is EMPTY)
+            return this
+
+        val data = this as Data
+
+        if (itemToAdd in children!!)
+            return this
+
+        return data.copy(
+            children = children!!.plus(itemToAdd)
+        )
+    }
+
+
     override fun toString(): String {
         val PB = "\uD835\uDED5Folder(PB)"
 

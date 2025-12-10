@@ -1,11 +1,10 @@
 package lorry.dossiertau.fileListDisplay
 
+import android.os.FileObserver
 import androidx.room.Ignore
 import androidx.room.Room
-import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.test.core.app.ApplicationProvider
 import app.cash.turbine.test
-import arrow.core.raise.catch
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.confirmVerified
@@ -32,28 +31,28 @@ import lorry.dossiertau.support.littleClasses.toTauDate
 import ch.tutteli.atrium.api.fluent.en_GB.*
 import ch.tutteli.atrium.api.verbs.expect
 import io.mockk.Runs
-import io.mockk.coJustRun
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.spyk
-import io.mockk.verify
-import kotlinx.coroutines.flow.last
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.plus
 import lorry.dossiertau.data.dbModel.AppDb
 import lorry.dossiertau.data.dbModel.DiffRepository
 import lorry.dossiertau.data.dbModel.FileDiffDao
-import lorry.dossiertau.data.dbModel.FileDiffDao_Impl
 import lorry.dossiertau.data.dbModel.toFileDiffEntity
+import lorry.dossiertau.data.intelligenceService.ISpy
+import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
 import lorry.dossiertau.data.planes.DbCommand
 import lorry.dossiertau.support.littleClasses.path
+import lorry.dossiertau.usecases.folderContent.FolderCompo
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.runner.RunWith
-import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.GlobalContext.stopKoin
 import org.robolectric.RobolectricTestRunner
-import java.io.File
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
 
 @RunWith(RobolectricTestRunner::class)
 class FileListDisplayTests : KoinTest {
@@ -382,9 +381,10 @@ class FileListDisplayTests : KoinTest {
     // test n°7 //
     //////////////
     @Test
-    fun `#7 DB ajout createFile ⇒ modif items courants si pertinent`() = runTest {
+    fun `#7 DB ajout createFile ⇒ DB a bien un élément`() = runTest {
 
         prepareKoin(testScheduler)
+
         val appDb: AppDb = Room.databaseBuilder(
             ApplicationProvider.getApplicationContext(),
             AppDb::class.java,
@@ -392,35 +392,131 @@ class FileListDisplayTests : KoinTest {
         ).build()
 
         try {
+
+            //0 éléments
             dbDao = appDb.fileDiffDao()
 
             val PATH = "/storage/emulated/0/Download".toTauPath()
             val toto = FILE_TOTO(PATH)
 
-            dbDao!!.diffsForFolder(PATH.path.dropLast(1)).test {
+            dbDao!!.diffsForFolder(PATH.path).test {
 
                 val dbCommand = DbCommand.CreateItem(toto.toDbFile())
                 dbDao!!.insert(dbCommand.toFileDiffEntity())
                 advanceUntilIdle()
 
-                val dbFile = File("/Users/olivier/Downloads", "tau-db-snapshot.sqlite")
-                if (dbFile.exists())
-                    dbFile.delete()
-                advanceUntilIdle()
-
-                val snap = dbFile.absolutePath
-                appDb.openHelper.writableDatabase.execSQL("VACUUM INTO '$snap';")
-                println("Snapshot -> $snap")
+//                val dbFile = File("/Users/olivier/Downloads", "tau-db-snapshot.sqlite")
+//                val snap = dbFile.absolutePath
+//                appDb.openHelper.writableDatabase.execSQL("VACUUM INTO '$snap';")
+//                println("Snapshot -> $snap")
 
                 var entry = awaitItem()
-                println(entry.size)
+                expect(entry).toHaveSize(1)
             }
 
         } catch (ex: Exception) {
+            //potentiellement le fichier de snapshot existe encore
             println(ex.message)
 
+        } finally {
+            db?.close()
+            appDb.close()
         }
-        finally {
+    }
+
+    //////////////
+    // test n°8 //
+    //////////////
+    @Test
+    fun `#8 DB ajout createFile ⇒ modif items courants si pertinent`() = runTest {
+
+        prepareKoin(testScheduler)
+        val dispatcher = StandardTestDispatcher(testScheduler)
+
+        val appDb = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(),
+            AppDb::class.java)
+            .allowMainThreadQueries() // ok en test
+            .build()
+
+//        val appDb: AppDb = Room.databaseBuilder(
+//            ApplicationProvider.getApplicationContext(),
+//            AppDb::class.java,
+//            "tau-db.sqlite"
+//        ).build()
+
+        try {
+            dbDao = appDb.fileDiffDao()
+
+            if (dbDao == null)
+                throw Exception("erreur test #8")
+
+            val fakeRepo: IFolderRepo by inject()
+            val fakeCompo: IFolderCompo = spyk(
+                FolderCompo(
+                    folderRepo = fakeRepo,
+                    dispatcher = dispatcher,
+                    fileDiffDAO = dbDao!!
+                )
+            )
+            val fakeSpy: ISpy = spyk(
+                Spy(
+                    dispatcher = dispatcher,
+                    fileObserver = TauFileObserver.DISABLED,
+                )
+            )
+
+            val fakeVM: TauViewModel = spyk(
+                TauViewModel(
+                    folderCompo = fakeCompo,
+                    spy = fakeSpy
+                )
+            )
+
+            val PATH = "/storage/emulated/0/Download".toTauPath()
+            val toto = FILE_TOTO(PATH)
+
+            val tenSeconds = 10.toDuration(DurationUnit.SECONDS)
+
+            //Ça force folderPathFlow à devenir Some(PATH) → diffsForFolder(PATH) sera effectivement collecté
+            fakeVM.setTauFolder(PATH)
+
+            val readyFolder = fakeCompo.folderFlow.first { opt ->
+                opt.isSome() && opt.getOrNull()?.fullPath?.path == PATH.path
+            }
+
+            advanceUntilIdle()
+
+            fakeCompo.folderFlow.test(timeout = tenSeconds) {
+
+                val dbCommand = DbCommand.CreateItem(toto.toDbFile())
+
+                //1. transite dans DB
+                //2. lu et traité par folderCompo
+                dbDao!!.insert(dbCommand.toFileDiffEntity())
+//                advanceUntilIdle()
+
+//                val dbFile = File("/Users/olivier/Downloads", "tau-db-snapshot.sqlite")
+//                val snap = dbFile.absolutePath
+//                appDb.openHelper.writableDatabase.execSQL("VACUUM INTO '$snap';")
+//                println("Snapshot -> $snap")
+
+//                var currentFolder = awaitItem()
+
+                //TODO pq 2 valeurs émises
+                awaitItem()
+                val currentFolder = awaitItem()
+
+                expect(currentFolder) {
+                    its { isSome() }.toEqual(true)
+                    its { getOrNull()?.children?.size }.toEqual(1)
+                }
+            }
+
+        } catch (ex: Exception) {
+            //potentiellement le fichier de snapshot existe encore
+            println(ex.message)
+
+        } finally {
             db?.close()
             appDb.close()
         }
@@ -428,14 +524,6 @@ class FileListDisplayTests : KoinTest {
 
     @Before
     fun setUp() {
-//        db = Room.inMemoryDatabaseBuilder(
-//            androidContext(),
-//            AppDb::class.java
-//        )
-//            .allowMainThreadQueries()
-//            .build()
-//
-//        dbDao = db?.fileDiffDao()
 
     }
 

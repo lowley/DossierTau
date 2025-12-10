@@ -24,10 +24,17 @@ value class TauPath(val value: Either<EMPTY, Data>) {
 
         fun of(value: String): TauPath = when (value) {
             "" -> EMPTY
-            else -> Data(normalize(value)).right().toTauPath()
+            else -> Data(normalizeWithoutSlash(value)).right().toTauPath()
         }
 
-        private fun normalize(value: String): String {
+        fun normalizeWithoutSlash(value: String): String {
+            var t = value.trim().replace("\\", "/").replace("//", "/")
+            if (t.endsWith("/")) t = t.dropLast(1)
+            if (!t.startsWith("/")) t = "/$t"
+            return t
+        }
+
+        fun normalizeWithSlash(value: String): String {
             var t = value.trim().replace("\\", "/").replace("//", "/")
             if (!t.endsWith("/")) t += "/"
             if (!t.startsWith("/")) t = "/$t"
@@ -36,23 +43,19 @@ value class TauPath(val value: Either<EMPTY, Data>) {
     }
 
 
-    override fun toString(): String = when (this.value) {
-        is Either.Right -> "τPath(${value.right().getOrNull()?.value?.value ?: "EMPTY/PB"})"
+    override fun toString(): String = when (val e = this.value) {
+        is Either.Right -> "τPath(${e.value.value})"
         is Either.Left -> "τPath(EMPTY)"
     }
 
-    fun equalsTo(other: TauPath) = {
-        val result = when (listOf(this.value::class.java, other.value::class.java)) {
-            listOf(EMPTY::class.java, EMPTY::class.java) -> true
-            listOf(EMPTY::class.java, Data::class.java) -> false
-            listOf(Data::class.java, EMPTY::class.java) -> false
-            else -> {
-                val mine = this.value as Data
-                val theirs = other.value as Data
-                mine == theirs
-            }
+    infix fun equalsTo(other: TauPath): Boolean =
+        when {
+            this.value is Either.Left && other.value is Either.Left -> true
+            this.value is Either.Right && other.value is Either.Right ->
+                (this.value as Either.Right).value.value ==
+                        (other.value as Either.Right).value.value
+            else -> false
         }
-    }
 
     fun toFile(): Option<File> {
         return when (this.value) {
@@ -67,7 +70,8 @@ value class TauPath(val value: Either<EMPTY, Data>) {
                 end.toTauPath()
             },
             ifRight = {
-                (it.value + end).toTauPath()
+
+                (normalizeWithSlash(it.value) + end).toTauPath()
             }
         )
 
@@ -80,9 +84,24 @@ value class TauPath(val value: Either<EMPTY, Data>) {
                 end.value.toTauPath()
             },
             ifRight = {
-                (it.value + end.value).toTauPath()
+                "${it.value}/${end.value}".toTauPath()
             }
         )
+
+        return result
+    }
+
+    fun normalizeWithoutSlash(): TauPath =
+        when (val e = this.value) {
+            is Either.Left  -> EMPTY
+            is Either.Right -> TauPath.of(Companion.normalizeWithoutSlash(e.value.value))
+        }
+
+    fun normalizeWithSlash(): TauPath {
+        val result = when (val e = this.value) {
+            is Either.Left -> EMPTY
+            is Either.Right -> normalizeWithSlash(e.getOrNull()!!.value).toTauPath()
+        }
 
         return result
     }
@@ -109,3 +128,4 @@ inline val TauPath.path
         is Either.Left -> ""
         is Either.Right -> this.value.value.value
     }
+

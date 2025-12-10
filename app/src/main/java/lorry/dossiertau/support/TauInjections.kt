@@ -13,6 +13,7 @@ import lorry.dossiertau.data.intelligenceService.AirForce
 import lorry.dossiertau.data.intelligenceService.CIA
 import lorry.dossiertau.data.intelligenceService.ISpy
 import lorry.dossiertau.data.intelligenceService.Spy
+import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
 import lorry.dossiertau.usecases.folderContent.FolderCompo
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
 import lorry.dossiertau.usecases.folderContent.support.FolderRepo
@@ -20,21 +21,9 @@ import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 import org.koin.core.qualifier.named
 
 val TauInjections = module {
-    single<IFolderRepo>(named("real")) { FolderRepo(/*...*/) }
-    single<IFolderRepo> { get(named("real")) }          // alias public
 
-    single<IFolderCompo>(named("real")) { FolderCompo(get()) }
-    single<IFolderCompo> { get(named("real")) }
+    single { TauFileObserver.INACTIVE }
 
-
-
-    single<TauViewModel>(named("real")) { TauViewModel(get(), get()) }
-    single<TauViewModel> { get(named("real")) }
-
-
-}
-
-val RoomModule = module {
     single {
         // Contexte d'application ONLY (pas d’Activity)
         Room.databaseBuilder(get(), AppDb::class.java, "foldertau.db")
@@ -50,4 +39,25 @@ val RoomModule = module {
     single { AirForce(get(), get()) }
     single<ISpy> { Spy() }
     single { CIA() }
+
+    single<IFolderRepo>(named("real")) { FolderRepo(/*...*/) }
+    single<IFolderRepo> { get(named("real")) }          // alias public
+
+    single<IFolderCompo>(named("real")) { FolderCompo(
+        folderRepo = get(),
+        fileDiffDAO = get()
+    )}
+
+    single<IFolderCompo> { get(named("real")) }
+
+
+
+    single<TauViewModel>(named("real")) { TauViewModel(get(), get()) }
+    single<TauViewModel> { get(named("real")) }
+
+
+}
+
+val RoomModule = module {
+
 }

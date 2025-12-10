@@ -12,23 +12,36 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapConcat
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import lorry.dossiertau.data.dbModel.DiffEntity
+import lorry.dossiertau.data.dbModel.FileDiffDao
+import lorry.dossiertau.data.dbModel.toTauItem
 import lorry.dossiertau.data.model.computeParentFolderDate
 import lorry.dossiertau.data.diskTransfer.toTauItems
 import lorry.dossiertau.data.model.TauFolder
+import lorry.dossiertau.data.model.children
 import lorry.dossiertau.data.model.parentPath
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
 import lorry.dossiertau.support.littleClasses.name
 import lorry.dossiertau.support.littleClasses.parentPath
+import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 
 class FolderCompo(
     val folderRepo: IFolderRepo,
-    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val fileDiffDAO: FileDiffDao
 ) : IFolderCompo {
 
     private val scope = CoroutineScope(dispatcher + SupervisorJob())
@@ -47,7 +60,7 @@ class FolderCompo(
      */
     override fun setFolderFlow(folderFullPath: TauPath) {
         //#[[coroutine longue]]
-        scope.launch {
+        scope.launch(dispatcher) {
             val repoItems = folderRepo.getItemsInFullPath(folderFullPath)
             val compoItems = repoItems.toTauItems()
 
@@ -77,6 +90,34 @@ class FolderCompo(
             started = SharingStarted.Eagerly,
             initialValue = Option.fromNullable(null)
         )
+
+    init {
+        scope.launch(dispatcher) {
+            collectDiffs()
+        }
+    }
+
+    private suspend fun collectDiffs() {
+        folderPathFlow.flatMapLatest {
+            if (it.isSome())
+            // fileDiffDAO.diffsForFolder(path) est un Flow qui émet chaque fois que la DB change
+                fileDiffDAO.diffsForFolder(it.getOrNull()!!.path)
+            // Si le chemin est vide, on retourne un Flow qui n'émet rien mais NE SE TERMINE PAS
+            // (sinon le collect se termine), ou flowOf(emptyList()) si on veut une valeur initiale.
+            // Utilisateur: flowOf() semble suffisant s'il est vide, mais faisons-le propre.
+            // Si le DAO retourne List<DiffEntity>, on retourne un Flow<List<DiffEntity>> vide.
+            else flow<List<DiffEntity>> { kotlinx.coroutines.awaitCancellation()}
+        }
+            .collect { diff ->
+                val folder = folderFlow.value.getOrNull() ?: return@collect
+
+                //TODO tester si children contient déjà item
+                changeFolderFlow(
+                    //TODO compléter: plusieurs éléments dans diff
+                    folder.addItem(diff[0].toTauItem()).toOption()
+                )
+            }
+    }
 }
 
 fun Option<TauFolder>.display(): String {

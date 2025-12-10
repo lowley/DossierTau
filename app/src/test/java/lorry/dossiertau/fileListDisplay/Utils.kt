@@ -49,8 +49,9 @@ fun FileListDisplayTests.prepareKoin(testScheduler: TestCoroutineScheduler) {
                 single<IFolderCompo> {
                     spyk(
                         FolderCompo(
-                            get(),
-                            StandardTestDispatcher(testScheduler)
+                            folderRepo = get(),
+                            dispatcher = StandardTestDispatcher(testScheduler),
+                            fileDiffDAO = get()
                         )
                     )
                 }

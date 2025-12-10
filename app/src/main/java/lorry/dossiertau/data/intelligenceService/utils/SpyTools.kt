@@ -7,19 +7,24 @@ import lorry.dossiertau.support.littleClasses.path
 import java.io.File
 
 fun Spy.disableObservation() {
-    if (fileObserver != null && fileObserver!!.started.get()) {
+    if (fileObserver != null && fileObserver!!.started) {
         fileObserver!!.stopWatching()
-        fileObserver = null
     }
 }
 
-fun Spy.createObserverWith(folderPath: TauPath): TauFileObserver? = TauFileObserver(
-    file = File(folderPath.path),
-    doOnEvent = { event, path ->
-        path?.let {
-            val incomingEvent = createIncomingEvent(event, path)?.let {
-                doOnEvent(it)
+fun Spy.changeObserverWith(folderPath: TauPath): TauFileObserver? {
+    disableObservation()
+    val result = TauFileObserver.of(
+        file = File(folderPath.path),
+        doOnEvent = { event, path ->
+            path?.let {
+                val incomingEvent = createIncomingEvent(event, path)?.let {
+                    doOnEvent(it)
+                }
             }
         }
-    }
-)
+
+    )
+
+    return result
+}

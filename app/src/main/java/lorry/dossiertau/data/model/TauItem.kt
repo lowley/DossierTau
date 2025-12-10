@@ -21,7 +21,7 @@ interface TauDataCommon {
     val modificationDate: TauDate
 
     val fullPath: TauPath
-        get() = parentPath.appendToTauPath(name)
+        get() = parentPath.normalizeWithSlash().appendToTauPath(name)
 }
 
 fun Collection<TauItem>.files() = this.filterIsInstance<TauFile>()
@@ -92,7 +92,7 @@ inline val TauItem.asDataCommon: TauDataCommon?
 inline val TauItem.name: TauItemName
     get() = asDataCommon?.name ?: TauItemName.EMPTY
 
-inline val TauItem.fullPath: TauPath
+val TauItem.fullPath: TauPath
     get() = asDataCommon?.fullPath ?: TauPath.EMPTY
 
 //TODO TauDate.EMPTY

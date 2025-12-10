@@ -13,17 +13,18 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
 import lorry.dossiertau.data.intelligenceService.utils.events.AtomicEventType
 import lorry.dossiertau.data.intelligenceService.utils.events.AtomicUpdateEvent
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
-import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
 import lorry.dossiertau.data.intelligenceService.utils.events.GlobalUpdateEvent
 import lorry.dossiertau.data.intelligenceService.utils.events.IUpdateEvent
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauPath
 
 class Spy(
-    private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    var fileObserver: TauFileObserver = TauFileObserver.INACTIVE
 ) : ISpy {
 
     private val scope: CoroutineScope = CoroutineScope(dispatcher + SupervisorJob())
@@ -56,11 +57,6 @@ class Spy(
     override fun setObservedFolder(folderPath: TauPath) {
         _observedFolderFlow.update { folderPath }
     }
-
-    //////////////////
-    // surveillance //
-    //////////////////
-    var fileObserver: TauFileObserver? = null
 
     ///////////////////////////////////////////////////////////////////////
     // évènements créés par l'espion suite à une opération sur le disque //
@@ -103,8 +99,9 @@ class Spy(
         observedFolderFlow.onEach { folderPath ->
             if (folderPath.value.isRight()) {
 
-                disableObservation()
-                fileObserver = createObserverWith(folderPath)
+                fileObserver.changeTarget(path = folderPath)
+
+//                fileObserver = changeObserverWith(folderPath)
                 //TODO voir légitimité
                 fileObserver?.startWatching()
                 //TODO une méthode pour décider de quoi faire dans CIA? existe déjà?
