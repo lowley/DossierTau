@@ -556,9 +556,6 @@ class FileListDisplayTests : KoinTest {
     fun tearDownKoin() {
         stopKoin()
         db?.close()
-//        val dbFile = File("/Users/olivier/Downloads", "tau-db-snapshot.sqlite")
-
-
     }
 }
 

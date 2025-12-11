@@ -2,6 +2,7 @@ package lorry.dossiertau.fileListDisplay
 
 import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
+import androidx.test.core.app.ApplicationProvider
 import io.mockk.spyk
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -14,6 +15,7 @@ import lorry.basics.TauInjections
 import lorry.dossiertau.TauViewModel
 import lorry.dossiertau.data.dbModel.AppDb
 import lorry.dossiertau.data.dbModel.DiffRepository
+import lorry.dossiertau.data.dbModel.FileDiffDao
 import lorry.dossiertau.data.model.TauFile
 import lorry.dossiertau.data.diskTransfer.TauRepoFile
 import lorry.dossiertau.data.diskTransfer.TauRepoFolder
@@ -45,6 +47,14 @@ fun FileListDisplayTests.prepareKoin(testScheduler: TestCoroutineScheduler) {
             TauInjections,
             module {
                 allowOverride(true)
+                single {
+                    val appDb = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(),
+                        AppDb::class.java)
+                        .allowMainThreadQueries() // ok en test
+                        .build()
+
+                        appDb.fileDiffDao()
+                }
                 single<IFolderRepo> { spyk(get<IFolderRepo>(named("real"))) }
                 single<IFolderCompo> {
                     spyk(
