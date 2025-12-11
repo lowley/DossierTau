@@ -47,7 +47,7 @@ class CIA() : LifecycleService() {
     val _ciaDecisions = MutableSharedFlow<TransferingDecision>()
     val ciaDecisions: SharedFlow<TransferingDecision> = _ciaDecisions.asSharedFlow()
 
-    fun emitCIADecision(decision: TransferingDecision){
+    fun emitCIADecision(decision: TransferingDecision) {
         scope.launch(dispatcher) {
             println("EMIT  | name=${GlobalScope.coroutineContext[CoroutineName]} thread=${Thread.currentThread().name} disp=${GlobalScope.coroutineContext[ContinuationInterceptor]}")
             _ciaDecisions.emit(decision)
@@ -75,69 +75,95 @@ class CIA() : LifecycleService() {
         return START_STICKY
     }
 
-    companion object {
-        fun manageUpdateEvents(event: IUpdateEvent): TransferingDecision? {
+    fun manageUpdateEvents(event: IUpdateEvent): TransferingDecision? {
 
-            val result = when (event) {
-                is AtomicUpdateEvent -> manageAtomicEvent(event)
-                is GlobalUpdateEvent -> manageGlobalEvent(event)
-                else -> null
+        val result = when (event) {
+            is AtomicUpdateEvent -> manageAtomicEvent(event)
+            is GlobalUpdateEvent -> manageGlobalEvent(event)
+            else -> null
+        }
+
+        return result
+    }
+
+    private fun manageGlobalEvent(event: GlobalUpdateEvent): TransferingDecision? {
+        val result = TransferingDecision.GlobalRefresh(event.path)
+        return result
+    }
+
+    private fun manageAtomicEvent(event: AtomicUpdateEvent): TransferingDecision? {
+        return when (val type = event.eventType) {
+            AtomicEventType.ATTRIB -> {
+                return null
             }
 
-            return result
-        }
+            AtomicEventType.CLOSE_WRITE -> {
+                return null
+            }
 
-        private fun manageGlobalEvent(event: GlobalUpdateEvent): TransferingDecision? {
-            val result = TransferingDecision.GlobalRefresh(event.path)
-            return result
-        }
-
-        private fun manageAtomicEvent(event: AtomicUpdateEvent): TransferingDecision? {
-            return when (event.eventType){
-                AtomicEventType.ATTRIB -> {
-                    return null
-                }
-                AtomicEventType.CLOSE_WRITE -> {
-                    return null
-                }
-                AtomicEventType.CREATE -> {
+            AtomicEventType.CREATE -> {
+                type.reactWhenReceived(
+                    event.path,
+                    spy.observedFolderFlow.value,
                     TransferingDecision.CreateItem(
                         eventPath = event.path,
                         modificationDate = event.modificationDate,
                         itemType = event.itemType
                     )
-                }
-                AtomicEventType.DELETE -> {
+                )
+            }
+
+            AtomicEventType.DELETE -> {
+                type.reactWhenReceived(
+                    event.path,
+                    spy.observedFolderFlow.value,
                     TransferingDecision.DeleteItem(
                         eventPath = event.path,
                         modificationDate = event.modificationDate,
                         itemType = event.itemType
                     )
-                }
-                AtomicEventType.DELETE_SELF -> {
-                    return null
-                }
-                AtomicEventType.MODIFY -> {
+                )
+            }
+
+            AtomicEventType.DELETE_SELF -> {
+                return null
+            }
+
+            AtomicEventType.MODIFY -> {
+                type.reactWhenReceived(
+                    event.path,
+                    spy.observedFolderFlow.value,
                     TransferingDecision.ModifyItem(
                         eventPath = event.path,
                         modificationDate = event.modificationDate,
                         itemType = event.itemType
                     )
-                }
-                AtomicEventType.MOVED_FROM -> {
-                    return null
-                }
-                AtomicEventType.MOVED_TO -> {
-                    return null
-                }
-                AtomicEventType.MOVE_SELF -> {
-                    return null
+                )
+            }
 
-                }
+            AtomicEventType.MOVED_FROM -> {
+                type.reactWhenReceived(
+                    event.path,
+                    spy.observedFolderFlow.value,
+                    TransferingDecision.DeleteItem(
+                        eventPath = event.path,
+                        modificationDate = event.modificationDate,
+                        itemType = event.itemType
+                    )
+                )
+            }
 
-                AtomicEventType.UNKNOWN -> {
-                    return null
-                }
+            AtomicEventType.MOVED_TO -> {
+                return null
+            }
+
+            AtomicEventType.MOVE_SELF -> {
+                return null
+
+            }
+
+            AtomicEventType.UNKNOWN -> {
+                return null
             }
         }
     }

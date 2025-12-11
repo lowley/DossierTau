@@ -1,5 +1,6 @@
 package lorry.dossiertau.fileListDisplay
 
+import androidx.compose.ui.node.GlobalPositionAwareModifierNode
 import androidx.room.Ignore
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -41,6 +42,7 @@ import lorry.dossiertau.data.dbModel.FileDiffDao
 import lorry.dossiertau.data.dbModel.toFileDiffEntity
 import lorry.dossiertau.data.intelligenceService.ISpy
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
+import lorry.dossiertau.data.intelligenceService.utils.events.GlobalUpdateEvent
 import lorry.dossiertau.data.planes.DbCommand
 import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.usecases.folderContent.FolderCompo
@@ -123,6 +125,7 @@ class FileListDisplayTests : KoinTest {
         //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
 
         prepareKoin(testScheduler)
+        val cia = CIA()
 
         //assert
         //* répertoire à observer
@@ -142,7 +145,7 @@ class FileListDisplayTests : KoinTest {
             //act + arrange
             advanceUntilIdle()
             val event = awaitItem()
-            val decision = CIA.manageUpdateEvents(event)
+            val decision = cia.manageUpdateEvents(event)
 
             //assert
             expect(decision).notToEqualNull() {
@@ -169,6 +172,7 @@ class FileListDisplayTests : KoinTest {
         //* répertoire à observer
         val PATH = "/storage/emulated/0/Download".toTauPath()
         val spy = Spy(StandardTestDispatcher(testScheduler))
+        val cia = CIA()
 
         /**
          * au démarrage -> EMPTY
@@ -193,7 +197,7 @@ class FileListDisplayTests : KoinTest {
 
             //assert
             val event = awaitItem()
-            val decision = CIA.manageUpdateEvents(event)
+            val decision = cia.manageUpdateEvents(event)
 
             expect(decision).notToEqualNull() {
                 toBeAnInstanceOf<TransferingDecision.GlobalRefresh>()
@@ -251,7 +255,7 @@ class FileListDisplayTests : KoinTest {
             spy.emitFake_CREATEITEM(fileToEmit, ItemType.FILE, 817L.toTauDate())
             //act + arrange
             val event = awaitItem()
-            val decision = CIA.manageUpdateEvents(event)
+            val decision = cia.manageUpdateEvents(event)
 
             //assert
             expect(decision) {
@@ -386,8 +390,10 @@ class FileListDisplayTests : KoinTest {
 
 //        prepareKoin(testScheduler)
 
-        val appDb = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(),
-            AppDb::class.java)
+        val appDb = Room.inMemoryDatabaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            AppDb::class.java
+        )
             .allowMainThreadQueries() // ok en test
             .build()
 
@@ -448,8 +454,10 @@ class FileListDisplayTests : KoinTest {
 //        prepareKoin(testScheduler)
         val dispatcher = StandardTestDispatcher(testScheduler)
 
-        val appDb = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(),
-            AppDb::class.java)
+        val appDb = Room.inMemoryDatabaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            AppDb::class.java
+        )
             .allowMainThreadQueries() // ok en test
             .build()
 
@@ -561,7 +569,7 @@ class FileListDisplayTests : KoinTest {
         //assert
         //* répertoire à observer
         val PATH = "/storage/emulated/0/Download".toTauPath()
-
+        val cia = CIA()
         val spy = Spy(StandardTestDispatcher(testScheduler))
 
         spy.updateEventFlow.test {
@@ -576,7 +584,7 @@ class FileListDisplayTests : KoinTest {
             //act + arrange
             advanceUntilIdle()
             val event = awaitItem()
-            val decision = CIA.manageUpdateEvents(event)
+            val decision = cia.manageUpdateEvents(event)
 
             //assert
             expect(decision).notToEqualNull() {
@@ -604,7 +612,7 @@ class FileListDisplayTests : KoinTest {
         //assert
         //* répertoire à observer
         val PATH = "/storage/emulated/0/Download".toTauPath()
-
+        val cia = CIA()
         val spy = Spy(StandardTestDispatcher(testScheduler))
 
         spy.updateEventFlow.test {
@@ -619,7 +627,7 @@ class FileListDisplayTests : KoinTest {
             //act + arrange
             advanceUntilIdle()
             val event = awaitItem()
-            val decision = CIA.manageUpdateEvents(event)
+            val decision = cia.manageUpdateEvents(event)
 
             //assert
             expect(decision).notToEqualNull() {
@@ -647,7 +655,7 @@ class FileListDisplayTests : KoinTest {
         //assert
         //* répertoire à observer
         val PATH = "/storage/emulated/0/Download".toTauPath()
-
+        val cia = CIA()
         val spy = Spy(StandardTestDispatcher(testScheduler))
 
         spy.updateEventFlow.test {
@@ -662,7 +670,7 @@ class FileListDisplayTests : KoinTest {
             //act + arrange
             advanceUntilIdle()
             val event = awaitItem()
-            val decision = CIA.manageUpdateEvents(event)
+            val decision = cia.manageUpdateEvents(event)
 
             //assert
             expect(decision).notToEqualNull() {
@@ -690,7 +698,7 @@ class FileListDisplayTests : KoinTest {
         //assert
         //* répertoire à observer
         val PATH = "/storage/emulated/0/Download".toTauPath()
-
+        val cia = CIA()
         val spy = Spy(StandardTestDispatcher(testScheduler))
 
         spy.updateEventFlow.test {
@@ -705,7 +713,7 @@ class FileListDisplayTests : KoinTest {
             //act + arrange
             advanceUntilIdle()
             val event = awaitItem()
-            val decision = CIA.manageUpdateEvents(event)
+            val decision = cia.manageUpdateEvents(event)
 
             //assert
             expect(decision).notToEqualNull() {
@@ -718,16 +726,188 @@ class FileListDisplayTests : KoinTest {
         }
     }
 
-    @Before
-    fun setUp() {
+    /////////////////
+    // test n° 2-5 //
+    /////////////////
+    // le diff est émis mais pas encore envoyé (c'est le rôle d'AirForce)
+    @Test
+    fun `#2 SpyService - royaume des changements sur le disque - Folder modify()`() = runTest {
 
+        //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
+        //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
+
+        prepareKoin(testScheduler)
+        val cia = CIA()
+
+        //assert
+        //* répertoire à observer
+        val PATH = "/storage/emulated/0/Download".toTauPath()
+
+        val spy = Spy(StandardTestDispatcher(testScheduler))
+
+        spy.updateEventFlow.test {
+
+            spy.setObservedFolder(PATH)
+
+            //act
+            val divers = FOLDER_DIVERS(PATH)
+            val folderToEmit = divers.fullPath
+
+            spy.emitFake_MODIFYITEM(folderToEmit, ItemType.FOLDER, 817L.toTauDate())
+            //act + arrange
+            advanceUntilIdle()
+            val event = awaitItem()
+            val decision = cia.manageUpdateEvents(event)
+
+            //assert
+            expect(decision).notToEqualNull() {
+                toBeAnInstanceOf<TransferingDecision.ModifyItem>()
+                feature { f((it as TransferingDecision.ModifyItem)::modificationDate) }.toEqual(817L.toTauDate())
+                feature { f((it as TransferingDecision.ModifyItem)::itemType) }.toEqual(ItemType.FOLDER)
+            }
+
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
-    @After
-    fun tearDownKoin() {
-        stopKoin()
-        db?.close()
+    /////////////////
+    // test n° 2-6 //
+    /////////////////
+    // le diff est émis mais pas encore envoyé (c'est le rôle d'AirForce)
+    @Test
+    fun `#2 SpyService - royaume des changements sur le disque - File moved_from()`() = runTest {
+
+        //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
+        //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
+
+        prepareKoin(testScheduler)
+
+        //assert
+        //* répertoire à observer
+        val PATH = "/storage/emulated/0/Download".toTauPath()
+        val cia = CIA()
+        val spy = Spy(StandardTestDispatcher(testScheduler))
+
+        spy.updateEventFlow.test {
+
+            spy.setObservedFolder(PATH)
+
+            //act
+            val toto = FILE_TOTO(PATH)
+            val fileToEmit = toto.fullPath
+
+            spy.emitFake_MOVEDFROM(fileToEmit, ItemType.FILE, 817L.toTauDate())
+            //act + arrange
+            advanceUntilIdle()
+            val event = awaitItem()
+            val decision = cia.manageUpdateEvents(event)
+
+            //assert
+            expect(decision).notToEqualNull() {
+                toBeAnInstanceOf<TransferingDecision.DeleteItem>()
+                feature { f((it as TransferingDecision.DeleteItem)::modificationDate) }.toEqual(817L.toTauDate())
+                feature { f((it as TransferingDecision.DeleteItem)::itemType) }.toEqual(ItemType.FILE)
+            }
+
+            cancelAndIgnoreRemainingEvents()
+        }
     }
+
+    /////////////////
+    // test n° 2-7 //
+    /////////////////
+    // le diff est émis mais pas encore envoyé (c'est le rôle d'AirForce)
+    @Test
+    fun `#2 SpyService - royaume des changements sur le disque - Folder moved_from()`() = runTest {
+
+        //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
+        //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
+
+        prepareKoin(testScheduler)
+
+        //assert
+        //* répertoire à observer
+        val PATH = "/storage/emulated/0/Download".toTauPath()
+        val cia = CIA()
+        val spy = Spy(StandardTestDispatcher(testScheduler))
+
+        spy.updateEventFlow.test {
+
+            spy.setObservedFolder(PATH)
+
+            //act
+            val divers = FOLDER_DIVERS(PATH)
+            val folderToEmit = divers.fullPath
+
+            spy.emitFake_MOVEDFROM(folderToEmit, ItemType.FOLDER, 817L.toTauDate())
+            //act + arrange
+            advanceUntilIdle()
+            val event = awaitItem()
+            val decision = cia.manageUpdateEvents(event)
+
+            //assert
+            expect(decision).notToEqualNull() {
+                toBeAnInstanceOf<TransferingDecision.DeleteItem>()
+                feature { f((it as TransferingDecision.DeleteItem)::modificationDate) }.toEqual(817L.toTauDate())
+                feature { f((it as TransferingDecision.DeleteItem)::itemType) }.toEqual(ItemType.FOLDER)
+            }
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    /////////////////
+    // test n° 2-8 //
+    /////////////////
+    // le diff est émis mais pas encore envoyé (c'est le rôle d'AirForce)
+    @Test
+    fun `#2 SpyService - royaume des changements sur le disque - OTHER Folder created()`() =
+        runTest {
+
+            //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
+            //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
+
+            prepareKoin(testScheduler)
+
+            //assert
+            //* répertoire à observer
+            val PATH = "/storage/emulated/0/Download".toTauPath()
+            val OTHERPATH = "/storage/emulated/0/Documents".toTauPath()
+            val cia = CIA()
+            val spy = Spy(StandardTestDispatcher(testScheduler))
+
+            spy.updateEventFlow.test {
+
+                spy.setObservedFolder(PATH)
+                val empty = awaitItem()
+                expect(empty).toBeAnInstanceOf<GlobalUpdateEvent>()
+
+                //act
+                val divers = FOLDER_DIVERS(OTHERPATH)
+                val folderToEmit = divers.fullPath
+
+                spy.emitFake_CREATEITEM(folderToEmit, ItemType.FOLDER, 817L.toTauDate())
+                //act + arrange
+                advanceUntilIdle()
+                val event = awaitItem()
+                val decision = cia.manageUpdateEvents(event)
+
+                //assert
+                expect(decision).toEqual(null)
+                expectNoEvents()
+            }
+
+            @Before
+            fun setUp() {
+
+            }
+
+            @After
+            fun tearDownKoin() {
+                stopKoin()
+                db?.close()
+            }
+        }
 }
 
 

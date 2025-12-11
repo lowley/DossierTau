@@ -42,4 +42,5 @@ interface ISpy {
     fun emitFake_CREATEITEM(fileToEmit: TauPath, itemType: ItemType, modificationDate: TauDate)
     fun emitFake_DELETEITEM(itemToEmit: TauPath, itemType: ItemType, modificationDate: TauDate)
     fun emitFake_MODIFYITEM(itemToEmit: TauPath, itemType: ItemType, modificationDate: TauDate)
+    fun emitFake_MOVEDFROM(itemToEmit: TauPath, itemType: ItemType, modificationDate: TauDate)
 }

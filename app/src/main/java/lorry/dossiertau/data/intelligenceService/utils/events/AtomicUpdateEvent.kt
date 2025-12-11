@@ -1,8 +1,10 @@
 package lorry.dossiertau.data.intelligenceService.utils.events
 
 import android.os.FileObserver
+import lorry.dossiertau.data.intelligenceService.utils.TransferingDecision
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauPath
+import lorry.dossiertau.support.littleClasses.parentPath
 import lorry.dossiertau.support.littleClasses.toTauDate
 
 data class AtomicUpdateEvent(
@@ -12,17 +14,28 @@ data class AtomicUpdateEvent(
     val modificationDate: TauDate
 ): IUpdateEvent
 
-sealed class AtomicEventType(val message: String) {
-    object CREATE : AtomicEventType("création de fichier/dossier")
-    object DELETE : AtomicEventType("suppression")
-    object MODIFY : AtomicEventType("modification du contenu")
-    object MOVED_FROM : AtomicEventType("déplacement/renommage de ce fichier, depuis ce dossier")
-    object MOVED_TO : AtomicEventType("déplacement/renommage vers ce dossier")
-    object CLOSE_WRITE : AtomicEventType("fermeture après écriture")
-    object UNKNOWN : AtomicEventType("???")
-    object ATTRIB: AtomicEventType("changement d'attibut sans réécriture")
-    object DELETE_SELF: AtomicEventType("suppression de ce dossier suivi")
-    object MOVE_SELF: AtomicEventType("déplacement de ce dossier suivi")
+internal val fileInsideReaction = { insidePath: TauPath, aroundPath: TauPath, potentialTransferringDecision: TransferingDecision ->
+    if (insidePath.parentPath == aroundPath) potentialTransferringDecision else null
+}
+
+internal val selfReaction = { insidePath: TauPath, aroundPath: TauPath, potentialTransferringDecision: TransferingDecision ->
+    if (insidePath == aroundPath) potentialTransferringDecision else null
+}
+
+sealed class AtomicEventType(
+    val message: String,
+    val reactWhenReceived: (insidePath:TauPath, aroundPath: TauPath, potentialTransferringDecision: TransferingDecision) -> TransferingDecision?
+) {
+    object CREATE : AtomicEventType("création de fichier/dossier", fileInsideReaction)
+    object DELETE : AtomicEventType("suppression", fileInsideReaction)
+    object MODIFY : AtomicEventType("modification du contenu", fileInsideReaction)
+    object MOVED_FROM : AtomicEventType("déplacement/renommage de ce fichier, depuis ce dossier", fileInsideReaction)
+    object MOVED_TO : AtomicEventType("déplacement/renommage vers ce dossier", fileInsideReaction)
+    object CLOSE_WRITE : AtomicEventType("fermeture après écriture", fileInsideReaction)
+    object UNKNOWN : AtomicEventType("???", fileInsideReaction)
+    object ATTRIB : AtomicEventType("changement d'attibut sans réécriture", fileInsideReaction)
+    object DELETE_SELF: AtomicEventType("suppression de ce dossier suivi", selfReaction)
+    object MOVE_SELF: AtomicEventType("déplacement de ce dossier suivi", selfReaction)
 }
 
 enum class ItemType{

@@ -116,6 +116,21 @@ class Spy(
         emitIncomingEvent(fakeEvent)
     }
 
+    override fun emitFake_MOVEDFROM(
+        itemToEmit: TauPath,
+        itemType: ItemType,
+        modificationDate: TauDate
+    ) {
+        val fakeEvent = AtomicUpdateEvent(
+            eventType = AtomicEventType.MOVED_FROM,
+            path = itemToEmit,
+            itemType = itemType,
+            modificationDate = modificationDate,
+        )
+
+        emitIncomingEvent(fakeEvent)
+    }
+
     suspend fun doOnEvent(atomicUpdateEvent: AtomicUpdateEvent) {
         emitIncomingEvent(atomicUpdateEvent)
 
