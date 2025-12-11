@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import lorry.dossiertau.data.dbModel.DiffRepository
-import lorry.dossiertau.data.dbModel.toFileDiffEntity
 import lorry.dossiertau.data.intelligenceService.utils.TransferingDecision
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.data.planes.DbCommand
@@ -30,11 +29,11 @@ class AirForce(
             println("COLLECT| name=${coroutineContext[CoroutineName]} thread=${Thread.currentThread().name} disp=${coroutineContext[ContinuationInterceptor]}")
 
             when (decision){
-                is TransferingDecision.CreateFile -> {
+                is TransferingDecision.CreateItem -> {
 
                     val dbCommand = DbCommand.CreateItem(
                         item = DbItem(
-                            fullPath = decision.filePath,
+                            fullPath = decision.itemPath,
                             modificationDate = decision.modificationDate,
                             type = ItemType.FILE
                         )

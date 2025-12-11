@@ -71,14 +71,44 @@ class Spy(
         }
     }
 
-    override fun emitFake_CREATEFILE(
-        fileToEmit: TauPath,
+    override fun emitFake_CREATEITEM(
+        itemToEmit: TauPath,
         itemType: ItemType,
         modificationDate: TauDate
     ) {
         val fakeEvent = AtomicUpdateEvent(
             eventType = AtomicEventType.CREATE,
-            path = fileToEmit,
+            path = itemToEmit,
+            itemType = itemType,
+            modificationDate = modificationDate,
+        )
+
+        emitIncomingEvent(fakeEvent)
+    }
+
+    override fun emitFake_DELETEITEM(
+        itemToEmit: TauPath,
+        itemType: ItemType,
+        modificationDate: TauDate
+    ) {
+        val fakeEvent = AtomicUpdateEvent(
+            eventType = AtomicEventType.DELETE,
+            path = itemToEmit,
+            itemType = itemType,
+            modificationDate = modificationDate,
+        )
+
+        emitIncomingEvent(fakeEvent)
+    }
+
+    override fun emitFake_MODIFYITEM(
+        itemToEmit: TauPath,
+        itemType: ItemType,
+        modificationDate: TauDate
+    ) {
+        val fakeEvent = AtomicUpdateEvent(
+            eventType = AtomicEventType.MODIFY,
+            path = itemToEmit,
             itemType = itemType,
             modificationDate = modificationDate,
         )

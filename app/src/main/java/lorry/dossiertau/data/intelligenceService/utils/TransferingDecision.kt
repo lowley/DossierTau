@@ -1,22 +1,34 @@
 package lorry.dossiertau.data.intelligenceService.utils
 
+import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauPath
 
 sealed class TransferingDecision(
-    val filePath: TauPath
+    val itemPath: TauPath
 ) {
 
-    data class CreateFile(
-        val eventFilePath: TauPath,
+    data class CreateItem(
+        val eventPath: TauPath,
         val modificationDate: TauDate,
-    ): TransferingDecision(eventFilePath)
+        val itemType: ItemType,
+    ): TransferingDecision(eventPath)
 
-    data class DeleteFile(val eventFilePath: TauPath): TransferingDecision(eventFilePath)
+    data class DeleteItem(
+        val eventPath: TauPath,
+        val modificationDate: TauDate,
+        val itemType: ItemType,
+    ): TransferingDecision(eventPath)
+
+    data class ModifyItem(
+        val eventPath: TauPath,
+        val modificationDate: TauDate,
+        val itemType: ItemType,
+    ): TransferingDecision(eventPath)
 
     data class GlobalRefresh(
-        val eventFilePath: TauPath,
-    ): TransferingDecision(eventFilePath)
+        val eventPath: TauPath,
+    ): TransferingDecision(eventPath)
 
 
 }

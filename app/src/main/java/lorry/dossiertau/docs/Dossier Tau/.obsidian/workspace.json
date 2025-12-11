@@ -83,12 +83,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "FileObserver/Design de la base Room.md",
+                "file": "FileObserver/File observer.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Design de la base Room"
+              "title": "File observer"
             }
           }
         ],
@@ -268,13 +268,13 @@
   },
   "active": "d596c9998bd0fb70",
   "lastOpenFiles": [
+    "FileObserver/TODO.md",
     "FileObserver/politique de complete scans.md",
     "FileObserver/Design de la base Room.md",
     "FileObserver/File observer.md",
     "FileObserver/truc.md",
     "FileObserver/chose.md",
     "FileObserver/essai2.md",
-    "FileObserver/TODO.md",
     "Bienvenue.md",
     "FileObserver",
     "créez un lien.md",

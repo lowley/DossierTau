@@ -23,12 +23,12 @@ public static final int CLOSE_WRITE
 Event type: ==Someone had a file or directory open for writing, and closed it==
 Constant Value: 8 (0x00000008)
 
-### CREATE
+### CREATE       🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢
 public static final int CREATE
 Event type: ==A new file or subdirectory was created under the monitored directory==
 Constant Value: 256 (0x00000100)
 
-### DELETE
+### DELETE       🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢🟢
 public static final int DELETE
 Event type: ==A file was deleted from the monitored directory==
 Constant Value: 512 (0x00000200)

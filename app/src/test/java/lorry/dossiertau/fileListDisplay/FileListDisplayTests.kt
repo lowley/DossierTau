@@ -1,8 +1,6 @@
 package lorry.dossiertau.fileListDisplay
 
-import android.os.FileObserver
 import androidx.room.Ignore
-import androidx.room.InvalidationTracker
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.cash.turbine.test
@@ -140,7 +138,7 @@ class FileListDisplayTests : KoinTest {
             val fileToEmit = toto.fullPath
 
 
-            spy.emitFake_CREATEFILE(fileToEmit, ItemType.FILE, 817L.toTauDate())
+            spy.emitFake_CREATEITEM(fileToEmit, ItemType.FILE, 817L.toTauDate())
             //act + arrange
             advanceUntilIdle()
             val event = awaitItem()
@@ -148,8 +146,8 @@ class FileListDisplayTests : KoinTest {
 
             //assert
             expect(decision).notToEqualNull() {
-                toBeAnInstanceOf<TransferingDecision.CreateFile>()
-                feature { f((it as TransferingDecision.CreateFile)::modificationDate) }.toEqual(817L.toTauDate())
+                toBeAnInstanceOf<TransferingDecision.CreateItem>()
+                feature { f((it as TransferingDecision.CreateItem)::modificationDate) }.toEqual(817L.toTauDate())
             }
 
             cancelAndIgnoreRemainingEvents()
@@ -199,7 +197,7 @@ class FileListDisplayTests : KoinTest {
 
             expect(decision).notToEqualNull() {
                 toBeAnInstanceOf<TransferingDecision.GlobalRefresh>()
-                feature { f(it::filePath) }.toEqual(PATH)
+                feature { f(it::itemPath) }.toEqual(PATH)
             }
         }
     }
@@ -250,17 +248,17 @@ class FileListDisplayTests : KoinTest {
 
         spy.updateEventFlow.test {
 
-            spy.emitFake_CREATEFILE(fileToEmit, ItemType.FILE, 817L.toTauDate())
+            spy.emitFake_CREATEITEM(fileToEmit, ItemType.FILE, 817L.toTauDate())
             //act + arrange
             val event = awaitItem()
             val decision = CIA.manageUpdateEvents(event)
 
             //assert
             expect(decision) {
-                toBeAnInstanceOf<TransferingDecision.CreateFile>()
+                toBeAnInstanceOf<TransferingDecision.CreateItem>()
                 notToEqualNull()
-                feature({ f(it!!::filePath) }) { toEqual(toto.fullPath) }
-                feature { f((it!! as TransferingDecision.CreateFile)::modificationDate) }.toEqual(
+                feature({ f(it!!::itemPath) }) { toEqual(toto.fullPath) }
+                feature { f((it!! as TransferingDecision.CreateItem)::modificationDate) }.toEqual(
                     817L.toTauDate()
                 )
             }
@@ -308,16 +306,17 @@ class FileListDisplayTests : KoinTest {
         val airForce = spyk<AirForce>(airForceOne)
         val job = airForce.startListeningForCIADecisions()
 
-        val createFileDecision = TransferingDecision.CreateFile(
-            eventFilePath = toto.fullPath,
-            modificationDate = toto.modificationDate
+        val createItemDecision = TransferingDecision.CreateItem(
+            eventPath = toto.fullPath,
+            modificationDate = toto.modificationDate,
+            itemType = ItemType.FILE
         )
 
         //elle ne fait rien
         coEvery { airForce.modifyDatabaseBy(any()) } just Runs
 
         //act
-        cia.emitCIADecision(createFileDecision)
+        cia.emitCIADecision(createItemDecision)
         advanceUntilIdle()
 
         //assert
@@ -544,6 +543,178 @@ class FileListDisplayTests : KoinTest {
         } finally {
             db?.close()
             appDb.close()
+        }
+    }
+
+    /////////////////
+    // test n° 2-2 //
+    /////////////////
+    // le diff est émis mais pas encore envoyé (c'est le rôle d'AirForce)
+    @Test
+    fun `#2 SpyService - royaume des changements sur le disque - Folder created()`() = runTest {
+
+        //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
+        //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
+
+        prepareKoin(testScheduler)
+
+        //assert
+        //* répertoire à observer
+        val PATH = "/storage/emulated/0/Download".toTauPath()
+
+        val spy = Spy(StandardTestDispatcher(testScheduler))
+
+        spy.updateEventFlow.test {
+
+            spy.setObservedFolder(PATH)
+
+            //act
+            val divers = FOLDER_DIVERS(PATH)
+            val folderToEmit = divers.fullPath
+
+            spy.emitFake_CREATEITEM(folderToEmit, ItemType.FOLDER, 817L.toTauDate())
+            //act + arrange
+            advanceUntilIdle()
+            val event = awaitItem()
+            val decision = CIA.manageUpdateEvents(event)
+
+            //assert
+            expect(decision).notToEqualNull() {
+                toBeAnInstanceOf<TransferingDecision.CreateItem>()
+                feature { f((it as TransferingDecision.CreateItem)::modificationDate) }.toEqual(817L.toTauDate())
+                feature { f((it as TransferingDecision.CreateItem)::itemType) }.toEqual(ItemType.FOLDER)
+            }
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    /////////////////
+    // test n° 2-3 //
+    /////////////////
+    // le diff est émis mais pas encore envoyé (c'est le rôle d'AirForce)
+    @Test
+    fun `#2 SpyService - royaume des changements sur le disque - File delete()`() = runTest {
+
+        //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
+        //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
+
+        prepareKoin(testScheduler)
+
+        //assert
+        //* répertoire à observer
+        val PATH = "/storage/emulated/0/Download".toTauPath()
+
+        val spy = Spy(StandardTestDispatcher(testScheduler))
+
+        spy.updateEventFlow.test {
+
+            spy.setObservedFolder(PATH)
+
+            //act
+            val divers = FILE_TOTO(PATH)
+            val fileToEmit = divers.fullPath
+
+            spy.emitFake_DELETEITEM(fileToEmit, ItemType.FILE, 817L.toTauDate())
+            //act + arrange
+            advanceUntilIdle()
+            val event = awaitItem()
+            val decision = CIA.manageUpdateEvents(event)
+
+            //assert
+            expect(decision).notToEqualNull() {
+                toBeAnInstanceOf<TransferingDecision.DeleteItem>()
+                feature { f((it as TransferingDecision.DeleteItem)::modificationDate) }.toEqual(817L.toTauDate())
+                feature { f((it as TransferingDecision.DeleteItem)::itemType) }.toEqual(ItemType.FILE)
+            }
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    /////////////////
+    // test n° 2-4 //
+    /////////////////
+    // le diff est émis mais pas encore envoyé (c'est le rôle d'AirForce)
+    @Test
+    fun `#2 SpyService - royaume des changements sur le disque - Folder delete()`() = runTest {
+
+        //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
+        //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
+
+        prepareKoin(testScheduler)
+
+        //assert
+        //* répertoire à observer
+        val PATH = "/storage/emulated/0/Download".toTauPath()
+
+        val spy = Spy(StandardTestDispatcher(testScheduler))
+
+        spy.updateEventFlow.test {
+
+            spy.setObservedFolder(PATH)
+
+            //act
+            val divers = FOLDER_DIVERS(PATH)
+            val folderToEmit = divers.fullPath
+
+            spy.emitFake_DELETEITEM(folderToEmit, ItemType.FOLDER, 817L.toTauDate())
+            //act + arrange
+            advanceUntilIdle()
+            val event = awaitItem()
+            val decision = CIA.manageUpdateEvents(event)
+
+            //assert
+            expect(decision).notToEqualNull() {
+                toBeAnInstanceOf<TransferingDecision.DeleteItem>()
+                feature { f((it as TransferingDecision.DeleteItem)::modificationDate) }.toEqual(817L.toTauDate())
+                feature { f((it as TransferingDecision.DeleteItem)::itemType) }.toEqual(ItemType.FOLDER)
+            }
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    /////////////////
+    // test n° 2-5 //
+    /////////////////
+    // le diff est émis mais pas encore envoyé (c'est le rôle d'AirForce)
+    @Test
+    fun `#2 SpyService - royaume des changements sur le disque - File modify()`() = runTest {
+
+        //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
+        //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
+
+        prepareKoin(testScheduler)
+
+        //assert
+        //* répertoire à observer
+        val PATH = "/storage/emulated/0/Download".toTauPath()
+
+        val spy = Spy(StandardTestDispatcher(testScheduler))
+
+        spy.updateEventFlow.test {
+
+            spy.setObservedFolder(PATH)
+
+            //act
+            val toto = FILE_TOTO(PATH)
+            val fileToEmit = toto.fullPath
+
+            spy.emitFake_MODIFYITEM(fileToEmit, ItemType.FILE, 817L.toTauDate())
+            //act + arrange
+            advanceUntilIdle()
+            val event = awaitItem()
+            val decision = CIA.manageUpdateEvents(event)
+
+            //assert
+            expect(decision).notToEqualNull() {
+                toBeAnInstanceOf<TransferingDecision.ModifyItem>()
+                feature { f((it as TransferingDecision.ModifyItem)::modificationDate) }.toEqual(817L.toTauDate())
+                feature { f((it as TransferingDecision.ModifyItem)::itemType) }.toEqual(ItemType.FILE)
+            }
+
+            cancelAndIgnoreRemainingEvents()
         }
     }
 

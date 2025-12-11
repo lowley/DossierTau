@@ -13,7 +13,6 @@ import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.GlobalScope.coroutineContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -22,14 +21,12 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import lorry.dossiertau.R
-import lorry.dossiertau.TauApp
 import lorry.dossiertau.data.intelligenceService.utils.events.AtomicEventType
 import lorry.dossiertau.data.intelligenceService.utils.TransferingDecision
 import lorry.dossiertau.data.intelligenceService.utils.events.AtomicUpdateEvent
 import lorry.dossiertau.data.intelligenceService.utils.events.GlobalUpdateEvent
 import lorry.dossiertau.data.intelligenceService.utils.events.IUpdateEvent
 import lorry.dossiertau.support.littleClasses.path
-import org.koin.android.ext.android.inject
 import org.koin.core.context.GlobalContext
 import kotlin.coroutines.ContinuationInterceptor
 import kotlin.io.println
@@ -104,19 +101,28 @@ class CIA() : LifecycleService() {
                     return null
                 }
                 AtomicEventType.CREATE -> {
-                    TransferingDecision.CreateFile(
-                        eventFilePath = event.path,
-                        modificationDate = event.modificationDate
+                    TransferingDecision.CreateItem(
+                        eventPath = event.path,
+                        modificationDate = event.modificationDate,
+                        itemType = event.itemType
                     )
                 }
                 AtomicEventType.DELETE -> {
-                    return null
+                    TransferingDecision.DeleteItem(
+                        eventPath = event.path,
+                        modificationDate = event.modificationDate,
+                        itemType = event.itemType
+                    )
                 }
                 AtomicEventType.DELETE_SELF -> {
                     return null
                 }
                 AtomicEventType.MODIFY -> {
-                    return null
+                    TransferingDecision.ModifyItem(
+                        eventPath = event.path,
+                        modificationDate = event.modificationDate,
+                        itemType = event.itemType
+                    )
                 }
                 AtomicEventType.MOVED_FROM -> {
                     return null
