@@ -2,6 +2,7 @@ package lorry.dossiertau.fileListDisplay
 
 import android.os.FileObserver
 import androidx.room.Ignore
+import androidx.room.InvalidationTracker
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.cash.turbine.test
@@ -391,6 +392,14 @@ class FileListDisplayTests : KoinTest {
             .allowMainThreadQueries() // ok en test
             .build()
 
+//        appDb.invalidationTracker.addObserver(
+//            object : InvalidationTracker.Observer("file_diffs") {
+//                override fun onInvalidated(tables: Set<String>) {
+//                    println("Tables invalidées: $tables")
+//                }
+//            }
+//        )
+
         try {
 
             //0 éléments
@@ -399,14 +408,14 @@ class FileListDisplayTests : KoinTest {
             val PATH = "/storage/emulated/0/Download".toTauPath()
             val toto = FILE_TOTO(PATH)
 
-            dbDao!!.diffsForFolder(PATH.path).test {
+            dbDao!!.diffsForFolder(PATH.path).drop(1).test {
+
+//                val initial = awaitItem()
+//                println("initial = $initial")
 
                 val dbCommand = DbCommand.CreateItem(toto.toDbFile())
                 dbDao!!.insert(dbCommand.toFileDiffEntity())
                 advanceUntilIdle()
-
-                val initial = awaitItem()      // [] attendu
-                println("initial = $initial")
 
                 val entry = awaitItem()  // [diff]
                 println("afterInsert = $entry")
@@ -485,16 +494,25 @@ class FileListDisplayTests : KoinTest {
             val tenSeconds = 10.toDuration(DurationUnit.SECONDS)
 
             //Ça force folderPathFlow à devenir Some(PATH) → diffsForFolder(PATH) sera effectivement collecté
-            println("TEST: appel de setTauFolder")
-            fakeVM.setTauFolder(PATH)
+
 
             val readyFolder = fakeCompo.folderFlow.first { opt ->
                 opt.isSome() && opt.getOrNull()?.fullPath?.path == PATH.path
             }
 
-            advanceUntilIdle()
+            fakeCompo.folderFlow.test {
 
-            fakeCompo.folderFlow.test(timeout = tenSeconds) {
+                val item1 = awaitItem()
+                println("TEST: item1 = $item1")
+
+
+                println("TEST: appel de setTauFolder")
+                fakeVM.setTauFolder(PATH)
+
+                advanceUntilIdle()
+
+                val item2 = awaitItem()
+                println("TEST: item2 = $item2")
 
                 val dbCommand = DbCommand.CreateItem(toto.toDbFile())
 
@@ -510,11 +528,10 @@ class FileListDisplayTests : KoinTest {
 
 //                var currentFolder = awaitItem()
 
-                //TODO pq 2 valeurs émises
-                awaitItem()
-                val currentFolder = awaitItem()
+                val item3 = awaitItem()
+                println("TEST: item3 = $item3")
 
-                expect(currentFolder) {
+                expect(item3) {
                     its { isSome() }.toEqual(true)
                     its { getOrNull()?.children?.size }.toEqual(1)
                 }
