@@ -45,6 +45,7 @@ import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
 import lorry.dossiertau.data.planes.DbCommand
 import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.usecases.folderContent.FolderCompo
+import lorry.dossiertau.usecases.folderContent.support.FolderRepo
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -383,13 +384,12 @@ class FileListDisplayTests : KoinTest {
     @Test
     fun `#7 DB ajout createFile ⇒ DB a bien un élément`() = runTest {
 
-        prepareKoin(testScheduler)
+//        prepareKoin(testScheduler)
 
-        val appDb: AppDb = Room.databaseBuilder(
-            ApplicationProvider.getApplicationContext(),
-            AppDb::class.java,
-            "tau-db.sqlite"
-        ).build()
+        val appDb = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(),
+            AppDb::class.java)
+            .allowMainThreadQueries() // ok en test
+            .build()
 
         try {
 
@@ -405,12 +405,19 @@ class FileListDisplayTests : KoinTest {
                 dbDao!!.insert(dbCommand.toFileDiffEntity())
                 advanceUntilIdle()
 
+                val initial = awaitItem()      // [] attendu
+                println("initial = $initial")
+
+                val entry = awaitItem()  // [diff]
+                println("afterInsert = $entry")
+
 //                val dbFile = File("/Users/olivier/Downloads", "tau-db-snapshot.sqlite")
 //                val snap = dbFile.absolutePath
 //                appDb.openHelper.writableDatabase.execSQL("VACUUM INTO '$snap';")
 //                println("Snapshot -> $snap")
 
-                var entry = awaitItem()
+//                val kesako = awaitItem()
+//                var entry = awaitItem()
                 expect(entry).toHaveSize(1)
             }
 
@@ -430,7 +437,7 @@ class FileListDisplayTests : KoinTest {
     @Test
     fun `#8 DB ajout createFile ⇒ modif items courants si pertinent`() = runTest {
 
-        prepareKoin(testScheduler)
+//        prepareKoin(testScheduler)
         val dispatcher = StandardTestDispatcher(testScheduler)
 
         val appDb = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(),
@@ -450,7 +457,7 @@ class FileListDisplayTests : KoinTest {
             if (dbDao == null)
                 throw Exception("erreur test #8")
 
-            val fakeRepo: IFolderRepo by inject()
+            val fakeRepo: IFolderRepo = FolderRepo()
             val fakeCompo: IFolderCompo = spyk(
                 FolderCompo(
                     folderRepo = fakeRepo,
@@ -478,6 +485,7 @@ class FileListDisplayTests : KoinTest {
             val tenSeconds = 10.toDuration(DurationUnit.SECONDS)
 
             //Ça force folderPathFlow à devenir Some(PATH) → diffsForFolder(PATH) sera effectivement collecté
+            println("TEST: appel de setTauFolder")
             fakeVM.setTauFolder(PATH)
 
             val readyFolder = fakeCompo.folderFlow.first { opt ->
@@ -493,7 +501,7 @@ class FileListDisplayTests : KoinTest {
                 //1. transite dans DB
                 //2. lu et traité par folderCompo
                 dbDao!!.insert(dbCommand.toFileDiffEntity())
-//                advanceUntilIdle()
+                advanceUntilIdle()
 
 //                val dbFile = File("/Users/olivier/Downloads", "tau-db-snapshot.sqlite")
 //                val snap = dbFile.absolutePath

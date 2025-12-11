@@ -44,6 +44,10 @@ class FolderCompo(
     private val fileDiffDAO: FileDiffDao
 ) : IFolderCompo {
 
+    companion object {
+        var collectFillLaunched = false
+    }
+
     private val scope = CoroutineScope(dispatcher + SupervisorJob())
 
     //#[[folderFlowDeclaration]]
@@ -73,7 +77,7 @@ class FolderCompo(
                 modificationDate = folderDate,
                 children = compoItems
             )
-            println("DEBUG: result=$result")
+            println("DEBUG: setFolderFlow:$result")
 
             changeFolderFlow(result.toOption())
         }
@@ -92,8 +96,11 @@ class FolderCompo(
         )
 
     init {
-        scope.launch(dispatcher) {
-            collectDiffs()
+        if (!collectFillLaunched) {
+            collectFillLaunched = true
+            scope.launch(dispatcher) {
+                collectDiffs()
+            }
         }
     }
 
@@ -106,12 +113,14 @@ class FolderCompo(
             // (sinon le collect se termine), ou flowOf(emptyList()) si on veut une valeur initiale.
             // Utilisateur: flowOf() semble suffisant s'il est vide, mais faisons-le propre.
             // Si le DAO retourne List<DiffEntity>, on retourne un Flow<List<DiffEntity>> vide.
-            else flow<List<DiffEntity>> { kotlinx.coroutines.awaitCancellation()}
+            else flow<List<DiffEntity>> { kotlinx.coroutines.awaitCancellation() }
         }
             .collect { diff ->
                 val folder = folderFlow.value.getOrNull() ?: return@collect
 
                 //TODO tester si children contient déjà item
+                println("DEBUG: reçu un diff, ${diff.size} éléments")
+                println("       -> folderCompo:${this.dispatcher.toString().takeLast(5)}")
                 changeFolderFlow(
                     //TODO compléter: plusieurs éléments dans diff
                     folder.addItem(diff[0].toTauItem()).toOption()

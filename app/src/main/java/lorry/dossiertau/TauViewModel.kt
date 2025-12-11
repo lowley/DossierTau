@@ -23,6 +23,7 @@ class TauViewModel(
     //#[[tauViewModelInit]]
     init{
         val pathInit = "/storage/emulated/0/Download".toTauPath()
+        println("TauViewModel: init{} appelle setTauFolder")
         setTauFolder(pathInit)
 
     }

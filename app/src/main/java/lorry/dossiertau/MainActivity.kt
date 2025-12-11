@@ -9,7 +9,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,7 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -33,22 +31,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ModifierLocalBeyondBoundsLayout
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
 import arrow.core.Either
 import arrow.core.None
 import arrow.core.Option
 import arrow.core.Some
-import arrow.core.raise.fold
 import lorry.dossiertau.data.intelligenceService.CIA
 import lorry.dossiertau.data.model.children
 import lorry.dossiertau.data.model.fullPath
 import lorry.dossiertau.data.model.isFolder
 import lorry.dossiertau.data.model.name
-import lorry.dossiertau.support.littleClasses.EMPTY
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.ui.theme.DossierTauTheme
@@ -206,7 +200,7 @@ class MainActivity : ComponentActivity() {
             //chacun comportant plusieurs valeurs & fonctions fonctionnellement groupées
             val currentFolderPath by folderCompo.folderPathFlow.collectAsState()
 
-            currentFoldePathText(
+            currentFolderPathText(
                 modifier = Modifier
                     .fillMaxSize(),
                 currentFolder = currentFolderPath,
@@ -244,7 +238,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun currentFoldePathText(
+fun currentFolderPathText(
     modifier: Modifier,
     currentFolder: Option<TauPath>,
     setCurrentFolder: (TauPath) -> Unit,
