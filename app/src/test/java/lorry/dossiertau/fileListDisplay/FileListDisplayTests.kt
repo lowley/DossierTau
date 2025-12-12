@@ -41,6 +41,7 @@ import lorry.dossiertau.data.dbModel.FileDiffDao
 import lorry.dossiertau.data.dbModel.toFileDiffEntity
 import lorry.dossiertau.data.intelligenceService.ISpy
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
+import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside
 import lorry.dossiertau.data.intelligenceService.utils.events.GlobalUpdateEvent
 import lorry.dossiertau.data.planes.DbCommand
 import lorry.dossiertau.support.littleClasses.path
@@ -135,7 +136,7 @@ class FileListDisplayTests : KoinTest {
 
             advanceUntilIdle()
             cia.spy = spy
-            
+
             spy.setObservedFolder(PATH)
 
             //act
@@ -486,7 +487,7 @@ class FileListDisplayTests : KoinTest {
             val fakeSpy: ISpy = spyk(
                 Spy(
                     dispatcher = dispatcher,
-                    fileObserver = TauFileObserver.DISABLED,
+                    fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
                 )
             )
 

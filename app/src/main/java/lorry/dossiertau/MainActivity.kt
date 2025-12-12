@@ -44,6 +44,7 @@ import lorry.dossiertau.data.model.fullPath
 import lorry.dossiertau.data.model.isFolder
 import lorry.dossiertau.data.model.name
 import lorry.dossiertau.support.littleClasses.TauPath
+import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.ui.theme.DossierTauTheme
 import org.koin.android.ext.android.inject
@@ -162,7 +163,7 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier
                                 .size(175.dp)
                                 .border(1.dp, Color.DarkGray, shape = RoundedCornerShape(8.dp))
-                                .clickable{
+                                .clickable {
                                     if (item.isFolder())
                                         setCurrentFolder(item.fullPath)
                                 }
@@ -199,11 +200,12 @@ class MainActivity : ComponentActivity() {
             //faire dans le ViewModel plusieurs State
             //chacun comportant plusieurs valeurs & fonctions fonctionnellement groupées
             val currentFolderPath by folderCompo.folderPathFlow.collectAsState()
+            println("DEBUG: currentFolderPath = ${currentFolderPath.getOrNull()?.path}")
 
             currentFolderPathText(
                 modifier = Modifier
                     .fillMaxSize(),
-                currentFolder = currentFolderPath,
+                optionCurrentFolder = currentFolderPath,
                 setCurrentFolder = { newFolder: TauPath ->
                     folderCompo.setFolderFlow(newFolder)
                 }
@@ -240,7 +242,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun currentFolderPathText(
     modifier: Modifier,
-    currentFolder: Option<TauPath>,
+    optionCurrentFolder: Option<TauPath>,
     setCurrentFolder: (TauPath) -> Unit,
 
 
@@ -250,10 +252,14 @@ fun currentFolderPathText(
         modifier = modifier
             .fillMaxSize()
             .padding(0.dp),
-        value = when (currentFolder) {
-            is Some<TauPath> -> when (currentFolder.value.value) {
-                is Either.Left -> "<aucun chemin sélectionné>"
-                is Either.Right -> (currentFolder.value.value as Either.Right<TauPath.Companion.Data>).value.value
+        value = when (optionCurrentFolder) {
+            is Some<TauPath> -> {
+                val result = when (val path = optionCurrentFolder.value.path) {
+                    "" -> "<aucun chemin sélectionné>"
+                    else -> path
+                }
+
+                result
             }
             is None -> "<aucun chemin sélectionné>"
         },

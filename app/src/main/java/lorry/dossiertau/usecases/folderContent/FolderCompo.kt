@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapConcat
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
@@ -30,6 +31,7 @@ import lorry.dossiertau.data.model.computeParentFolderDate
 import lorry.dossiertau.data.diskTransfer.toTauItems
 import lorry.dossiertau.data.model.TauFolder
 import lorry.dossiertau.data.model.children
+import lorry.dossiertau.data.model.fullPath
 import lorry.dossiertau.data.model.parentPath
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
@@ -77,9 +79,10 @@ class FolderCompo(
                 modificationDate = folderDate,
                 children = compoItems
             )
-            println("DEBUG: setFolderFlow:$result")
 
-            changeFolderFlow(result.toOption())
+            println("DEBUG: setFolderFlow:${result.fullPath}")
+            val res2 = result.toOption()
+            changeFolderFlow(res2)
         }
     }
 
@@ -87,7 +90,7 @@ class FolderCompo(
         get() = folderFlow.map {
             it.fold(
                 ifEmpty = { None },
-                ifSome = { it.parentPath.toOption() }
+                ifSome = { it.fullPath.toOption() }
             )
         }.stateIn(
             scope = scope,
@@ -114,11 +117,14 @@ class FolderCompo(
             // Utilisateur: flowOf() semble suffisant s'il est vide, mais faisons-le propre.
             // Si le DAO retourne List<DiffEntity>, on retourne un Flow<List<DiffEntity>> vide.
             else flow<List<DiffEntity>> { kotlinx.coroutines.awaitCancellation() }
+        }.filter {
+            it.isNotEmpty()
         }
             .collect { diff ->
                 val folder = folderFlow.value.getOrNull() ?: return@collect
 
                 //TODO tester si children contient déjà item
+                println("DEBUG: reçu un diff, type = ${diff::class.simpleName}")
                 println("DEBUG: reçu un diff, ${diff.size} éléments")
                 println("       -> folderCompo:${this.dispatcher.toString().takeLast(5)}")
                 changeFolderFlow(

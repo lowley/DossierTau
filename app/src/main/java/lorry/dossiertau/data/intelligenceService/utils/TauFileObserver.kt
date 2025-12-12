@@ -1,13 +1,14 @@
 package lorry.dossiertau.data.intelligenceService.utils
 
 import android.os.FileObserver
-import androidx.compose.runtime.internal.rememberComposableLambda
-import androidx.compose.ui.graphics.findFirstCubicRoot
+import arrow.core.toOption
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import lorry.dossiertau.data.intelligenceService.utils.RecursiveFileObserver.Event
+import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside.DISABLED.MASK
+import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside.TauFileObserverData
 import lorry.dossiertau.support.littleClasses.TauPath
 import java.io.File
 
@@ -15,22 +16,95 @@ import java.io.File
 /**
  * INACTIVE peut devenir actif grâce à changeTarget()
  * DISABLED utilisé pour les tests seulement
+ * var fileObserver: TauFileObserver = TauFileObserver.of(INACTIVE)
  */
-sealed interface TauFileObserver {
-    object INACTIVE : TauFileObserver
 
-    object DISABLED: TauFileObserver
+data class TauFileObserver(var value: TauFileObserverInside) {
 
-    data class TauFileObserverData(
-        val file: File,
-        val doOnEvent: suspend (event: Int, path: TauPath?) -> Unit
-    ) : TauFileObserver
+    fun assign(other: TauFileObserverInside) {
+        this.value = other
+    }
+
+    val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     companion object {
         fun of(
             file: File,
             doOnEvent: suspend (event: Int, path: TauPath?) -> Unit
-        ) = TauFileObserverData(file, doOnEvent) as TauFileObserver
+        ) = TauFileObserver(TauFileObserverInside.of(file, doOnEvent))
+
+        fun of(inside: TauFileObserverInside) = TauFileObserver(inside)
+    }
+
+    fun changeTarget(
+        path: TauPath,
+        mask: Int = MASK,
+        doOnEvent: (suspend (event: Int, path: TauPath?) -> Unit)
+    ) {
+        if (value is TauFileObserverInside.DISABLED)
+            return
+
+        if (value is TauFileObserverInside.INACTIVE) {
+            val file = path.toFile().getOrNull()
+            value = TauFileObserverInside.of(file ?: return, doOnEvent)
+        }
+
+        val doOnEventInternal = doOnEvent
+            ?: (this as? TauFileObserverData)?.doOnEvent
+            ?: return
+
+        val lambda = { it: Event ->
+            val event = it.event
+            val path = TauPath.of(it.absolute.absolutePath)
+            val scope = scope
+
+            scope.launch {
+                doOnEventInternal?.invoke(event, path)
+            }
+
+            Unit
+        }
+
+        value = TauFileObserverInside.of(
+            file = path.toFile().getOrNull() ?: return,
+            doOnEvent = doOnEvent ?: return,
+        )
+
+        value.changeTarget(
+            path = path,
+            mask = mask,
+            lambda = lambda
+        )
+    }
+
+    val started: Boolean
+        get() = value.started
+
+    fun startWatching() {
+        if (!started)
+            value.startWatching()
+    }
+
+    fun stopWatching() {
+        value.stopWatching()
+    }
+}
+
+sealed interface TauFileObserverInside {
+    object INACTIVE : TauFileObserverInside
+
+    object DISABLED : TauFileObserverInside
+
+    data class TauFileObserverData(
+        val file: File,
+        val doOnEvent: suspend (event: Int, path: TauPath?) -> Unit
+    ) : TauFileObserverInside
+
+    companion object {
+        fun of(
+            file: File,
+            doOnEvent: suspend (event: Int, path: TauPath?) -> Unit
+        ) = TauFileObserverData(file, doOnEvent) as TauFileObserverInside
 
         //le vrai qui fait le boulot
         private var recursiveFileObserver: RecursiveFileObserver? = null
@@ -42,7 +116,7 @@ sealed interface TauFileObserver {
     fun changeTarget(
         path: TauPath,
         mask: Int = MASK,
-        doOnEvent: (suspend (event: Int, path: TauPath?) -> Unit)? = null
+        lambda: (event: Event) -> Unit
     ) {
         if (this is DISABLED)
             return
@@ -50,26 +124,10 @@ sealed interface TauFileObserver {
         val root = path.toFile() ?: return
         recursiveFileObserver?.stopWatching()
 
-        val doOnEventInternal = doOnEvent
-            ?: (this as? TauFileObserverData)?.doOnEvent
-            ?: return
-
-        val lambda = { it: Event ->
-            val event = it.event
-            val path = TauPath.of(it.absolute.absolutePath)
-            val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
-            scope.launch {
-                doOnEventInternal?.invoke(event, path)
-            }
-
-            Unit
-        }
-
         recursiveFileObserver = RecursiveFileObserver(root.getOrNull()!!, MASK, lambda)
     }
 
-    private val MASK: Int
+    val MASK: Int
         get() = FileObserver.MOVED_FROM or
                 FileObserver.MOVED_TO or
                 FileObserver.CREATE or
@@ -102,7 +160,7 @@ sealed interface TauFileObserver {
 //                    }
 //                }
 
-                this.startWatching()
+                recursiveFileObserver?.startWatching()
             }
         }
     }

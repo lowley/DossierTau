@@ -13,7 +13,7 @@ import lorry.dossiertau.data.intelligenceService.AirForce
 import lorry.dossiertau.data.intelligenceService.CIA
 import lorry.dossiertau.data.intelligenceService.ISpy
 import lorry.dossiertau.data.intelligenceService.Spy
-import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
+import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside
 import lorry.dossiertau.usecases.folderContent.FolderCompo
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
 import lorry.dossiertau.usecases.folderContent.support.FolderRepo
@@ -22,7 +22,7 @@ import org.koin.core.qualifier.named
 
 val TauInjections = module {
 
-    single { TauFileObserver.INACTIVE }
+    single { TauFileObserverInside.INACTIVE }
 
     single {
         // Contexte d'application ONLY (pas d’Activity)

@@ -7,6 +7,7 @@ import androidx.room.PrimaryKey
 import lorry.dossiertau.data.intelligenceService.utils.TransferingDecision
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.data.model.TauFile
+import lorry.dossiertau.data.model.TauFolder
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.data.planes.DbCommand
 import lorry.dossiertau.support.littleClasses.TauIdentifier
@@ -51,6 +52,15 @@ fun DiffEntity.toTauItem(): TauItem {
             when (this.item_type) {
                 ItemType.FILE.name ->
                     TauFile(
+                        id = if (this.correlationId != null) this.correlationId.toTauIdentifier()
+                        else Uuid.random().toTauIdentifier(),
+                        fullPath = this.full_path.toTauPath(),
+                        picture = TauPicture.NONE,
+                        modificationDate = this.modified_at_epoch_ms.toTauDate()
+                    )
+
+                ItemType.FOLDER.name ->
+                    TauFolder(
                         id = if (this.correlationId != null) this.correlationId.toTauIdentifier()
                         else Uuid.random().toTauIdentifier(),
                         fullPath = this.full_path.toTauPath(),

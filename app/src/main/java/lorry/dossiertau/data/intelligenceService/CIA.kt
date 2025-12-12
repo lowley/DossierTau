@@ -36,14 +36,13 @@ class CIA() : LifecycleService() {
     val koin = GlobalContext.get()
     var scope: CoroutineScope = koin.get()
     var dispatcher: CoroutineDispatcher = Dispatchers.Default
-
     var spy: ISpy = koin.get()
     val airForce: AirForce = koin.get()
     private var eventsJob: Job? = null
 
-    //////////////////////////////////////////////////////////////////////////////////////////
-    // la production de la  Cia: informer TauFolder des changements dans le disque via Room //
-    //////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////
+    // la production de la Cia: informer TauFolder des changements dans le disque via Room //
+    /////////////////////////////////////////////////////////////////////////////////////////
     val _ciaDecisions = MutableSharedFlow<TransferingDecision>()
     val ciaDecisions: SharedFlow<TransferingDecision> = _ciaDecisions.asSharedFlow()
 

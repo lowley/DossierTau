@@ -46,7 +46,7 @@ enum class ItemType{
 //* cette méthode a des effets de bord
 fun createIncomingEvent(code: Int, path: TauPath): AtomicUpdateEvent? {
 
-    val eventType = eventCodeToEventType(code)
+    val eventType = code.toEventType()
     val file = path.toFile().getOrNull()
     if ((eventType !in listOf(AtomicEventType.DELETE, AtomicEventType.DELETE_SELF, AtomicEventType.MOVED_FROM)) &&
         file?.exists() != true)
@@ -60,9 +60,9 @@ fun createIncomingEvent(code: Int, path: TauPath): AtomicUpdateEvent? {
     )
 }
 
-fun eventCodeToEventType(code: Int): AtomicEventType {
+fun Int.toEventType(): AtomicEventType {
 // On neutralise le bit ISDIR et on garde seulement les bits d'événements.
-    val e = code and FileObserver.ALL_EVENTS
+    val e = this and FileObserver.ALL_EVENTS
 
     return when {
         (e and FileObserver.DELETE_SELF) != 0 -> AtomicEventType.DELETE_SELF

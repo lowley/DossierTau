@@ -10,6 +10,7 @@ import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
 import lorry.dossiertau.support.littleClasses.extension
+import lorry.dossiertau.support.littleClasses.path
 import kotlin.Long
 
 sealed class TauFile private constructor() : TauItem {
@@ -68,7 +69,7 @@ sealed class TauFile private constructor() : TauItem {
         ): TauFile = Data(id, parentPath, name, picture, modificationDate, size)
 
         private fun splitParentAndName(full: TauPath): Pair<TauPath, TauItemName> {
-            val s = full.toString()
+            val s = full.path
             val i = s.lastIndexOf('/')
             val parent = if (i <= 0) TauPath.EMPTY else TauPath.of(s.take(i))
             val base = if (i < 0) s else s.substring(i + 1)
