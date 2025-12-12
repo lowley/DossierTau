@@ -23,6 +23,7 @@ import lorry.dossiertau.data.model.TauFolder
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.support.littleClasses.TauPath
+import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.usecases.folderContent.FolderCompo
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
@@ -99,7 +100,7 @@ fun FileListDisplayTests.REPOFILE_TOTO(parentPath: TauPath) = TauRepoFile(
 )
 
 fun FileListDisplayTests.FOLDER_DIVERS(parentPath: TauPath) = TauFolder(
-    fullPath = TauPath.of("$parentPath/divers"),
+    fullPath = TauPath.of("${parentPath.path}/divers"),
     modificationDate = TauDate(834)
 )
 

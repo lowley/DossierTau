@@ -1,6 +1,5 @@
 package lorry.dossiertau.fileListDisplay
 
-import androidx.compose.ui.node.GlobalPositionAwareModifierNode
 import androidx.room.Ignore
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -134,6 +133,9 @@ class FileListDisplayTests : KoinTest {
         val spy = Spy(StandardTestDispatcher(testScheduler))
         spy.updateEventFlow.test {
 
+            advanceUntilIdle()
+            cia.spy = spy
+            
             spy.setObservedFolder(PATH)
 
             //act
@@ -574,6 +576,9 @@ class FileListDisplayTests : KoinTest {
 
         spy.updateEventFlow.test {
 
+            advanceUntilIdle()
+            cia.spy = spy
+
             spy.setObservedFolder(PATH)
 
             //act
@@ -616,6 +621,9 @@ class FileListDisplayTests : KoinTest {
         val spy = Spy(StandardTestDispatcher(testScheduler))
 
         spy.updateEventFlow.test {
+
+            advanceUntilIdle()
+            cia.spy = spy
 
             spy.setObservedFolder(PATH)
 
@@ -660,6 +668,9 @@ class FileListDisplayTests : KoinTest {
 
         spy.updateEventFlow.test {
 
+            advanceUntilIdle()
+            cia.spy = spy
+
             spy.setObservedFolder(PATH)
 
             //act
@@ -702,6 +713,9 @@ class FileListDisplayTests : KoinTest {
         val spy = Spy(StandardTestDispatcher(testScheduler))
 
         spy.updateEventFlow.test {
+
+            advanceUntilIdle()
+            cia.spy = spy
 
             spy.setObservedFolder(PATH)
 
@@ -747,6 +761,9 @@ class FileListDisplayTests : KoinTest {
 
         spy.updateEventFlow.test {
 
+            advanceUntilIdle()
+            cia.spy = spy
+
             spy.setObservedFolder(PATH)
 
             //act
@@ -790,6 +807,9 @@ class FileListDisplayTests : KoinTest {
 
         spy.updateEventFlow.test {
 
+            advanceUntilIdle()
+            cia.spy = spy
+
             spy.setObservedFolder(PATH)
 
             //act
@@ -828,12 +848,20 @@ class FileListDisplayTests : KoinTest {
         //assert
         //* répertoire à observer
         val PATH = "/storage/emulated/0/Download".toTauPath()
-        val cia = CIA()
         val spy = Spy(StandardTestDispatcher(testScheduler))
+        val cia = CIA()
 
         spy.updateEventFlow.test {
 
+            advanceUntilIdle()
+            cia.spy = spy
+
             spy.setObservedFolder(PATH)
+            val global = awaitItem()
+            expect(global).toBeAnInstanceOf<GlobalUpdateEvent>()
+
+            advanceUntilIdle()
+            println("observedFolder = ${cia.spy.observedFolderFlow.value}")
 
             //act
             val divers = FOLDER_DIVERS(PATH)
@@ -877,6 +905,9 @@ class FileListDisplayTests : KoinTest {
             val spy = Spy(StandardTestDispatcher(testScheduler))
 
             spy.updateEventFlow.test {
+
+                advanceUntilIdle()
+                cia.spy = spy
 
                 spy.setObservedFolder(PATH)
                 val empty = awaitItem()

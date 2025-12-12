@@ -37,7 +37,7 @@ class CIA() : LifecycleService() {
     var scope: CoroutineScope = koin.get()
     var dispatcher: CoroutineDispatcher = Dispatchers.Default
 
-    val spy: ISpy = koin.get()
+    var spy: ISpy = koin.get()
     val airForce: AirForce = koin.get()
     private var eventsJob: Job? = null
 

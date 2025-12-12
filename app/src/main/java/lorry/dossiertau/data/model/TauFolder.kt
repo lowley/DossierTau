@@ -8,6 +8,7 @@ import lorry.dossiertau.support.littleClasses.TauIdentifier
 import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
+import lorry.dossiertau.support.littleClasses.path
 
 sealed class TauFolder private constructor(): TauItem {
     inline val asData: Data? get() = this as? Data
@@ -87,7 +88,7 @@ sealed class TauFolder private constructor(): TauItem {
         }
 
         private fun splitParentAndName(full: TauPath): Pair<TauPath, TauItemName> {
-            val s = full.toString()
+            val s = full.path
             val i = s.lastIndexOf('/')
             val parent = if (i <= 0) TauPath.EMPTY else TauPath.of(s.take(i))
             val base = if (i < 0) s else s.substring(i + 1)
