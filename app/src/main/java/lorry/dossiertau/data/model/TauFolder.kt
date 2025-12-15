@@ -1,6 +1,5 @@
 package lorry.dossiertau.data.model
 
-import androidx.compose.foundation.text.input.rememberTextFieldState
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.data.planes.DbItem
 import lorry.dossiertau.support.littleClasses.TauDate
@@ -99,19 +98,55 @@ sealed class TauFolder private constructor(): TauItem {
     fun addItem(itemToAdd: TauItem): TauFolder{
 
         val children = asData?.children
-
         //sans path, on ne créé pas de nouvel élément
         if (this is EMPTY)
             return this
 
         val data = this as Data
+        if (itemToAdd?.asDataCommon?.fullPath in children!!.map { it.asDataCommon?.fullPath }) {
+            return this
+        }
 
-        if (itemToAdd in children!!)
+        return data.copy(children = children!!.plus(itemToAdd))
+    }
+
+    fun removeItem(itemToRemove: TauItem): TauFolder{
+
+        println("REMOVE ITEM: ${itemToRemove.name?.value}")
+
+        val children = asData?.children
+        //sans path, on ne créé pas de nouvel élément
+        if (this is EMPTY) {
+            println("             folder empty -> return")
+            return this
+        }
+
+        val data = this as Data
+        if (itemToRemove?.asDataCommon?.fullPath !in children!!.map { it.asDataCommon?.fullPath }) {
+            println("remove nothing as not found")
+            return this
+        }
+
+        println("remove one item: ${itemToRemove.name?.value}")
+        val newChildren = children!!.filter { it.fullPath != itemToRemove.fullPath }
+        return data.copy(children = newChildren)
+    }
+
+    fun modifyItem(itemToModify: TauItem): TauFolder{
+
+        val children = asData?.children
+        //sans path, on ne créé pas de nouvel élément
+        if (this is EMPTY)
             return this
 
+        val data = this as Data
+        if (itemToModify?.asDataCommon?.fullPath !in children!!.map { it.asDataCommon?.fullPath }) {
+            return this
+        }
+
         return data.copy(
-            children = children!!.plus(itemToAdd)
-        )
+            children = children!!.filter { item -> item.asDataCommon?.fullPath != itemToModify.asDataCommon?.fullPath }
+        ).addItem(itemToModify)
     }
 
 

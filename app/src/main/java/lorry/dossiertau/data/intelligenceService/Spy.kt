@@ -25,7 +25,14 @@ import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside.INACTIVE
 import lorry.dossiertau.data.intelligenceService.utils.events.toEventType
 import lorry.dossiertau.support.littleClasses.toTauDate
+import java.time.Clock
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
+@OptIn(ExperimentalTime::class)
 class Spy(
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     var fileObserver: TauFileObserver = TauFileObserver.of(INACTIVE)
@@ -146,17 +153,22 @@ class Spy(
         //////////////
         observedFolderFlow.onEach { folderPath ->
             if (folderPath.value.isRight()) {
-
                 fileObserver.changeTarget(
                     path = folderPath,
                     doOnEvent = { event, path ->
+                        val fileDate1 = path?.toFile()?.map { it.lastModified() }
+                            ?.getOrNull().let {
+                                if (it == null || it == 0L)
+                                    Clock.systemDefaultZone().millis()
+//                                    Instant.now().toEpochMilliseconds()
+                                else it
+                            }
                         val newEvent = AtomicUpdateEvent(
                             eventType = event.toEventType(),
                             path = path ?: TauPath.EMPTY,
                             itemType = if (path?.toFile()?.map { it.isFile }
                                     ?.getOrNull() == true) ItemType.FILE else ItemType.FOLDER,
-                            modificationDate = path?.toFile()?.map { it.lastModified() }
-                                ?.getOrNull().toTauDate()
+                           modificationDate = fileDate1.toTauDate()
                         )
 
                         emitIncomingEvent(newEvent)

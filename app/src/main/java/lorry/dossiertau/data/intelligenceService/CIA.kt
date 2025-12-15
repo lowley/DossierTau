@@ -27,9 +27,13 @@ import lorry.dossiertau.data.intelligenceService.utils.events.AtomicUpdateEvent
 import lorry.dossiertau.data.intelligenceService.utils.events.GlobalUpdateEvent
 import lorry.dossiertau.data.intelligenceService.utils.events.IUpdateEvent
 import lorry.dossiertau.support.littleClasses.path
+import lorry.dossiertau.support.littleClasses.toTauDate
 import org.koin.core.context.GlobalContext
+import java.time.Clock
 import kotlin.coroutines.ContinuationInterceptor
 import kotlin.io.println
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 class CIA() : LifecycleService() {
 
@@ -85,8 +89,11 @@ class CIA() : LifecycleService() {
         return result
     }
 
+    @OptIn(ExperimentalTime::class)
     private fun manageGlobalEvent(event: GlobalUpdateEvent): TransferingDecision? {
-        val result = TransferingDecision.GlobalRefresh(event.path)
+        val result = TransferingDecision.GlobalRefresh(
+            eventPath = event.path,
+            refreshDate = Clock.systemDefaultZone().millis().toTauDate())
         return result
     }
 
@@ -107,7 +114,7 @@ class CIA() : LifecycleService() {
                     TransferingDecision.CreateItem(
                         eventPath = event.path,
                         modificationDate = event.modificationDate,
-                        itemType = event.itemType
+                        itemType = event.itemType,
                     )
                 )
             }
@@ -119,7 +126,7 @@ class CIA() : LifecycleService() {
                     TransferingDecision.DeleteItem(
                         eventPath = event.path,
                         modificationDate = event.modificationDate,
-                        itemType = event.itemType
+                        itemType = event.itemType,
                     )
                 )
             }
@@ -135,7 +142,7 @@ class CIA() : LifecycleService() {
                     TransferingDecision.ModifyItem(
                         eventPath = event.path,
                         modificationDate = event.modificationDate,
-                        itemType = event.itemType
+                        itemType = event.itemType,
                     )
                 )
             }
@@ -147,7 +154,7 @@ class CIA() : LifecycleService() {
                     TransferingDecision.DeleteItem(
                         eventPath = event.path,
                         modificationDate = event.modificationDate,
-                        itemType = event.itemType
+                        itemType = event.itemType,
                     )
                 )
             }

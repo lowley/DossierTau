@@ -3,6 +3,7 @@ package lorry.dossiertau.data.intelligenceService.utils.events
 import android.os.FileObserver
 import lorry.dossiertau.data.intelligenceService.utils.TransferingDecision
 import lorry.dossiertau.support.littleClasses.TauDate
+import lorry.dossiertau.support.littleClasses.TauIdentifier
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.parentPath
 import lorry.dossiertau.support.littleClasses.toTauDate
@@ -11,7 +12,7 @@ data class AtomicUpdateEvent(
     val eventType: AtomicEventType,
     override val path: TauPath,
     val itemType: ItemType,
-    val modificationDate: TauDate
+    val modificationDate: TauDate,
 ): IUpdateEvent
 
 internal val fileInsideReaction = { insidePath: TauPath, aroundPath: TauPath, potentialTransferringDecision: TransferingDecision ->

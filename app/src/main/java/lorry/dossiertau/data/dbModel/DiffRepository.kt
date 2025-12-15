@@ -10,7 +10,7 @@ class DiffRepository(
     private val dao: FileDiffDao,
     private val io: CoroutineDispatcher = Dispatchers.IO
 ) {
-    suspend fun insertDiff(cmd: DbCommand.CreateItem, correlationId: String? = null) =
+    suspend fun insertDiff(cmd: DbCommand, correlationId: String? = null) =
         withContext(io) { dao.insert(cmd.toFileDiffEntity(correlationId)) }
 
     fun getDiffsIn(folder: String) =

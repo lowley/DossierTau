@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import lorry.dossiertau.data.dbModel.DiffRepository
 import lorry.dossiertau.data.intelligenceService.utils.TransferingDecision
-import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.data.planes.DbCommand
 import lorry.dossiertau.data.planes.DbItem
 import kotlin.coroutines.ContinuationInterceptor
@@ -34,10 +33,41 @@ class AirForce(
                         item = DbItem(
                             fullPath = decision.itemPath,
                             modificationDate = decision.modificationDate,
+                            type = decision.itemType,
+                        )
+                    )
+
+                    modifyDatabaseBy(dbCommand)
+                }
+
+                is TransferingDecision.DeleteItem -> {
+                    val dbCommand = DbCommand.DeleteItem(
+                        item = DbItem(
+                            fullPath = decision.itemPath,
+                            modificationDate = decision.modificationDate,
                             type = decision.itemType
                         )
                     )
 
+                    modifyDatabaseBy(dbCommand)
+                }
+
+                is TransferingDecision.ModifyItem -> {
+                    val dbCommand = DbCommand.ModifyItem(
+                        item = DbItem(
+                            fullPath = decision.itemPath,
+                            modificationDate = decision.modificationDate,
+                            type = decision.itemType
+                        )
+                    )
+
+                    modifyDatabaseBy(dbCommand)
+                }
+
+                is TransferingDecision.GlobalRefresh -> {
+                    val dbCommand = DbCommand.GlobalRefresh(
+                        path = decision.itemPath,
+                        refreshDate = decision.refreshDate)
                     modifyDatabaseBy(dbCommand)
                 }
 
@@ -53,6 +83,24 @@ class AirForce(
     fun modifyDatabaseBy(command: DbCommand) {
         when(command){
             is DbCommand.CreateItem -> {
+                scope.launch {
+                    repo.insertDiff(command)
+                }
+            }
+
+            is DbCommand.DeleteItem -> {
+                scope.launch {
+                    repo.insertDiff(command)
+                }
+            }
+
+            is DbCommand.ModifyItem -> {
+                scope.launch {
+                    repo.insertDiff(command)
+                }
+            }
+
+            is DbCommand.GlobalRefresh -> {
                 scope.launch {
                     repo.insertDiff(command)
                 }

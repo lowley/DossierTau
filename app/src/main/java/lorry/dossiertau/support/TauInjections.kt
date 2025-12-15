@@ -19,6 +19,7 @@ import lorry.dossiertau.usecases.folderContent.IFolderCompo
 import lorry.dossiertau.usecases.folderContent.support.FolderRepo
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 import org.koin.core.qualifier.named
+import java.util.concurrent.Executors
 
 val TauInjections = module {
 
@@ -30,6 +31,12 @@ val TauInjections = module {
             // Si tu utilises sqlite-bundled en prod :
             // .setDriver(BundledSQLiteDriver())
             .fallbackToDestructiveMigration() // à remplacer par vrai plan de migration asap
+            .setQueryCallback(
+                { sql, bindArgs ->
+                    println("SQL: sql=$sql | args=$bindArgs")
+                },
+                Executors.newSingleThreadExecutor()
+            )
             .build()
     }
     single<FileDiffDao> { get<AppDb>().fileDiffDao() }

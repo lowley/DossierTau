@@ -98,3 +98,6 @@ val TauItem.fullPath: TauPath
 //TODO TauDate.EMPTY
 inline val TauItem.modificationDate: TauDate
     get() = asDataCommon?.modificationDate ?: TauDate(0L)
+
+inline val TauItem.parentPath: TauPath?
+    get() = asDataCommon?.parentPath

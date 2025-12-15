@@ -13,15 +13,32 @@ interface FileDiffDao {
     // Pour l’écran : liste des diffs CREATE_FILE d’un dossier
     @Query("""
     SELECT * FROM file_diffs
-    WHERE op_type='CREATE_FILE'
-      AND full_path LIKE :folder || '/%'  -- naïf au début: "appartient au dossier"
-    ORDER BY modified_at_epoch_ms DESC
+    WHERE (op_type='CREATE_ITEM' or op_type='MODIFY_ITEM' or op_type='DELETE_ITEM')
+      AND full_path LIKE :folder
+          ORDER BY modified_at_epoch_ms DESC
+          limit 1
+
   """)
     fun diffsForFolder(folder: String): Flow<List<DiffEntity>>
+
+    // Pour l’écran : liste des diffs CREATE_FILE d’un dossier
+    @Query("""
+    SELECT * FROM file_diffs
+    WHERE (op_type='CREATE_ITEM' or op_type='MODIFY_ITEM' or op_type='DELETE_ITEM')
+      AND parentPath like :folder
+          ORDER BY modified_at_epoch_ms DESC
+          limit 1
+
+  """)
+    fun diffsInParent(folder: String): Flow<List<DiffEntity>>
+
+
+
 
     @Query("""
     SELECT * FROM file_diffs
     ORDER BY modified_at_epoch_ms DESC
+    limit 1
   """)
-    fun dbForFolder(): Flow<List<DiffEntity>>
+    fun diffFlow(): Flow<DiffEntity?>
 }

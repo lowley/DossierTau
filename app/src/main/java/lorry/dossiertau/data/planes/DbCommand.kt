@@ -8,9 +8,22 @@ import lorry.dossiertau.support.littleClasses.TauIdentifier
 import lorry.dossiertau.support.littleClasses.TauPath
 
 sealed class DbCommand {
-
     data class CreateItem(
         val item: DbItem
+    ): DbCommand()
+
+    data class DeleteItem(
+        val item: DbItem
+    ): DbCommand()
+
+    //TODO ajouter infos
+    data class ModifyItem(
+        val item: DbItem
+    ): DbCommand()
+
+    data class GlobalRefresh(
+        val path: TauPath,
+        val refreshDate: TauDate
     ): DbCommand()
 
     override fun equals(other: Any?): Boolean {

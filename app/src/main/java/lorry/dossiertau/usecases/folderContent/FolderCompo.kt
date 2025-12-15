@@ -1,6 +1,6 @@
 package lorry.dossiertau.usecases.folderContent
 
-import androidx.compose.material3.rememberTooltipState
+import androidx.compose.ui.graphics.vector.VectorProperty
 import arrow.core.None
 import arrow.core.Option
 import arrow.core.toOption
@@ -12,27 +12,23 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.flatMapConcat
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.combineTransform
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import lorry.dossiertau.data.dbModel.DiffEntity
 import lorry.dossiertau.data.dbModel.FileDiffDao
+import lorry.dossiertau.data.dbModel.OpType
 import lorry.dossiertau.data.dbModel.toTauItem
 import lorry.dossiertau.data.model.computeParentFolderDate
 import lorry.dossiertau.data.diskTransfer.toTauItems
+import lorry.dossiertau.data.intelligenceService.utils.TransferingDecision
 import lorry.dossiertau.data.model.TauFolder
-import lorry.dossiertau.data.model.children
 import lorry.dossiertau.data.model.fullPath
 import lorry.dossiertau.data.model.parentPath
+import lorry.dossiertau.data.planes.DbCommand
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
 import lorry.dossiertau.support.littleClasses.name
@@ -108,29 +104,35 @@ class FolderCompo(
     }
 
     private suspend fun collectDiffs() {
-        folderPathFlow.flatMapLatest {
-            if (it.isSome())
-            // fileDiffDAO.diffsForFolder(path) est un Flow qui émet chaque fois que la DB change
-                fileDiffDAO.diffsForFolder(it.getOrNull()!!.path)
-            // Si le chemin est vide, on retourne un Flow qui n'émet rien mais NE SE TERMINE PAS
-            // (sinon le collect se termine), ou flowOf(emptyList()) si on veut une valeur initiale.
-            // Utilisateur: flowOf() semble suffisant s'il est vide, mais faisons-le propre.
-            // Si le DAO retourne List<DiffEntity>, on retourne un Flow<List<DiffEntity>> vide.
-            else flow<List<DiffEntity>> { kotlinx.coroutines.awaitCancellation() }
-        }.filter {
-            it.isNotEmpty()
-        }
-            .collect { diff ->
+        combineTransform(fileDiffDAO.diffFlow().filterNotNull(), folderPathFlow){ diff, path ->
+            when (diff.op_type){
+                OpType.FolderRefresh.text -> {
+                    if (diff.full_path == path.getOrNull()?.path)
+                        emit(diff)
+                }
+
+                else -> {
+                    if (diff.parentPath == path.getOrNull()?.path)
+                        emit(diff)
+                }
+            }
+        }.collect { diff ->
+                println("COLLECTDIFFS: reçu diff: $diff")
                 val folder = folderFlow.value.getOrNull() ?: return@collect
 
                 //TODO tester si children contient déjà item
-                println("DEBUG: reçu un diff, type = ${diff::class.simpleName}")
-                println("DEBUG: reçu un diff, ${diff.size} éléments")
-                println("       -> folderCompo:${this.dispatcher.toString().takeLast(5)}")
-                changeFolderFlow(
-                    //TODO compléter: plusieurs éléments dans diff
-                    folder.addItem(diff[0].toTauItem()).toOption()
-                )
+                println("DEBUG: reçu un diff, type = ${diff.op_type}")
+
+                if (diff.op_type == OpType.CreateItem.text)
+                    changeFolderFlow(folder.addItem(diff.toTauItem()).toOption())
+
+                if (diff.op_type == OpType.DeleteItem.text) {
+                    println("rentre dans removeItem, avec TauItem=${diff}")
+                    changeFolderFlow(folder.removeItem(diff.toTauItem()).toOption())
+                }
+
+                if (diff.op_type == OpType.ModifyItem.text)
+                    changeFolderFlow(folder.modifyItem(diff.toTauItem()).toOption())
             }
     }
 }
