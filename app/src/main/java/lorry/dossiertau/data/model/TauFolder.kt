@@ -145,8 +145,8 @@ sealed class TauFolder private constructor(): TauItem {
         }
 
         return data.copy(
-            children = children!!.filter { item -> item.asDataCommon?.fullPath != itemToModify.asDataCommon?.fullPath }
-        ).addItem(itemToModify)
+            children = children!!.filter { item -> item.asDataCommon?.fullPath != itemToModify.asDataCommon?.fullPath }.plus(itemToModify)
+        )
     }
 
 

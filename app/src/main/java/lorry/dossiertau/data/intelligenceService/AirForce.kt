@@ -25,8 +25,6 @@ class AirForce(
 
     fun startListeningForCIADecisions(): Job {
         return cia.ciaDecisions.onEach { decision ->
-            println("COLLECT| name=${coroutineContext[CoroutineName]} thread=${Thread.currentThread().name} disp=${coroutineContext[ContinuationInterceptor]}")
-
             when (decision){
                 is TransferingDecision.CreateItem -> {
                     val dbCommand = DbCommand.CreateItem(

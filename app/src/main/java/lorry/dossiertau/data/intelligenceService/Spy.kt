@@ -174,6 +174,7 @@ class Spy(
                            modificationDate = fileDate1.toTauDate()
                         )
 
+                        println("Spy detected event: ${newEvent.eventType}, ${newEvent.path.value}")
                         emitIncomingEvent(newEvent)
                     }
                 )

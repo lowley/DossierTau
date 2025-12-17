@@ -14,6 +14,10 @@ import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauDate
 import lorry.dossiertau.support.littleClasses.toTauIdentifier
 import lorry.dossiertau.support.littleClasses.toTauPath
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -26,7 +30,7 @@ data class DiffEntity(
     val correlationId: String?,               // optionnel: TauIdentifier.toString()
     val op_type: String,                      // "CREATE_FILE" (plus tard: DELETE/RENAME…)
     val full_path: String,                    // TauPath normalisé (sans slash final)
-    val modified_at_epoch_ms: Long,           // TauDate
+    val modified_at_epoch_ms: String,           // TauDate
     val item_type: String,
     val parentPath: String// "FILE" / "DIR" (ItemType)
 )
@@ -39,7 +43,7 @@ fun DbCommand.toFileDiffEntity(correlationId: String? = null): DiffEntity {
             correlationId = correlationId ?: item.id.value.toString(),
             op_type = OpType.CreateItem.text,
             full_path = item.fullPath.path,
-            modified_at_epoch_ms = item.modificationDate.value,
+            modified_at_epoch_ms = item.modificationDate.value.epochMillisToDateTime(),
             item_type = item.type.name,
             parentPath = item.fullPath.parentPath.path
         )
@@ -48,7 +52,7 @@ fun DbCommand.toFileDiffEntity(correlationId: String? = null): DiffEntity {
             correlationId = correlationId ?: item.id.value.toString(),
             op_type = OpType.DeleteItem.text,
             full_path = item.fullPath.path,
-            modified_at_epoch_ms = item.modificationDate.value,
+            modified_at_epoch_ms = item.modificationDate.value.epochMillisToDateTime(),
             item_type = item.type.name,
             parentPath = item.fullPath.parentPath.path
         )
@@ -57,7 +61,7 @@ fun DbCommand.toFileDiffEntity(correlationId: String? = null): DiffEntity {
             correlationId = correlationId ?: item.id.value.toString(),
             op_type = OpType.ModifyItem.text,
             full_path = item.fullPath.path,
-            modified_at_epoch_ms = item.modificationDate.value,
+            modified_at_epoch_ms = item.modificationDate.value.epochMillisToDateTime(),
             item_type = item.type.name,
             parentPath = item.fullPath.parentPath.path
         )
@@ -66,13 +70,13 @@ fun DbCommand.toFileDiffEntity(correlationId: String? = null): DiffEntity {
             correlationId = correlationId,
             op_type = OpType.FolderRefresh.text,
             full_path = path.path,
-            modified_at_epoch_ms = refreshDate.value,
+            modified_at_epoch_ms = refreshDate.value.epochMillisToDateTime(),
             item_type = ItemType.FOLDER.name,
             parentPath = path.parentPath.path
         )
     }
 
-    println ("SQL: va être envoyé Diff type ${result.op_type} avec parentPath ${result.parentPath}")
+    println ("SQL: va être envoyé Diff type ${result.op_type} avec path ${result.full_path}")
     return result
 }
 
@@ -90,7 +94,9 @@ fun DiffEntity.toTauItem(): TauItem {
                         else Uuid.random().toTauIdentifier(),
                         fullPath = this.full_path.toTauPath(),
                         picture = TauPicture.NONE,
-                        modificationDate = this.modified_at_epoch_ms.toTauDate()
+                        modificationDate = this.modified_at_epoch_ms
+                            .dateTimetoEpochMillis()
+                            .toTauDate()
                     )
 
                 ItemType.FOLDER.name ->
@@ -99,7 +105,9 @@ fun DiffEntity.toTauItem(): TauItem {
                         else Uuid.random().toTauIdentifier(),
                         fullPath = this.full_path.toTauPath(),
                         picture = TauPicture.NONE,
-                        modificationDate = this.modified_at_epoch_ms.toTauDate()
+                        modificationDate = this.modified_at_epoch_ms
+                            .dateTimetoEpochMillis()
+                            .toTauDate()
                     )
 
                 else -> TauFile.EMPTY
@@ -120,3 +128,15 @@ enum class OpType(val text: String) {
 
 }
 
+val dateTimePattern = "dd/MM/yyyy HH:mm:ss + AAAA"
+fun Long.epochMillisToDateTime(zone: ZoneId = ZoneId.systemDefault()): String{
+    val fmt = DateTimeFormatter.ofPattern(dateTimePattern)
+    return Instant.ofEpochMilli(this).atZone(zone).format(fmt)
+}
+
+
+fun String.dateTimetoEpochMillis(zone: ZoneId = ZoneId.systemDefault()): Long {
+    val fmt = DateTimeFormatter.ofPattern(dateTimePattern)
+    val ldt = LocalDateTime.parse(this, fmt)
+    return ldt.atZone(zone).toInstant().toEpochMilli()
+}

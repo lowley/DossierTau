@@ -52,7 +52,6 @@ class CIA() : LifecycleService() {
 
     fun emitCIADecision(decision: TransferingDecision) {
         scope.launch(dispatcher) {
-            println("EMIT  | name=${GlobalScope.coroutineContext[CoroutineName]} thread=${Thread.currentThread().name} disp=${GlobalScope.coroutineContext[ContinuationInterceptor]}")
             _ciaDecisions.emit(decision)
         }
     }
