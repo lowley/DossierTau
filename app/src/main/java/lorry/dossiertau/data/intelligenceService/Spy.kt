@@ -15,16 +15,15 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
 import lorry.dossiertau.data.intelligenceService.utils.events.AtomicEventType
-import lorry.dossiertau.data.intelligenceService.utils.events.AtomicUpdateEvent
+import lorry.dossiertau.data.intelligenceService.utils.events.AtomicSpyLevel
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
-import lorry.dossiertau.data.intelligenceService.utils.events.GlobalUpdateEvent
-import lorry.dossiertau.data.intelligenceService.utils.events.IUpdateEvent
+import lorry.dossiertau.data.intelligenceService.utils.events.GlobalSpyLevel
+import lorry.dossiertau.data.intelligenceService.utils.events.ISpyLevel
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauPath
 
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside.INACTIVE
 import lorry.dossiertau.data.intelligenceService.utils.events.toEventType
-import lorry.dossiertau.support.littleClasses.FolderPath
 import lorry.dossiertau.support.littleClasses.toTauDate
 import java.time.Clock
 import kotlin.time.ExperimentalTime
@@ -76,11 +75,11 @@ class Spy(
     ///////////////////////////////////////////////////////////////////////
     // évènements créés par l'espion suite à une opération sur le disque //
     ///////////////////////////////////////////////////////////////////////
-    val _updateEventFlow = MutableSharedFlow<IUpdateEvent>()
+    val _updateEventFlow = MutableSharedFlow<ISpyLevel>()
 
-    override val updateEventFlow: SharedFlow<IUpdateEvent> = _updateEventFlow.asSharedFlow()
+    override val updateEventFlow: SharedFlow<ISpyLevel> = _updateEventFlow.asSharedFlow()
 
-    override fun emitIncomingEvent(event: IUpdateEvent) {
+    override fun emitSpyLevel(event: ISpyLevel) {
         scope.launch(dispatcher) {
             _updateEventFlow.emit(event)
         }
@@ -91,14 +90,14 @@ class Spy(
         itemType: ItemType,
         modificationDate: TauDate
     ) {
-        val fakeEvent = AtomicUpdateEvent(
+        val fakeEvent = AtomicSpyLevel(
             eventType = AtomicEventType.CREATE,
             path = itemToEmit,
             itemType = itemType,
             modificationDate = modificationDate,
         )
 
-        emitIncomingEvent(fakeEvent)
+        emitSpyLevel(fakeEvent)
     }
 
     override fun emitFake_DELETEITEM(
@@ -106,14 +105,14 @@ class Spy(
         itemType: ItemType,
         modificationDate: TauDate
     ) {
-        val fakeEvent = AtomicUpdateEvent(
+        val fakeEvent = AtomicSpyLevel(
             eventType = AtomicEventType.DELETE,
             path = itemToEmit,
             itemType = itemType,
             modificationDate = modificationDate,
         )
 
-        emitIncomingEvent(fakeEvent)
+        emitSpyLevel(fakeEvent)
     }
 
     override fun emitFake_MODIFYITEM(
@@ -121,14 +120,14 @@ class Spy(
         itemType: ItemType,
         modificationDate: TauDate
     ) {
-        val fakeEvent = AtomicUpdateEvent(
+        val fakeEvent = AtomicSpyLevel(
             eventType = AtomicEventType.MODIFY,
             path = itemToEmit,
             itemType = itemType,
             modificationDate = modificationDate,
         )
 
-        emitIncomingEvent(fakeEvent)
+        emitSpyLevel(fakeEvent)
     }
 
     override fun emitFake_MOVEDFROM(
@@ -136,18 +135,18 @@ class Spy(
         itemType: ItemType,
         modificationDate: TauDate
     ) {
-        val fakeEvent = AtomicUpdateEvent(
+        val fakeEvent = AtomicSpyLevel(
             eventType = AtomicEventType.MOVED_FROM,
             path = itemToEmit,
             itemType = itemType,
             modificationDate = modificationDate,
         )
 
-        emitIncomingEvent(fakeEvent)
+        emitSpyLevel(fakeEvent)
     }
 
-    suspend fun doOnEvent(atomicUpdateEvent: AtomicUpdateEvent) {
-        emitIncomingEvent(atomicUpdateEvent)
+    suspend fun doOnEvent(atomicUpdateEvent: AtomicSpyLevel) {
+        emitSpyLevel(atomicUpdateEvent)
     }
 
     init {
@@ -166,7 +165,7 @@ class Spy(
                                     Clock.systemDefaultZone().millis()
                                 else it
                             }
-                        val newEvent = AtomicUpdateEvent(
+                        val newEvent = AtomicSpyLevel(
                             eventType = event.toEventType(),
                             path = path ?: TauPath.EMPTY,
                             itemType = if (path?.toFile()?.map { it.isFile }
@@ -175,7 +174,7 @@ class Spy(
                         )
 
                         println("Spy detected event: ${newEvent.eventType}, ${newEvent.path.value}")
-                        emitIncomingEvent(newEvent)
+                        emitSpyLevel(newEvent)
                     }
                 )
 
@@ -184,8 +183,8 @@ class Spy(
                 fileObserver?.startWatching()
                 //TODO une méthode pour décider de quoi faire dans CIA? existe déjà?
                 //ici on émet un GlobalScan
-                val event = GlobalUpdateEvent(folderPath)
-                emitIncomingEvent(event)
+                val event = GlobalSpyLevel(folderPath)
+                emitSpyLevel(event)
             }
 
         }.launchIn(scope)

@@ -12,7 +12,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import lorry.dossiertau.data.intelligenceService.CIA
-import lorry.dossiertau.data.intelligenceService.utils.TransferingDecision
+import lorry.dossiertau.data.intelligenceService.utils.CIALevel
 import lorry.dossiertau.data.model.fullPath
 import lorry.dossiertau.data.model.sameContentAs
 import lorry.dossiertau.support.littleClasses.toTauPath
@@ -33,7 +33,7 @@ import lorry.dossiertau.data.dbModel.AppDb
 import lorry.dossiertau.data.dbModel.DiffRepository
 import lorry.dossiertau.data.dbModel.FileDiffDao
 import lorry.dossiertau.data.dbModel.toFileDiffEntity
-import lorry.dossiertau.data.intelligenceService.utils.events.GlobalUpdateEvent
+import lorry.dossiertau.data.intelligenceService.utils.events.GlobalSpyLevel
 import lorry.dossiertau.data.planes.DbCommand
 import lorry.dossiertau.support.littleClasses.path
 import org.junit.After
@@ -144,8 +144,8 @@ class FileListDisplayTests : KoinTest {
                 val decision = cia.manageUpdateEvents(event)
 
                 expect(decision).notToEqualNull() {
-                    toBeAnInstanceOf<TransferingDecision.GlobalRefresh>()
-                    feature { f((it as TransferingDecision.GlobalRefresh)::itemPath) }.toEqual(PATH)
+                    toBeAnInstanceOf<CIALevel.GlobalRefresh>()
+                    feature { f((it as CIALevel.GlobalRefresh)::itemPath) }.toEqual(PATH)
                 }
 
                 advanceUntilIdle()
@@ -153,8 +153,8 @@ class FileListDisplayTests : KoinTest {
                 val decision2 = cia.manageUpdateEvents(event2)
                 //assert
                 expect(decision2).notToEqualNull() {
-                    toBeAnInstanceOf<TransferingDecision.CreateItem>()
-                    feature { f((it as TransferingDecision.CreateItem)::modificationDate) }.toEqual(
+                    toBeAnInstanceOf<CIALevel.CreateItem>()
+                    feature { f((it as CIALevel.CreateItem)::modificationDate) }.toEqual(
                         817L.toTauDate()
                     )
                 }
@@ -211,7 +211,7 @@ class FileListDisplayTests : KoinTest {
                 val decision = cia.manageUpdateEvents(event)
 
                 expect(decision).notToEqualNull() {
-                    toBeAnInstanceOf<TransferingDecision.GlobalRefresh>()
+                    toBeAnInstanceOf<CIALevel.GlobalRefresh>()
                     feature { f(it::itemPath) }.toEqual(PATH)
                 }
             }
@@ -274,10 +274,10 @@ class FileListDisplayTests : KoinTest {
 
                 //assert
                 expect(decision) {
-                    toBeAnInstanceOf<TransferingDecision.CreateItem>()
+                    toBeAnInstanceOf<CIALevel.CreateItem>()
                     notToEqualNull()
                     feature({ f(it!!::itemPath) }) { toEqual(toto.fullPath) }
-                    feature { f((it!! as TransferingDecision.CreateItem)::modificationDate) }.toEqual(
+                    feature { f((it!! as CIALevel.CreateItem)::modificationDate) }.toEqual(
                         817L.toTauDate()
                     )
                 }
@@ -331,7 +331,7 @@ class FileListDisplayTests : KoinTest {
             val airForce = spyk<AirForce>(airForceOne)
             val job = airForce.startListeningForCIADecisions()
 
-            val createItemDecision = TransferingDecision.CreateItem(
+            val createItemDecision = CIALevel.CreateItem(
                 eventPath = toto.fullPath,
                 modificationDate = toto.modificationDate,
                 itemType = ItemType.FILE
@@ -341,7 +341,7 @@ class FileListDisplayTests : KoinTest {
             coEvery { airForce.modifyDatabaseBy(any()) } just Runs
 
             //act
-            cia.emitCIADecision(createItemDecision)
+            cia.emitCIALevel(createItemDecision)
             advanceUntilIdle()
 
             //assert
@@ -574,7 +574,7 @@ class FileListDisplayTests : KoinTest {
 
                 val global = awaitItem()
                 expect(global) {
-                    toBeAnInstanceOf<GlobalUpdateEvent>()
+                    toBeAnInstanceOf<GlobalSpyLevel>()
                 }
 
                 //act
@@ -589,11 +589,11 @@ class FileListDisplayTests : KoinTest {
 
                 //assert
                 expect(decision).notToEqualNull() {
-                    toBeAnInstanceOf<TransferingDecision.CreateItem>()
-                    feature { f((it as TransferingDecision.CreateItem)::modificationDate) }.toEqual(
+                    toBeAnInstanceOf<CIALevel.CreateItem>()
+                    feature { f((it as CIALevel.CreateItem)::modificationDate) }.toEqual(
                         817L.toTauDate()
                     )
-                    feature { f((it as TransferingDecision.CreateItem)::itemType) }.toEqual(ItemType.FOLDER)
+                    feature { f((it as CIALevel.CreateItem)::itemType) }.toEqual(ItemType.FOLDER)
                 }
 
                 cancelAndIgnoreRemainingEvents()
@@ -629,7 +629,7 @@ class FileListDisplayTests : KoinTest {
                 spy.setObservedFolder(PATH)
                 val global = awaitItem()
                 expect(global) {
-                    toBeAnInstanceOf<GlobalUpdateEvent>()
+                    toBeAnInstanceOf<GlobalSpyLevel>()
                 }
 
                 //act
@@ -644,11 +644,11 @@ class FileListDisplayTests : KoinTest {
 
                 //assert
                 expect(decision).notToEqualNull() {
-                    toBeAnInstanceOf<TransferingDecision.DeleteItem>()
-                    feature { f((it as TransferingDecision.DeleteItem)::modificationDate) }.toEqual(
+                    toBeAnInstanceOf<CIALevel.DeleteItem>()
+                    feature { f((it as CIALevel.DeleteItem)::modificationDate) }.toEqual(
                         817L.toTauDate()
                     )
-                    feature { f((it as TransferingDecision.DeleteItem)::itemType) }.toEqual(ItemType.FILE)
+                    feature { f((it as CIALevel.DeleteItem)::itemType) }.toEqual(ItemType.FILE)
                 }
 
                 cancelAndIgnoreRemainingEvents()
@@ -684,7 +684,7 @@ class FileListDisplayTests : KoinTest {
                 spy.setObservedFolder(PATH)
                 val global = awaitItem()
                 expect(global) {
-                    toBeAnInstanceOf<GlobalUpdateEvent>()
+                    toBeAnInstanceOf<GlobalSpyLevel>()
                 }
 
                 //act
@@ -699,11 +699,11 @@ class FileListDisplayTests : KoinTest {
 
                 //assert
                 expect(decision).notToEqualNull() {
-                    toBeAnInstanceOf<TransferingDecision.DeleteItem>()
-                    feature { f((it as TransferingDecision.DeleteItem)::modificationDate) }.toEqual(
+                    toBeAnInstanceOf<CIALevel.DeleteItem>()
+                    feature { f((it as CIALevel.DeleteItem)::modificationDate) }.toEqual(
                         817L.toTauDate()
                     )
-                    feature { f((it as TransferingDecision.DeleteItem)::itemType) }.toEqual(ItemType.FOLDER)
+                    feature { f((it as CIALevel.DeleteItem)::itemType) }.toEqual(ItemType.FOLDER)
                 }
 
                 cancelAndIgnoreRemainingEvents()
@@ -740,7 +740,7 @@ class FileListDisplayTests : KoinTest {
                 spy.setObservedFolder(PATH)
                 val global = awaitItem()
                 expect(global) {
-                    toBeAnInstanceOf<GlobalUpdateEvent>()
+                    toBeAnInstanceOf<GlobalSpyLevel>()
                 }
 
                 //act
@@ -755,11 +755,11 @@ class FileListDisplayTests : KoinTest {
 
                 //assert
                 expect(decision).notToEqualNull() {
-                    toBeAnInstanceOf<TransferingDecision.ModifyItem>()
-                    feature { f((it as TransferingDecision.ModifyItem)::modificationDate) }.toEqual(
+                    toBeAnInstanceOf<CIALevel.ModifyItem>()
+                    feature { f((it as CIALevel.ModifyItem)::modificationDate) }.toEqual(
                         817L.toTauDate()
                     )
-                    feature { f((it as TransferingDecision.ModifyItem)::itemType) }.toEqual(ItemType.FILE)
+                    feature { f((it as CIALevel.ModifyItem)::itemType) }.toEqual(ItemType.FILE)
                 }
 
                 cancelAndIgnoreRemainingEvents()
@@ -797,7 +797,7 @@ class FileListDisplayTests : KoinTest {
                 spy.setObservedFolder(PATH)
                 val global = awaitItem()
                 expect(global) {
-                    toBeAnInstanceOf<GlobalUpdateEvent>()
+                    toBeAnInstanceOf<GlobalSpyLevel>()
                 }
 
                 //act
@@ -812,11 +812,11 @@ class FileListDisplayTests : KoinTest {
 
                 //assert
                 expect(decision).notToEqualNull() {
-                    toBeAnInstanceOf<TransferingDecision.ModifyItem>()
-                    feature { f((it as TransferingDecision.ModifyItem)::modificationDate) }.toEqual(
+                    toBeAnInstanceOf<CIALevel.ModifyItem>()
+                    feature { f((it as CIALevel.ModifyItem)::modificationDate) }.toEqual(
                         817L.toTauDate()
                     )
-                    feature { f((it as TransferingDecision.ModifyItem)::itemType) }.toEqual(ItemType.FOLDER)
+                    feature { f((it as CIALevel.ModifyItem)::itemType) }.toEqual(ItemType.FOLDER)
                 }
 
                 cancelAndIgnoreRemainingEvents()
@@ -854,7 +854,7 @@ class FileListDisplayTests : KoinTest {
                     spy.setObservedFolder(PATH)
                     val global = awaitItem()
                     expect(global) {
-                        toBeAnInstanceOf<GlobalUpdateEvent>()
+                        toBeAnInstanceOf<GlobalSpyLevel>()
                     }
 
                     //act
@@ -869,11 +869,11 @@ class FileListDisplayTests : KoinTest {
 
                     //assert
                     expect(decision).notToEqualNull() {
-                        toBeAnInstanceOf<TransferingDecision.DeleteItem>()
-                        feature { f((it as TransferingDecision.DeleteItem)::modificationDate) }.toEqual(
+                        toBeAnInstanceOf<CIALevel.DeleteItem>()
+                        feature { f((it as CIALevel.DeleteItem)::modificationDate) }.toEqual(
                             817L.toTauDate()
                         )
-                        feature { f((it as TransferingDecision.DeleteItem)::itemType) }.toEqual(
+                        feature { f((it as CIALevel.DeleteItem)::itemType) }.toEqual(
                             ItemType.FILE
                         )
                     }
@@ -913,7 +913,7 @@ class FileListDisplayTests : KoinTest {
                     spy.setObservedFolder(PATH)
                     val global = awaitItem()
                     expect(global) {
-                        toBeAnInstanceOf<GlobalUpdateEvent>()
+                        toBeAnInstanceOf<GlobalSpyLevel>()
                     }
 
                     advanceUntilIdle()
@@ -931,11 +931,11 @@ class FileListDisplayTests : KoinTest {
 
                     //assert
                     expect(decision).notToEqualNull() {
-                        toBeAnInstanceOf<TransferingDecision.DeleteItem>()
-                        feature { f((it as TransferingDecision.DeleteItem)::modificationDate) }.toEqual(
+                        toBeAnInstanceOf<CIALevel.DeleteItem>()
+                        feature { f((it as CIALevel.DeleteItem)::modificationDate) }.toEqual(
                             817L.toTauDate()
                         )
-                        feature { f((it as TransferingDecision.DeleteItem)::itemType) }.toEqual(
+                        feature { f((it as CIALevel.DeleteItem)::itemType) }.toEqual(
                             ItemType.FOLDER
                         )
                     }
@@ -975,7 +975,7 @@ class FileListDisplayTests : KoinTest {
 
                     spy.setObservedFolder(PATH)
                     val global = awaitItem()
-                    expect(global).toBeAnInstanceOf<GlobalUpdateEvent>()
+                    expect(global).toBeAnInstanceOf<GlobalSpyLevel>()
 
                     //act
                     val divers = FOLDER_DIVERS(OTHERPATH)

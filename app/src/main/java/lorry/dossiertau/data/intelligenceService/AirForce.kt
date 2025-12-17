@@ -1,18 +1,14 @@
 package lorry.dossiertau.data.intelligenceService
 
-import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import lorry.dossiertau.data.dbModel.DiffRepository
-import lorry.dossiertau.data.intelligenceService.utils.TransferingDecision
+import lorry.dossiertau.data.intelligenceService.utils.CIALevel
 import lorry.dossiertau.data.planes.DbCommand
 import lorry.dossiertau.data.planes.DbItem
-import kotlin.coroutines.ContinuationInterceptor
-import kotlin.coroutines.coroutineContext
-import kotlin.io.println
 
 /**
  * Necesita injectar con cia
@@ -24,48 +20,48 @@ class AirForce(
     lateinit var cia: CIA
 
     fun startListeningForCIADecisions(): Job {
-        return cia.ciaDecisions.onEach { decision ->
-            when (decision){
-                is TransferingDecision.CreateItem -> {
+        return cia.ciaDecisions.onEach { ciaLevel ->
+            when (ciaLevel){
+                is CIALevel.CreateItem -> {
                     val dbCommand = DbCommand.CreateItem(
                         item = DbItem(
-                            fullPath = decision.itemPath,
-                            modificationDate = decision.modificationDate,
-                            type = decision.itemType,
+                            fullPath = ciaLevel.itemPath,
+                            modificationDate = ciaLevel.modificationDate,
+                            type = ciaLevel.itemType,
                         )
                     )
 
                     modifyDatabaseBy(dbCommand)
                 }
 
-                is TransferingDecision.DeleteItem -> {
+                is CIALevel.DeleteItem -> {
                     val dbCommand = DbCommand.DeleteItem(
                         item = DbItem(
-                            fullPath = decision.itemPath,
-                            modificationDate = decision.modificationDate,
-                            type = decision.itemType
+                            fullPath = ciaLevel.itemPath,
+                            modificationDate = ciaLevel.modificationDate,
+                            type = ciaLevel.itemType
                         )
                     )
 
                     modifyDatabaseBy(dbCommand)
                 }
 
-                is TransferingDecision.ModifyItem -> {
+                is CIALevel.ModifyItem -> {
                     val dbCommand = DbCommand.ModifyItem(
                         item = DbItem(
-                            fullPath = decision.itemPath,
-                            modificationDate = decision.modificationDate,
-                            type = decision.itemType
+                            fullPath = ciaLevel.itemPath,
+                            modificationDate = ciaLevel.modificationDate,
+                            type = ciaLevel.itemType
                         )
                     )
 
                     modifyDatabaseBy(dbCommand)
                 }
 
-                is TransferingDecision.GlobalRefresh -> {
+                is CIALevel.GlobalRefresh -> {
                     val dbCommand = DbCommand.GlobalRefresh(
-                        path = decision.itemPath,
-                        refreshDate = decision.refreshDate)
+                        path = ciaLevel.itemPath,
+                        refreshDate = ciaLevel.refreshDate)
                     modifyDatabaseBy(dbCommand)
                 }
 

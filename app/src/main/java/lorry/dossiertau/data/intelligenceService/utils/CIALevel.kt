@@ -2,10 +2,9 @@ package lorry.dossiertau.data.intelligenceService.utils
 
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.support.littleClasses.TauDate
-import lorry.dossiertau.support.littleClasses.TauIdentifier
 import lorry.dossiertau.support.littleClasses.TauPath
 
-sealed class TransferingDecision(
+sealed class CIALevel(
     val itemPath: TauPath
 ) {
 
@@ -13,24 +12,24 @@ sealed class TransferingDecision(
         val eventPath: TauPath,
         val modificationDate: TauDate,
         val itemType: ItemType,
-    ): TransferingDecision(eventPath)
+    ): CIALevel(eventPath)
 
     data class DeleteItem(
         val eventPath: TauPath,
         val modificationDate: TauDate,
         val itemType: ItemType,
-    ): TransferingDecision(eventPath)
+    ): CIALevel(eventPath)
 
     data class ModifyItem(
         val eventPath: TauPath,
         val modificationDate: TauDate,
         val itemType: ItemType,
-    ): TransferingDecision(eventPath)
+    ): CIALevel(eventPath)
 
     data class GlobalRefresh(
         val eventPath: TauPath,
         val refreshDate: TauDate,
-    ): TransferingDecision(eventPath)
+    ): CIALevel(eventPath)
 
 
 }

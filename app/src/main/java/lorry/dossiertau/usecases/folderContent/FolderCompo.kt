@@ -1,6 +1,5 @@
 package lorry.dossiertau.usecases.folderContent
 
-import androidx.compose.ui.graphics.vector.VectorProperty
 import arrow.core.None
 import arrow.core.Option
 import arrow.core.toOption
@@ -18,17 +17,14 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import lorry.dossiertau.data.dbModel.DiffEntity
 import lorry.dossiertau.data.dbModel.FileDiffDao
 import lorry.dossiertau.data.dbModel.OpType
 import lorry.dossiertau.data.dbModel.toTauItem
 import lorry.dossiertau.data.model.computeParentFolderDate
 import lorry.dossiertau.data.diskTransfer.toTauItems
-import lorry.dossiertau.data.intelligenceService.utils.TransferingDecision
 import lorry.dossiertau.data.model.TauFolder
 import lorry.dossiertau.data.model.fullPath
 import lorry.dossiertau.data.model.parentPath
-import lorry.dossiertau.data.planes.DbCommand
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
 import lorry.dossiertau.support.littleClasses.name

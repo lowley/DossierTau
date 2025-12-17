@@ -1,31 +1,30 @@
 package lorry.dossiertau.data.intelligenceService.utils.events
 
 import android.os.FileObserver
-import lorry.dossiertau.data.intelligenceService.utils.TransferingDecision
+import lorry.dossiertau.data.intelligenceService.utils.CIALevel
 import lorry.dossiertau.support.littleClasses.TauDate
-import lorry.dossiertau.support.littleClasses.TauIdentifier
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.parentPath
 import lorry.dossiertau.support.littleClasses.toTauDate
 
-data class AtomicUpdateEvent(
+data class AtomicSpyLevel(
     val eventType: AtomicEventType,
     override val path: TauPath,
     val itemType: ItemType,
     val modificationDate: TauDate,
-): IUpdateEvent
+): ISpyLevel
 
-internal val fileInsideReaction = { insidePath: TauPath, aroundPath: TauPath, potentialTransferringDecision: TransferingDecision ->
+internal val fileInsideReaction = { insidePath: TauPath, aroundPath: TauPath, potentialTransferringDecision: CIALevel ->
     if (insidePath.parentPath == aroundPath) potentialTransferringDecision else null
 }
 
-internal val selfReaction = { insidePath: TauPath, aroundPath: TauPath, potentialTransferringDecision: TransferingDecision ->
+internal val selfReaction = { insidePath: TauPath, aroundPath: TauPath, potentialTransferringDecision: CIALevel ->
     if (insidePath == aroundPath) potentialTransferringDecision else null
 }
 
 sealed class AtomicEventType(
     val message: String,
-    val reactWhenReceived: (insidePath:TauPath, aroundPath: TauPath, potentialTransferringDecision: TransferingDecision) -> TransferingDecision?
+    val reactWhenReceived: (insidePath:TauPath, aroundPath: TauPath, potentialTransferringDecision: CIALevel) -> CIALevel?
 ) {
     object CREATE : AtomicEventType("création de fichier/dossier", fileInsideReaction)
     object DELETE : AtomicEventType("suppression", fileInsideReaction)
@@ -45,7 +44,7 @@ enum class ItemType{
 }
 
 //* cette méthode a des effets de bord
-fun createIncomingEvent(code: Int, path: TauPath): AtomicUpdateEvent? {
+fun createIncomingEvent(code: Int, path: TauPath): AtomicSpyLevel? {
 
     val eventType = code.toEventType()
     val file = path.toFile().getOrNull()
@@ -53,7 +52,7 @@ fun createIncomingEvent(code: Int, path: TauPath): AtomicUpdateEvent? {
         file?.exists() != true)
         return null
 
-    return AtomicUpdateEvent(
+    return AtomicSpyLevel(
         eventType = eventType,
         path = path,
         itemType = if (path.toFile().getOrNull()!!.isFile) ItemType.FILE else ItemType.FOLDER,

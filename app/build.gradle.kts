@@ -211,4 +211,10 @@ dependencies {
     // tests room //
     ////////////////
     testImplementation("org.robolectric:robolectric:4.16")
+
+    //////////////////////////////
+    // observation des fichiers //
+    //////////////////////////////
+    implementation("io.github.irgaly.kfswatch:kfswatch:1.4.0")
+
 }

@@ -9,10 +9,8 @@ import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -22,18 +20,15 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import lorry.dossiertau.R
 import lorry.dossiertau.data.intelligenceService.utils.events.AtomicEventType
-import lorry.dossiertau.data.intelligenceService.utils.TransferingDecision
-import lorry.dossiertau.data.intelligenceService.utils.events.AtomicUpdateEvent
-import lorry.dossiertau.data.intelligenceService.utils.events.GlobalUpdateEvent
-import lorry.dossiertau.data.intelligenceService.utils.events.IUpdateEvent
+import lorry.dossiertau.data.intelligenceService.utils.CIALevel
+import lorry.dossiertau.data.intelligenceService.utils.events.AtomicSpyLevel
+import lorry.dossiertau.data.intelligenceService.utils.events.GlobalSpyLevel
+import lorry.dossiertau.data.intelligenceService.utils.events.ISpyLevel
 import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauDate
 import org.koin.core.context.GlobalContext
 import java.time.Clock
-import kotlin.coroutines.ContinuationInterceptor
-import kotlin.io.println
 import kotlin.time.ExperimentalTime
-import kotlin.time.Instant
 
 class CIA() : LifecycleService() {
 
@@ -47,10 +42,10 @@ class CIA() : LifecycleService() {
     /////////////////////////////////////////////////////////////////////////////////////////
     // la production de la Cia: informer TauFolder des changements dans le disque via Room //
     /////////////////////////////////////////////////////////////////////////////////////////
-    val _ciaDecisions = MutableSharedFlow<TransferingDecision>()
-    val ciaDecisions: SharedFlow<TransferingDecision> = _ciaDecisions.asSharedFlow()
+    val _ciaDecisions = MutableSharedFlow<CIALevel>()
+    val ciaDecisions: SharedFlow<CIALevel> = _ciaDecisions.asSharedFlow()
 
-    fun emitCIADecision(decision: TransferingDecision) {
+    fun emitCIALevel(decision: CIALevel) {
         scope.launch(dispatcher) {
             _ciaDecisions.emit(decision)
         }
@@ -65,7 +60,7 @@ class CIA() : LifecycleService() {
         if (eventsJob?.isActive != true) {
             eventsJob = spy.updateEventFlow
                 .onEach { event ->
-                    manageUpdateEvents(event)?.let { emitCIADecision(it) }
+                    manageUpdateEvents(event)?.let { emitCIALevel(it) }
                 }
                 .launchIn(lifecycleScope) // LifecycleService fournit lifecycleScope
         }
@@ -77,11 +72,11 @@ class CIA() : LifecycleService() {
         return START_STICKY
     }
 
-    fun manageUpdateEvents(event: IUpdateEvent): TransferingDecision? {
+    fun manageUpdateEvents(event: ISpyLevel): CIALevel? {
 
         val result = when (event) {
-            is AtomicUpdateEvent -> manageAtomicEvent(event)
-            is GlobalUpdateEvent -> manageGlobalEvent(event)
+            is AtomicSpyLevel -> manageAtomicEvent(event)
+            is GlobalSpyLevel -> manageGlobalEvent(event)
             else -> null
         }
 
@@ -89,14 +84,14 @@ class CIA() : LifecycleService() {
     }
 
     @OptIn(ExperimentalTime::class)
-    private fun manageGlobalEvent(event: GlobalUpdateEvent): TransferingDecision? {
-        val result = TransferingDecision.GlobalRefresh(
+    private fun manageGlobalEvent(event: GlobalSpyLevel): CIALevel? {
+        val result = CIALevel.GlobalRefresh(
             eventPath = event.path,
             refreshDate = Clock.systemDefaultZone().millis().toTauDate())
         return result
     }
 
-    private fun manageAtomicEvent(event: AtomicUpdateEvent): TransferingDecision? {
+    private fun manageAtomicEvent(event: AtomicSpyLevel): CIALevel? {
         return when (val type = event.eventType) {
             AtomicEventType.ATTRIB -> {
                 return null
@@ -110,7 +105,7 @@ class CIA() : LifecycleService() {
                 type.reactWhenReceived(
                     event.path,
                     spy.observedFolderFlow.value,
-                    TransferingDecision.CreateItem(
+                    CIALevel.CreateItem(
                         eventPath = event.path,
                         modificationDate = event.modificationDate,
                         itemType = event.itemType,
@@ -122,7 +117,7 @@ class CIA() : LifecycleService() {
                 type.reactWhenReceived(
                     event.path,
                     spy.observedFolderFlow.value,
-                    TransferingDecision.DeleteItem(
+                    CIALevel.DeleteItem(
                         eventPath = event.path,
                         modificationDate = event.modificationDate,
                         itemType = event.itemType,
@@ -138,7 +133,7 @@ class CIA() : LifecycleService() {
                 type.reactWhenReceived(
                     event.path,
                     spy.observedFolderFlow.value,
-                    TransferingDecision.ModifyItem(
+                    CIALevel.ModifyItem(
                         eventPath = event.path,
                         modificationDate = event.modificationDate,
                         itemType = event.itemType,
@@ -150,7 +145,7 @@ class CIA() : LifecycleService() {
                 type.reactWhenReceived(
                     event.path,
                     spy.observedFolderFlow.value,
-                    TransferingDecision.DeleteItem(
+                    CIALevel.DeleteItem(
                         eventPath = event.path,
                         modificationDate = event.modificationDate,
                         itemType = event.itemType,
