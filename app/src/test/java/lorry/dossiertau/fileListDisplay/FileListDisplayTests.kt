@@ -11,18 +11,13 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import lorry.dossiertau.TauViewModel
 import lorry.dossiertau.data.intelligenceService.CIA
-import lorry.dossiertau.data.intelligenceService.Spy
 import lorry.dossiertau.data.intelligenceService.utils.TransferingDecision
 import lorry.dossiertau.data.model.fullPath
 import lorry.dossiertau.data.model.sameContentAs
 import lorry.dossiertau.support.littleClasses.toTauPath
-import lorry.dossiertau.usecases.folderContent.IFolderCompo
-import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 import org.junit.Test
 import org.koin.test.KoinTest
-import org.koin.test.inject
 import lorry.dossiertau.data.intelligenceService.AirForce
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.data.model.*
@@ -33,25 +28,21 @@ import io.mockk.Runs
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.spyk
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.plus
 import lorry.dossiertau.data.dbModel.AppDb
 import lorry.dossiertau.data.dbModel.DiffRepository
 import lorry.dossiertau.data.dbModel.FileDiffDao
 import lorry.dossiertau.data.dbModel.toFileDiffEntity
-import lorry.dossiertau.data.intelligenceService.ISpy
-import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
-import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside
 import lorry.dossiertau.data.intelligenceService.utils.events.GlobalUpdateEvent
 import lorry.dossiertau.data.planes.DbCommand
 import lorry.dossiertau.support.littleClasses.path
-import lorry.dossiertau.usecases.folderContent.FolderCompo
-import lorry.dossiertau.usecases.folderContent.support.FolderRepo
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.runner.RunWith
+import org.koin.core.context.GlobalContext
 import org.koin.core.context.GlobalContext.stopKoin
+import org.koin.test.inject
 import org.robolectric.RobolectricTestRunner
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
@@ -71,46 +62,46 @@ class FileListDisplayTests : KoinTest {
     @Test
     fun `#1 VM setTauFolder() + IFolderCompo ⇒ nvos items`() = runTest {
 
-        prepareKoin(testScheduler)
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        TestStuff.configure(dispatcher).use { stuff ->
+            val (repo, compo, vm, spy, dbDao) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
 
-        val fakeRepo: IFolderRepo by inject()
-        val fakeCompo: IFolderCompo by inject()
-        val fakeVM: TauViewModel by inject()
+            //* input
+            val PATH = "/storage/emulated/0/Download".toTauPath()
+            val compoItems = listOf(
+                FILE_TOTO(PATH),
+                FOLDER_DIVERS(PATH)
+            )
+            val repoItems = listOf(
+                REPOFILE_TOTO(PATH),
+                REPOFOLDER_DIVERS(PATH)
+            )
 
-        //* input
-        val PATH = "/storage/emulated/0/Download".toTauPath()
-        val compoItems = listOf<TauItem>(
-            FILE_TOTO(PATH),
-            FOLDER_DIVERS(PATH)
-        )
-        val repoItems = listOf(
-            REPOFILE_TOTO(PATH),
-            REPOFOLDER_DIVERS(PATH)
-        )
+            // premier droppé: celui de la déclaration du MutableStateFlow: [[folderFlowDeclaration]]
+            // deuxième droppé: celui de l'init{} du TauViewModel: [[tauViewModelInit]]
+            compo.folderFlow.drop(2).test {
+                coEvery { repo.getItemsInFullPath(PATH) } returns repoItems
 
-        // premier droppé: celui de la déclaration du MutableStateFlow: [[folderFlowDeclaration]]
-        // deuxième droppé: celui de l'init{} du TauViewModel: [[tauViewModelInit]]
-        fakeCompo.folderFlow.drop(2).test {
-            coEvery { fakeRepo.getItemsInFullPath(PATH) } returns repoItems
+                //act
+                vm.setTauFolder(folderPath = PATH)
 
-            //act
-            fakeVM.setTauFolder(folderPath = PATH)
+                //ass
+                advanceUntilIdle()
+                val newItems = awaitItem()
 
-            //ass
-            advanceUntilIdle()
-            val newItems = awaitItem()
+                //le coVerify est après le awaitItem car ce dernier lance un scope.launch
+                //[[coroutine longue]] qui est explicitement attendu pas awaitItem()
+                //la vérification se fait après le awaitItem()
+                coVerify { repo.getItemsInFullPath(PATH) }
+                confirmVerified(repo)
 
-            //le coVerify est après le awaitItem car ce dernier lance un scope.launch
-            //[[coroutine longue]] qui est explicitement attendu pas awaitItem()
-            //la vérification se fait après le awaitItem()
-            coVerify { fakeRepo.getItemsInFullPath(PATH) }
-            confirmVerified(fakeRepo)
-
-            assert(
-                newItems.fold(
-                    ifEmpty = { false },
-                    ifSome = { folder -> folder.children.sameContentAs(compoItems) }
-                ))
+                assert(
+                    newItems.fold(
+                        ifEmpty = { false },
+                        ifSome = { folder -> folder.children.sameContentAs(compoItems) }
+                    ))
+            }
         }
     }
 
@@ -124,39 +115,52 @@ class FileListDisplayTests : KoinTest {
         //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
         //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
 
-        prepareKoin(testScheduler)
-        val cia = CIA()
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        TestStuff.configure(dispatcher).use { stuff ->
+            val (repo, compo, vm, spy, dbDao) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
 
-        //assert
-        //* répertoire à observer
-        val PATH = "/storage/emulated/0/Download".toTauPath()
-
-        val spy = Spy(StandardTestDispatcher(testScheduler))
-        spy.updateEventFlow.test {
-
-            advanceUntilIdle()
-            cia.spy = spy
-
-            spy.setObservedFolder(PATH)
-
-            //act
-            val toto = FILE_TOTO(PATH)
-            val fileToEmit = toto.fullPath
-
-
-            spy.emitFake_CREATEITEM(fileToEmit, ItemType.FILE, 817L.toTauDate())
-            //act + arrange
-            advanceUntilIdle()
-            val event = awaitItem()
-            val decision = cia.manageUpdateEvents(event)
+            val cia = CIA()
 
             //assert
-            expect(decision).notToEqualNull() {
-                toBeAnInstanceOf<TransferingDecision.CreateItem>()
-                feature { f((it as TransferingDecision.CreateItem)::modificationDate) }.toEqual(817L.toTauDate())
-            }
+            //* répertoire à observer
+            val PATH = "/storage/emulated/0/Download".toTauPath()
 
-            cancelAndIgnoreRemainingEvents()
+            spy.updateEventFlow.test {
+
+                advanceUntilIdle()
+                cia.spy = spy
+                spy.setObservedFolder(PATH)
+
+                //act
+                val toto = FILE_TOTO(PATH)
+                val fileToEmit = toto.fullPath
+
+
+                spy.emitFake_CREATEITEM(fileToEmit, ItemType.FILE, 817L.toTauDate())
+                //act + arrange
+                advanceUntilIdle()
+                val event = awaitItem()
+                val decision = cia.manageUpdateEvents(event)
+
+                expect(decision).notToEqualNull() {
+                    toBeAnInstanceOf<TransferingDecision.GlobalRefresh>()
+                    feature { f((it as TransferingDecision.GlobalRefresh)::itemPath) }.toEqual(PATH)
+                }
+
+                advanceUntilIdle()
+                val event2 = awaitItem()
+                val decision2 = cia.manageUpdateEvents(event2)
+                //assert
+                expect(decision2).notToEqualNull() {
+                    toBeAnInstanceOf<TransferingDecision.CreateItem>()
+                    feature { f((it as TransferingDecision.CreateItem)::modificationDate) }.toEqual(
+                        817L.toTauDate()
+                    )
+                }
+
+                cancelAndIgnoreRemainingEvents()
+            }
         }
     }
 
@@ -171,40 +175,45 @@ class FileListDisplayTests : KoinTest {
         //* SPY ----   events on items   ---->  FBI ---- treated infos     ----> AIRFORCE
         //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
 
-        //arrange
-        //* répertoire à observer
-        val PATH = "/storage/emulated/0/Download".toTauPath()
-        val spy = Spy(StandardTestDispatcher(testScheduler))
-        val cia = CIA()
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        TestStuff.configure(dispatcher).use { stuff ->
+            val (repo, compo, vm, spy, dbDao) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
 
-        /**
-         * au démarrage -> EMPTY
-         * entrée dans le répertoire: un appel -> returnedFolder
-         */
+            //arrange
+            //* répertoire à observer
+            val PATH = "/storage/emulated/0/Download".toTauPath()
+            val cia = CIA()
+
+            /**
+             * au démarrage -> EMPTY
+             * entrée dans le répertoire: un appel -> returnedFolder
+             */
 //        every { fakeRepo.readFolder(any()) } returnsMany listOf(
 //            //NOTTODO refactor avec value class + sealed class ou cf TauPath
 //            TauFolder.EMPTY,
 //            returnedFolder
 //        )
 
-        spy.updateEventFlow.test {
+            spy.updateEventFlow.test {
 
-            /**ce qui déclenche un completeScan:
-             * 1. au démarrage / lors d'un changeFolder
-             *    (cependant cf [[room se mêle du scan de démarrage]])
-             * 2. après N diffs
-             **/
-            //act
-            spy.setObservedFolder(PATH)
-            advanceUntilIdle()
+                /**ce qui déclenche un completeScan:
+                 * 1. au démarrage / lors d'un changeFolder
+                 *    (cependant cf [[room se mêle du scan de démarrage]])
+                 * 2. après N diffs
+                 **/
+                //act
+                spy.setObservedFolder(PATH)
+                advanceUntilIdle()
 
-            //assert
-            val event = awaitItem()
-            val decision = cia.manageUpdateEvents(event)
+                //assert
+                val event = awaitItem()
+                val decision = cia.manageUpdateEvents(event)
 
-            expect(decision).notToEqualNull() {
-                toBeAnInstanceOf<TransferingDecision.GlobalRefresh>()
-                feature { f(it::itemPath) }.toEqual(PATH)
+                expect(decision).notToEqualNull() {
+                    toBeAnInstanceOf<TransferingDecision.GlobalRefresh>()
+                    feature { f(it::itemPath) }.toEqual(PATH)
+                }
             }
         }
     }
@@ -221,16 +230,19 @@ class FileListDisplayTests : KoinTest {
 
         prepareKoin(testScheduler)
         val testScope = this
+
         val dispatcher = StandardTestDispatcher(testScheduler)
-        //assert
-        //* répertoire à observer
-        val PATH = "/storage/emulated/0/Download".toTauPath()
+        TestStuff.configure(dispatcher).use { stuff ->
+            val (repo, compo, vm, spy, dbDao) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
 
-        val spy = Spy(StandardTestDispatcher(testScheduler))
-        val cia = CIA()
+            //assert
+            //* répertoire à observer
+            val PATH = "/storage/emulated/0/Download".toTauPath()
+            val cia = CIA()
 
-        cia.scope = testScope
-        cia.dispatcher = StandardTestDispatcher(testScheduler)
+            cia.scope = testScope
+            cia.dispatcher = StandardTestDispatcher(testScheduler)
 
 //        val db = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), AppDb::class.java)
 //            .allowMainThreadQueries() // OK en test
@@ -246,28 +258,29 @@ class FileListDisplayTests : KoinTest {
 
 //        val airForce = spyk<AirForce>(airForceOne)
 
-        spy.setObservedFolder(PATH)
-        //spy.startSurveillance()
+            spy.setObservedFolder(PATH)
+            //spy.startSurveillance()
 
-        //act
-        val toto = FILE_TOTO(PATH)
-        val fileToEmit = toto.fullPath
+            //act
+            val toto = FILE_TOTO(PATH)
+            val fileToEmit = toto.fullPath
 
-        spy.updateEventFlow.test {
+            spy.updateEventFlow.test {
 
-            spy.emitFake_CREATEITEM(fileToEmit, ItemType.FILE, 817L.toTauDate())
-            //act + arrange
-            val event = awaitItem()
-            val decision = cia.manageUpdateEvents(event)
+                spy.emitFake_CREATEITEM(fileToEmit, ItemType.FILE, 817L.toTauDate())
+                //act + arrange
+                val event = awaitItem()
+                val decision = cia.manageUpdateEvents(event)
 
-            //assert
-            expect(decision) {
-                toBeAnInstanceOf<TransferingDecision.CreateItem>()
-                notToEqualNull()
-                feature({ f(it!!::itemPath) }) { toEqual(toto.fullPath) }
-                feature { f((it!! as TransferingDecision.CreateItem)::modificationDate) }.toEqual(
-                    817L.toTauDate()
-                )
+                //assert
+                expect(decision) {
+                    toBeAnInstanceOf<TransferingDecision.CreateItem>()
+                    notToEqualNull()
+                    feature({ f(it!!::itemPath) }) { toEqual(toto.fullPath) }
+                    feature { f((it!! as TransferingDecision.CreateItem)::modificationDate) }.toEqual(
+                        817L.toTauDate()
+                    )
+                }
             }
         }
     }
@@ -281,56 +294,62 @@ class FileListDisplayTests : KoinTest {
         //* SPY ----   events on items   ---->  FBI ---- treated infos     ----> AIRFORCE
         //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
 
-        /**
-         * idées à retenir
-         * - le même scope pour émission de flux & réception
-         * - un flux.each{}.stateIn() doit être un job cancellé à la fin du test
-         */
-
-        prepareKoin(testScheduler)
-        val testScope = this
         val dispatcher = StandardTestDispatcher(testScheduler)
+        TestStuff.configure(dispatcher).use { stuff ->
+            val (repo, compo, vm, spy, dbDao) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
 
-        //assert
-        //* répertoire à observer
-        val PATH = "/storage/emulated/0/Download".toTauPath()
-        val toto = FILE_TOTO(PATH)
+            /**
+             * idées à retenir
+             * - le même scope pour émission de flux & réception
+             * - un flux.each{}.stateIn() doit être un job cancellé à la fin du test
+             */
 
-        val cia = CIA()
+            prepareKoin(testScheduler)
+            val testScope = this
 
-        cia.scope = testScope + dispatcher
-        cia.dispatcher = dispatcher
+            //assert
+            //* répertoire à observer
+            val PATH = "/storage/emulated/0/Download".toTauPath()
+            val toto = FILE_TOTO(PATH)
 
-        val repo = mockk<DiffRepository>()
+            val cia = CIA()
 
-        val airForceOne = AirForce(
-            scope = testScope + dispatcher,
-            repo = repo
-        )
+            cia.scope = testScope + dispatcher
+            cia.dispatcher = dispatcher
 
-        airForceOne.cia = cia
+            val diffRepo: DiffRepository by inject()
+            val repo1 = spyk(diffRepo)
 
-        val airForce = spyk<AirForce>(airForceOne)
-        val job = airForce.startListeningForCIADecisions()
+            val airForceOne = AirForce(
+                scope = testScope + dispatcher,
+                repo = repo1
+            )
 
-        val createItemDecision = TransferingDecision.CreateItem(
-            eventPath = toto.fullPath,
-            modificationDate = toto.modificationDate,
-            itemType = ItemType.FILE
-        )
+            airForceOne.cia = cia
 
-        //elle ne fait rien
-        coEvery { airForce.modifyDatabaseBy(any()) } just Runs
+            val airForce = spyk<AirForce>(airForceOne)
+            val job = airForce.startListeningForCIADecisions()
 
-        //act
-        cia.emitCIADecision(createItemDecision)
-        advanceUntilIdle()
+            val createItemDecision = TransferingDecision.CreateItem(
+                eventPath = toto.fullPath,
+                modificationDate = toto.modificationDate,
+                itemType = ItemType.FILE
+            )
 
-        //assert
-        val dbCommand = DbCommand.CreateItem(toto.toDbFile())
-        coVerify { airForce.modifyDatabaseBy(dbCommand) }
+            //elle ne fait rien
+            coEvery { airForce.modifyDatabaseBy(any()) } just Runs
 
-        job.cancel()
+            //act
+            cia.emitCIADecision(createItemDecision)
+            advanceUntilIdle()
+
+            //assert
+            val dbCommand = DbCommand.CreateItem(toto.toDbFile())
+            coVerify { airForce.modifyDatabaseBy(dbCommand) }
+
+            job.cancel()
+        }
     }
 
     //////////////
@@ -342,46 +361,51 @@ class FileListDisplayTests : KoinTest {
         //* SPY ----   events on items   ---->  FBI ---- treated infos     ----> AIRFORCE
         //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
 
-        /**
-         * idées à retenir
-         * - le même scope pour émission de flux & réception
-         * - un flux.each{}.stateIn() doit être un job cancellé à la fin du test
-         */
-
-        prepareKoin(testScheduler)
-        val testScope = this
         val dispatcher = StandardTestDispatcher(testScheduler)
+        TestStuff.configure(dispatcher).use { stuff ->
+            val (repo, compo, vm, spy, dbDao) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
 
-        //assert
-        //* répertoire à observer
-        val PATH = "/storage/emulated/0/Download".toTauPath()
-        val toto = FILE_TOTO(PATH)
+            /**
+             * idées à retenir
+             * - le même scope pour émission de flux & réception
+             * - un flux.each{}.stateIn() doit être un job cancellé à la fin du test
+             */
 
-        val cia = CIA()
+            prepareKoin(testScheduler)
+            val testScope = this
 
-        cia.scope = testScope + dispatcher
-        cia.dispatcher = dispatcher
+            //assert
+            //* répertoire à observer
+            val PATH = "/storage/emulated/0/Download".toTauPath()
+            val toto = FILE_TOTO(PATH)
 
-        val dao = mockk<FileDiffDao>()
-        val repo = DiffRepository(dao, StandardTestDispatcher(testScheduler))
+            val cia = CIA()
 
-        val airForceOne = AirForce(
-            scope = testScope + dispatcher,
-            repo = repo
-        ).apply { this.cia = cia }
+            cia.scope = testScope + dispatcher
+            cia.dispatcher = dispatcher
+
+            val mockDiffDao = mockk<FileDiffDao>()
+            val diffRepo = DiffRepository(mockDiffDao, dispatcher)
+
+            val airForceOne = AirForce(
+                scope = testScope + dispatcher,
+                repo = diffRepo
+            ).apply { this.cia = cia }
 
 
-        val airForce = spyk<AirForce>(airForceOne)
-        val dbCommand = DbCommand.CreateItem(toto.toDbFile())
+            val airForce = spyk<AirForce>(airForceOne)
+            val dbCommand = DbCommand.CreateItem(toto.toDbFile())
 
-        coEvery { dao.insert(any()) } returns 1L
+            coEvery { mockDiffDao.insert(any()) } returns 1L
 
-        //act
-        airForce.modifyDatabaseBy(dbCommand)
-        advanceUntilIdle()
+            //act
+            airForce.modifyDatabaseBy(dbCommand)
+            advanceUntilIdle()
 
-        //assert
-        coVerify(exactly = 1) { dao.insert(dbCommand.toFileDiffEntity()) }
+            //assert
+            coVerify(exactly = 1) { mockDiffDao.insert(dbCommand.toFileDiffEntity()) }
+        }
     }
 
 
@@ -408,25 +432,25 @@ class FileListDisplayTests : KoinTest {
 //            }
 //        )
 
-        try {
+        //0 éléments
+        dbDao = appDb.fileDiffDao()
 
-            //0 éléments
-            dbDao = appDb.fileDiffDao()
+        val PATH = "/storage/emulated/0/Download".toTauPath()
+        val toto = FILE_TOTO(PATH)
 
-            val PATH = "/storage/emulated/0/Download".toTauPath()
-            val toto = FILE_TOTO(PATH)
+        dbDao!!.diffFlow().test {
 
-            dbDao!!.diffsForFolder(PATH.path).drop(1).test {
+            val initial = awaitItem()
 
 //                val initial = awaitItem()
 //                println("initial = $initial")
 
-                val dbCommand = DbCommand.CreateItem(toto.toDbFile())
-                dbDao!!.insert(dbCommand.toFileDiffEntity())
-                advanceUntilIdle()
+            val dbCommand = DbCommand.CreateItem(toto.toDbFile())
+            dbDao!!.insert(dbCommand.toFileDiffEntity())
+            advanceUntilIdle()
 
-                val entry = awaitItem()  // [diff]
-                println("afterInsert = $entry")
+            val entry = awaitItem()  // [diff]
+            println("afterInsert = $entry")
 
 //                val dbFile = File("/Users/olivier/Downloads", "tau-db-snapshot.sqlite")
 //                val snap = dbFile.absolutePath
@@ -435,16 +459,7 @@ class FileListDisplayTests : KoinTest {
 
 //                val kesako = awaitItem()
 //                var entry = awaitItem()
-                expect(entry).toHaveSize(1)
-            }
-
-        } catch (ex: Exception) {
-            //potentiellement le fichier de snapshot existe encore
-            println(ex.message)
-
-        } finally {
-            db?.close()
-            appDb.close()
+            expect(entry).notToEqualNull()
         }
     }
 
@@ -454,15 +469,10 @@ class FileListDisplayTests : KoinTest {
     @Test
     fun `#8 DB ajout createFile ⇒ modif items courants si pertinent`() = runTest {
 
-//        prepareKoin(testScheduler)
         val dispatcher = StandardTestDispatcher(testScheduler)
-
-        val appDb = Room.inMemoryDatabaseBuilder(
-            ApplicationProvider.getApplicationContext(),
-            AppDb::class.java
-        )
-            .allowMainThreadQueries() // ok en test
-            .build()
+        TestStuff.configure(dispatcher).use { stuff ->
+            val (repo, compo, vm, spy, dbDao) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
 
 //        val appDb: AppDb = Room.databaseBuilder(
 //            ApplicationProvider.getApplicationContext(),
@@ -470,90 +480,69 @@ class FileListDisplayTests : KoinTest {
 //            "tau-db.sqlite"
 //        ).build()
 
-        try {
-            dbDao = appDb.fileDiffDao()
+            try {
+                if (dbDao == null)
+                    throw Exception("erreur test #8")
 
-            if (dbDao == null)
-                throw Exception("erreur test #8")
+                val INITIALPATH = "/storage/emulated/0/Download".toTauPath()
+                val PATH = "/storage/emulated/0/Download".toTauPath()
+                val toto = FILE_TOTO(PATH)
 
-            val fakeRepo: IFolderRepo = FolderRepo()
-            val fakeCompo: IFolderCompo = spyk(
-                FolderCompo(
-                    folderRepo = fakeRepo,
-                    dispatcher = dispatcher,
-                    fileDiffDAO = dbDao!!
-                )
-            )
-            val fakeSpy: ISpy = spyk(
-                Spy(
-                    dispatcher = dispatcher,
-                    fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
-                )
-            )
+                val tenSeconds = 10.toDuration(DurationUnit.SECONDS)
 
-            val fakeVM: TauViewModel = spyk(
-                TauViewModel(
-                    folderCompo = fakeCompo,
-                    spy = fakeSpy
-                )
-            )
+                //Ça force folderPathFlow à devenir Some(PATH) → diffsForFolder(PATH) sera effectivement collecté
+                compo.folderFlow.test {
 
-            val PATH = "/storage/emulated/0/Download".toTauPath()
-            val toto = FILE_TOTO(PATH)
+                    // saute tout ce qui ne t'intéresse pas
+                    var v = awaitItem()
+                    while (v.isNone() || v.getOrNull()?.fullPath?.path != INITIALPATH.path) {
+                        v = awaitItem()
+                    }
 
-            val tenSeconds = 10.toDuration(DurationUnit.SECONDS)
+                    expect(v) {
+                        its { isSome() }.toEqual(true)
+                        its { getOrNull()?.fullPath?.path }.toEqual(INITIALPATH.path)
+                        its { getOrNull()?.children?.size }.toEqual(0)
+                    }
 
-            //Ça force folderPathFlow à devenir Some(PATH) → diffsForFolder(PATH) sera effectivement collecté
+//                val item1 = awaitItem()
+//                println("TEST: item1 = $item1")
 
+                    println("TEST: appel de setTauFolder")
+                    vm.setTauFolder(PATH)
 
-            val readyFolder = fakeCompo.folderFlow.first { opt ->
-                opt.isSome() && opt.getOrNull()?.fullPath?.path == PATH.path
-            }
+                    val fromTauFolder = awaitItem()
+                    expect(fromTauFolder) {
+                        its { isSome() }.toEqual(true)
+                        its { getOrNull()?.fullPath?.path }.toEqual(PATH.path)
+                        its { getOrNull()?.children?.size }.toEqual(0)
+                    }
+                    advanceUntilIdle()
 
-            fakeCompo.folderFlow.test {
+                    val dbCommand = DbCommand.CreateItem(toto.toDbFile())
 
-                val item1 = awaitItem()
-                println("TEST: item1 = $item1")
+                    //1. transite dans DB
+                    //2. lu et traité par folderCompo
+                    dbDao!!.insert(dbCommand.toFileDiffEntity())
+                    advanceUntilIdle()
 
+                    val item2 = awaitItem()
+                    println("TEST: item3 = $item2")
 
-                println("TEST: appel de setTauFolder")
-                fakeVM.setTauFolder(PATH)
-
-                advanceUntilIdle()
-
-                val item2 = awaitItem()
-                println("TEST: item2 = $item2")
-
-                val dbCommand = DbCommand.CreateItem(toto.toDbFile())
-
-                //1. transite dans DB
-                //2. lu et traité par folderCompo
-                dbDao!!.insert(dbCommand.toFileDiffEntity())
-                advanceUntilIdle()
-
-//                val dbFile = File("/Users/olivier/Downloads", "tau-db-snapshot.sqlite")
-//                val snap = dbFile.absolutePath
-//                appDb.openHelper.writableDatabase.execSQL("VACUUM INTO '$snap';")
-//                println("Snapshot -> $snap")
-
-//                var currentFolder = awaitItem()
-
-                val item3 = awaitItem()
-                println("TEST: item3 = $item3")
-
-                expect(item3) {
-                    its { isSome() }.toEqual(true)
-                    its { getOrNull()?.children?.size }.toEqual(1)
+                    expect(item2) {
+                        its { isSome() }.toEqual(true)
+                        its { getOrNull()?.children?.size }.toEqual(1)
+                    }
                 }
+
+            } catch (ex: Exception) {
+                //potentiellement le fichier de snapshot existe encore
+                println(ex.message)
+
+            } finally {
+                db?.close()
+//            appDb.close()
             }
-
-        } catch (ex: Exception) {
-            //potentiellement le fichier de snapshot existe encore
-            println(ex.message)
-
-        } finally {
-            db?.close()
-            appDb.close()
         }
     }
 
@@ -567,39 +556,48 @@ class FileListDisplayTests : KoinTest {
         //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
         //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
 
-        prepareKoin(testScheduler)
-
-        //assert
-        //* répertoire à observer
-        val PATH = "/storage/emulated/0/Download".toTauPath()
-        val cia = CIA()
-        val spy = Spy(StandardTestDispatcher(testScheduler))
-
-        spy.updateEventFlow.test {
-
-            advanceUntilIdle()
-            cia.spy = spy
-
-            spy.setObservedFolder(PATH)
-
-            //act
-            val divers = FOLDER_DIVERS(PATH)
-            val folderToEmit = divers.fullPath
-
-            spy.emitFake_CREATEITEM(folderToEmit, ItemType.FOLDER, 817L.toTauDate())
-            //act + arrange
-            advanceUntilIdle()
-            val event = awaitItem()
-            val decision = cia.manageUpdateEvents(event)
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        TestStuff.configure(dispatcher).use { stuff ->
+            val (repo, compo, vm, spy, dbDao) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
 
             //assert
-            expect(decision).notToEqualNull() {
-                toBeAnInstanceOf<TransferingDecision.CreateItem>()
-                feature { f((it as TransferingDecision.CreateItem)::modificationDate) }.toEqual(817L.toTauDate())
-                feature { f((it as TransferingDecision.CreateItem)::itemType) }.toEqual(ItemType.FOLDER)
-            }
+            //* répertoire à observer
+            val PATH = "/storage/emulated/0/Download".toTauPath()
+            val cia = CIA()
+            cia.spy = spy
 
-            cancelAndIgnoreRemainingEvents()
+            spy.updateEventFlow.test {
+
+                advanceUntilIdle()
+                spy.setObservedFolder(PATH)
+
+                val global = awaitItem()
+                expect(global) {
+                    toBeAnInstanceOf<GlobalUpdateEvent>()
+                }
+
+                //act
+                val divers = FOLDER_DIVERS(PATH)
+                val folderToEmit = divers.fullPath
+
+                spy.emitFake_CREATEITEM(folderToEmit, ItemType.FOLDER, 817L.toTauDate())
+                //act + arrange
+                advanceUntilIdle()
+                val event = awaitItem()
+                val decision = cia.manageUpdateEvents(event)
+
+                //assert
+                expect(decision).notToEqualNull() {
+                    toBeAnInstanceOf<TransferingDecision.CreateItem>()
+                    feature { f((it as TransferingDecision.CreateItem)::modificationDate) }.toEqual(
+                        817L.toTauDate()
+                    )
+                    feature { f((it as TransferingDecision.CreateItem)::itemType) }.toEqual(ItemType.FOLDER)
+                }
+
+                cancelAndIgnoreRemainingEvents()
+            }
         }
     }
 
@@ -613,39 +611,48 @@ class FileListDisplayTests : KoinTest {
         //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
         //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
 
-        prepareKoin(testScheduler)
-
-        //assert
-        //* répertoire à observer
-        val PATH = "/storage/emulated/0/Download".toTauPath()
-        val cia = CIA()
-        val spy = Spy(StandardTestDispatcher(testScheduler))
-
-        spy.updateEventFlow.test {
-
-            advanceUntilIdle()
-            cia.spy = spy
-
-            spy.setObservedFolder(PATH)
-
-            //act
-            val divers = FILE_TOTO(PATH)
-            val fileToEmit = divers.fullPath
-
-            spy.emitFake_DELETEITEM(fileToEmit, ItemType.FILE, 817L.toTauDate())
-            //act + arrange
-            advanceUntilIdle()
-            val event = awaitItem()
-            val decision = cia.manageUpdateEvents(event)
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        TestStuff.configure(dispatcher).use { stuff ->
+            val (repo, compo, vm, spy, dbDao) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
 
             //assert
-            expect(decision).notToEqualNull() {
-                toBeAnInstanceOf<TransferingDecision.DeleteItem>()
-                feature { f((it as TransferingDecision.DeleteItem)::modificationDate) }.toEqual(817L.toTauDate())
-                feature { f((it as TransferingDecision.DeleteItem)::itemType) }.toEqual(ItemType.FILE)
-            }
+            //* répertoire à observer
+            val PATH = "/storage/emulated/0/Download".toTauPath()
+            val cia = CIA().apply { this.spy = spy }
 
-            cancelAndIgnoreRemainingEvents()
+            spy.updateEventFlow.test {
+
+                advanceUntilIdle()
+                cia.spy = spy
+
+                spy.setObservedFolder(PATH)
+                val global = awaitItem()
+                expect(global) {
+                    toBeAnInstanceOf<GlobalUpdateEvent>()
+                }
+
+                //act
+                val divers = FILE_TOTO(PATH)
+                val fileToEmit = divers.fullPath
+
+                spy.emitFake_DELETEITEM(fileToEmit, ItemType.FILE, 817L.toTauDate())
+                //act + arrange
+                advanceUntilIdle()
+                val event = awaitItem()
+                val decision = cia.manageUpdateEvents(event)
+
+                //assert
+                expect(decision).notToEqualNull() {
+                    toBeAnInstanceOf<TransferingDecision.DeleteItem>()
+                    feature { f((it as TransferingDecision.DeleteItem)::modificationDate) }.toEqual(
+                        817L.toTauDate()
+                    )
+                    feature { f((it as TransferingDecision.DeleteItem)::itemType) }.toEqual(ItemType.FILE)
+                }
+
+                cancelAndIgnoreRemainingEvents()
+            }
         }
     }
 
@@ -659,39 +666,48 @@ class FileListDisplayTests : KoinTest {
         //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
         //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
 
-        prepareKoin(testScheduler)
-
-        //assert
-        //* répertoire à observer
-        val PATH = "/storage/emulated/0/Download".toTauPath()
-        val cia = CIA()
-        val spy = Spy(StandardTestDispatcher(testScheduler))
-
-        spy.updateEventFlow.test {
-
-            advanceUntilIdle()
-            cia.spy = spy
-
-            spy.setObservedFolder(PATH)
-
-            //act
-            val divers = FOLDER_DIVERS(PATH)
-            val folderToEmit = divers.fullPath
-
-            spy.emitFake_DELETEITEM(folderToEmit, ItemType.FOLDER, 817L.toTauDate())
-            //act + arrange
-            advanceUntilIdle()
-            val event = awaitItem()
-            val decision = cia.manageUpdateEvents(event)
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        TestStuff.configure(dispatcher).use { stuff ->
+            val (repo, compo, vm, spy, dbDao) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
 
             //assert
-            expect(decision).notToEqualNull() {
-                toBeAnInstanceOf<TransferingDecision.DeleteItem>()
-                feature { f((it as TransferingDecision.DeleteItem)::modificationDate) }.toEqual(817L.toTauDate())
-                feature { f((it as TransferingDecision.DeleteItem)::itemType) }.toEqual(ItemType.FOLDER)
-            }
+            //* répertoire à observer
+            val PATH = "/storage/emulated/0/Download".toTauPath()
+            val cia = CIA().apply { this.spy = spy }
 
-            cancelAndIgnoreRemainingEvents()
+            spy.updateEventFlow.test {
+
+                advanceUntilIdle()
+                cia.spy = spy
+
+                spy.setObservedFolder(PATH)
+                val global = awaitItem()
+                expect(global) {
+                    toBeAnInstanceOf<GlobalUpdateEvent>()
+                }
+
+                //act
+                val divers = FOLDER_DIVERS(PATH)
+                val folderToEmit = divers.fullPath
+
+                spy.emitFake_DELETEITEM(folderToEmit, ItemType.FOLDER, 817L.toTauDate())
+                //act + arrange
+                advanceUntilIdle()
+                val event = awaitItem()
+                val decision = cia.manageUpdateEvents(event)
+
+                //assert
+                expect(decision).notToEqualNull() {
+                    toBeAnInstanceOf<TransferingDecision.DeleteItem>()
+                    feature { f((it as TransferingDecision.DeleteItem)::modificationDate) }.toEqual(
+                        817L.toTauDate()
+                    )
+                    feature { f((it as TransferingDecision.DeleteItem)::itemType) }.toEqual(ItemType.FOLDER)
+                }
+
+                cancelAndIgnoreRemainingEvents()
+            }
         }
     }
 
@@ -705,39 +721,49 @@ class FileListDisplayTests : KoinTest {
         //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
         //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
 
-        prepareKoin(testScheduler)
-
-        //assert
-        //* répertoire à observer
-        val PATH = "/storage/emulated/0/Download".toTauPath()
-        val cia = CIA()
-        val spy = Spy(StandardTestDispatcher(testScheduler))
-
-        spy.updateEventFlow.test {
-
-            advanceUntilIdle()
-            cia.spy = spy
-
-            spy.setObservedFolder(PATH)
-
-            //act
-            val toto = FILE_TOTO(PATH)
-            val fileToEmit = toto.fullPath
-
-            spy.emitFake_MODIFYITEM(fileToEmit, ItemType.FILE, 817L.toTauDate())
-            //act + arrange
-            advanceUntilIdle()
-            val event = awaitItem()
-            val decision = cia.manageUpdateEvents(event)
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        TestStuff.configure(dispatcher).use { stuff ->
+            val (repo, compo, vm, spy, dbDao) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
 
             //assert
-            expect(decision).notToEqualNull() {
-                toBeAnInstanceOf<TransferingDecision.ModifyItem>()
-                feature { f((it as TransferingDecision.ModifyItem)::modificationDate) }.toEqual(817L.toTauDate())
-                feature { f((it as TransferingDecision.ModifyItem)::itemType) }.toEqual(ItemType.FILE)
-            }
+            //* répertoire à observer
+            val PATH = "/storage/emulated/0/Download".toTauPath()
+            val cia = CIA()
+            cia.spy = spy
 
-            cancelAndIgnoreRemainingEvents()
+            spy.updateEventFlow.test {
+
+                advanceUntilIdle()
+                cia.spy = spy
+
+                spy.setObservedFolder(PATH)
+                val global = awaitItem()
+                expect(global) {
+                    toBeAnInstanceOf<GlobalUpdateEvent>()
+                }
+
+                //act
+                val toto = FILE_TOTO(PATH)
+                val fileToEmit = toto.fullPath
+
+                spy.emitFake_MODIFYITEM(fileToEmit, ItemType.FILE, 817L.toTauDate())
+                //act + arrange
+                advanceUntilIdle()
+                val event = awaitItem()
+                val decision = cia.manageUpdateEvents(event)
+
+                //assert
+                expect(decision).notToEqualNull() {
+                    toBeAnInstanceOf<TransferingDecision.ModifyItem>()
+                    feature { f((it as TransferingDecision.ModifyItem)::modificationDate) }.toEqual(
+                        817L.toTauDate()
+                    )
+                    feature { f((it as TransferingDecision.ModifyItem)::itemType) }.toEqual(ItemType.FILE)
+                }
+
+                cancelAndIgnoreRemainingEvents()
+            }
         }
     }
 
@@ -751,40 +777,50 @@ class FileListDisplayTests : KoinTest {
         //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
         //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
 
-        prepareKoin(testScheduler)
-        val cia = CIA()
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        TestStuff.configure(dispatcher).use { stuff ->
+            val (repo, compo, vm, spy, dbDao) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
 
-        //assert
-        //* répertoire à observer
-        val PATH = "/storage/emulated/0/Download".toTauPath()
-
-        val spy = Spy(StandardTestDispatcher(testScheduler))
-
-        spy.updateEventFlow.test {
-
-            advanceUntilIdle()
+            val cia = CIA()
             cia.spy = spy
 
-            spy.setObservedFolder(PATH)
-
-            //act
-            val divers = FOLDER_DIVERS(PATH)
-            val folderToEmit = divers.fullPath
-
-            spy.emitFake_MODIFYITEM(folderToEmit, ItemType.FOLDER, 817L.toTauDate())
-            //act + arrange
-            advanceUntilIdle()
-            val event = awaitItem()
-            val decision = cia.manageUpdateEvents(event)
-
             //assert
-            expect(decision).notToEqualNull() {
-                toBeAnInstanceOf<TransferingDecision.ModifyItem>()
-                feature { f((it as TransferingDecision.ModifyItem)::modificationDate) }.toEqual(817L.toTauDate())
-                feature { f((it as TransferingDecision.ModifyItem)::itemType) }.toEqual(ItemType.FOLDER)
-            }
+            //* répertoire à observer
+            val PATH = "/storage/emulated/0/Download".toTauPath()
 
-            cancelAndIgnoreRemainingEvents()
+            spy.updateEventFlow.test {
+
+                advanceUntilIdle()
+                cia.spy = spy
+
+                spy.setObservedFolder(PATH)
+                val global = awaitItem()
+                expect(global) {
+                    toBeAnInstanceOf<GlobalUpdateEvent>()
+                }
+
+                //act
+                val divers = FOLDER_DIVERS(PATH)
+                val folderToEmit = divers.fullPath
+
+                spy.emitFake_MODIFYITEM(folderToEmit, ItemType.FOLDER, 817L.toTauDate())
+                //act + arrange
+                advanceUntilIdle()
+                val event = awaitItem()
+                val decision = cia.manageUpdateEvents(event)
+
+                //assert
+                expect(decision).notToEqualNull() {
+                    toBeAnInstanceOf<TransferingDecision.ModifyItem>()
+                    feature { f((it as TransferingDecision.ModifyItem)::modificationDate) }.toEqual(
+                        817L.toTauDate()
+                    )
+                    feature { f((it as TransferingDecision.ModifyItem)::itemType) }.toEqual(ItemType.FOLDER)
+                }
+
+                cancelAndIgnoreRemainingEvents()
+            }
         }
     }
 
@@ -793,97 +829,121 @@ class FileListDisplayTests : KoinTest {
     /////////////////
     // le diff est émis mais pas encore envoyé (c'est le rôle d'AirForce)
     @Test
-    fun `#2 SpyService - royaume des changements sur le disque - File moved_from()`() = runTest {
+    fun `#2 SpyService - royaume des changements sur le disque - File moved_from()`() =
+        runTest {
 
-        //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
-        //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
+            //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
+            //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
 
-        prepareKoin(testScheduler)
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            TestStuff.configure(dispatcher).use { stuff ->
+                val (repo, compo, vm, spy, dbDao) = stuff
+                setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
 
-        //assert
-        //* répertoire à observer
-        val PATH = "/storage/emulated/0/Download".toTauPath()
-        val cia = CIA()
-        val spy = Spy(StandardTestDispatcher(testScheduler))
+                //assert
+                //* répertoire à observer
+                val PATH = "/storage/emulated/0/Download".toTauPath()
+                val cia = CIA()
+                cia.spy = spy
 
-        spy.updateEventFlow.test {
+                spy.updateEventFlow.test {
 
-            advanceUntilIdle()
-            cia.spy = spy
+                    advanceUntilIdle()
+                    cia.spy = spy
 
-            spy.setObservedFolder(PATH)
+                    spy.setObservedFolder(PATH)
+                    val global = awaitItem()
+                    expect(global) {
+                        toBeAnInstanceOf<GlobalUpdateEvent>()
+                    }
 
-            //act
-            val toto = FILE_TOTO(PATH)
-            val fileToEmit = toto.fullPath
+                    //act
+                    val toto = FILE_TOTO(PATH)
+                    val fileToEmit = toto.fullPath
 
-            spy.emitFake_MOVEDFROM(fileToEmit, ItemType.FILE, 817L.toTauDate())
-            //act + arrange
-            advanceUntilIdle()
-            val event = awaitItem()
-            val decision = cia.manageUpdateEvents(event)
+                    spy.emitFake_MOVEDFROM(fileToEmit, ItemType.FILE, 817L.toTauDate())
+                    //act + arrange
+                    advanceUntilIdle()
+                    val event = awaitItem()
+                    val decision = cia.manageUpdateEvents(event)
 
-            //assert
-            expect(decision).notToEqualNull() {
-                toBeAnInstanceOf<TransferingDecision.DeleteItem>()
-                feature { f((it as TransferingDecision.DeleteItem)::modificationDate) }.toEqual(817L.toTauDate())
-                feature { f((it as TransferingDecision.DeleteItem)::itemType) }.toEqual(ItemType.FILE)
+                    //assert
+                    expect(decision).notToEqualNull() {
+                        toBeAnInstanceOf<TransferingDecision.DeleteItem>()
+                        feature { f((it as TransferingDecision.DeleteItem)::modificationDate) }.toEqual(
+                            817L.toTauDate()
+                        )
+                        feature { f((it as TransferingDecision.DeleteItem)::itemType) }.toEqual(
+                            ItemType.FILE
+                        )
+                    }
+
+                    cancelAndIgnoreRemainingEvents()
+                }
             }
-
-            cancelAndIgnoreRemainingEvents()
         }
-    }
 
     /////////////////
     // test n° 2-7 //
     /////////////////
     // le diff est émis mais pas encore envoyé (c'est le rôle d'AirForce)
     @Test
-    fun `#2 SpyService - royaume des changements sur le disque - Folder moved_from()`() = runTest {
+    fun `#2 SpyService - royaume des changements sur le disque - Folder moved_from()`() =
+        runTest {
 
-        //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
-        //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
+            //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
+            //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
 
-        prepareKoin(testScheduler)
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            TestStuff.configure(dispatcher).use { stuff ->
+                val (repo, compo, vm, spy, dbDao) = stuff
+                setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
 
-        //assert
-        //* répertoire à observer
-        val PATH = "/storage/emulated/0/Download".toTauPath()
-        val spy = Spy(StandardTestDispatcher(testScheduler))
-        val cia = CIA()
+                //assert
+                //* répertoire à observer
+                val PATH = "/storage/emulated/0/Download".toTauPath()
+                val cia = CIA()
+                cia.spy = spy
 
-        spy.updateEventFlow.test {
+                spy.updateEventFlow.test {
 
-            advanceUntilIdle()
-            cia.spy = spy
+                    advanceUntilIdle()
+                    cia.spy = spy
 
-            spy.setObservedFolder(PATH)
-            val global = awaitItem()
-            expect(global).toBeAnInstanceOf<GlobalUpdateEvent>()
+                    spy.setObservedFolder(PATH)
+                    val global = awaitItem()
+                    expect(global) {
+                        toBeAnInstanceOf<GlobalUpdateEvent>()
+                    }
 
-            advanceUntilIdle()
-            println("observedFolder = ${cia.spy.observedFolderFlow.value}")
+                    advanceUntilIdle()
+                    println("observedFolder = ${cia.spy.observedFolderFlow.value}")
 
-            //act
-            val divers = FOLDER_DIVERS(PATH)
-            val folderToEmit = divers.fullPath
+                    //act
+                    val divers = FOLDER_DIVERS(PATH)
+                    val folderToEmit = divers.fullPath
 
-            spy.emitFake_MOVEDFROM(folderToEmit, ItemType.FOLDER, 817L.toTauDate())
-            //act + arrange
-            advanceUntilIdle()
-            val event = awaitItem()
-            val decision = cia.manageUpdateEvents(event)
+                    spy.emitFake_MOVEDFROM(folderToEmit, ItemType.FOLDER, 817L.toTauDate())
+                    //act + arrange
+                    advanceUntilIdle()
+                    val event = awaitItem()
+                    val decision = cia.manageUpdateEvents(event)
 
-            //assert
-            expect(decision).notToEqualNull() {
-                toBeAnInstanceOf<TransferingDecision.DeleteItem>()
-                feature { f((it as TransferingDecision.DeleteItem)::modificationDate) }.toEqual(817L.toTauDate())
-                feature { f((it as TransferingDecision.DeleteItem)::itemType) }.toEqual(ItemType.FOLDER)
+                    //assert
+                    expect(decision).notToEqualNull() {
+                        toBeAnInstanceOf<TransferingDecision.DeleteItem>()
+                        feature { f((it as TransferingDecision.DeleteItem)::modificationDate) }.toEqual(
+                            817L.toTauDate()
+                        )
+                        feature { f((it as TransferingDecision.DeleteItem)::itemType) }.toEqual(
+                            ItemType.FOLDER
+                        )
+                    }
+
+                    cancelAndIgnoreRemainingEvents()
+                }
             }
-
-            cancelAndIgnoreRemainingEvents()
         }
-    }
 
     /////////////////
     // test n° 2-8 //
@@ -896,48 +956,54 @@ class FileListDisplayTests : KoinTest {
             //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
             //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
 
-            prepareKoin(testScheduler)
-
-            //assert
-            //* répertoire à observer
-            val PATH = "/storage/emulated/0/Download".toTauPath()
-            val OTHERPATH = "/storage/emulated/0/Documents".toTauPath()
-            val cia = CIA()
-            val spy = Spy(StandardTestDispatcher(testScheduler))
-
-            spy.updateEventFlow.test {
-
-                advanceUntilIdle()
-                cia.spy = spy
-
-                spy.setObservedFolder(PATH)
-                val empty = awaitItem()
-                expect(empty).toBeAnInstanceOf<GlobalUpdateEvent>()
-
-                //act
-                val divers = FOLDER_DIVERS(OTHERPATH)
-                val folderToEmit = divers.fullPath
-
-                spy.emitFake_CREATEITEM(folderToEmit, ItemType.FOLDER, 817L.toTauDate())
-                //act + arrange
-                advanceUntilIdle()
-                val event = awaitItem()
-                val decision = cia.manageUpdateEvents(event)
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            TestStuff.configure(dispatcher).use { stuff ->
+                val (repo, compo, vm, spy, dbDao) = stuff
+                setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
 
                 //assert
-                expect(decision).toEqual(null)
-                expectNoEvents()
-            }
+                //* répertoire à observer
+                val PATH = "/storage/emulated/0/Download".toTauPath()
+                val OTHERPATH = "/storage/emulated/0/Documents".toTauPath()
+                val cia = CIA()
+                cia.spy = spy
 
-            @Before
-            fun setUp() {
+                spy.updateEventFlow.test {
 
-            }
+                    advanceUntilIdle()
+                    cia.spy = spy
 
-            @After
-            fun tearDownKoin() {
-                stopKoin()
-                db?.close()
+                    spy.setObservedFolder(PATH)
+                    val global = awaitItem()
+                    expect(global).toBeAnInstanceOf<GlobalUpdateEvent>()
+
+                    //act
+                    val divers = FOLDER_DIVERS(OTHERPATH)
+                    val folderToEmit = divers.fullPath
+
+                    spy.emitFake_CREATEITEM(folderToEmit, ItemType.FOLDER, 817L.toTauDate())
+                    //act + arrange
+                    advanceUntilIdle()
+                    val event = awaitItem()
+                    val decision = cia.manageUpdateEvents(event)
+
+                    //assert
+                    expect(decision).toEqual(null)
+                    expectNoEvents()
+                }
+
+                @Before
+                fun setUp() {
+
+                }
+
+                @After
+                fun tearDownKoin() {
+                    stopKoin()
+                    db?.close()
+                    GlobalContext.getOrNull()?.get<AppDb>()?.close()
+                    GlobalContext.stopKoin()
+                }
             }
         }
 }

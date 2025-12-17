@@ -1,7 +1,6 @@
 package lorry.dossiertau.fileListDisplay
 
 import androidx.room.Room
-import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.test.core.app.ApplicationProvider
 import io.mockk.spyk
 import kotlinx.coroutines.CoroutineDispatcher
@@ -19,6 +18,10 @@ import lorry.dossiertau.data.dbModel.FileDiffDao
 import lorry.dossiertau.data.model.TauFile
 import lorry.dossiertau.data.diskTransfer.TauRepoFile
 import lorry.dossiertau.data.diskTransfer.TauRepoFolder
+import lorry.dossiertau.data.intelligenceService.ISpy
+import lorry.dossiertau.data.intelligenceService.Spy
+import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
+import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside
 import lorry.dossiertau.data.model.TauFolder
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauItemName
@@ -26,18 +29,15 @@ import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.usecases.folderContent.FolderCompo
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
+import lorry.dossiertau.usecases.folderContent.support.FolderRepo
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 import org.junit.After
-import org.junit.Before
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
-import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.GlobalContext.startKoin
-import org.koin.core.context.GlobalContext.stopKoin
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
-import java.io.File
 
 fun FileListDisplayTests.prepareKoin(testScheduler: TestCoroutineScheduler) {
 
@@ -49,13 +49,14 @@ fun FileListDisplayTests.prepareKoin(testScheduler: TestCoroutineScheduler) {
             module {
                 allowOverride(true)
                 single {
-                    val appDb = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(),
-                        AppDb::class.java)
+                    Room.inMemoryDatabaseBuilder(
+                        ApplicationProvider.getApplicationContext(),
+                        AppDb::class.java
+                    )
                         .allowMainThreadQueries() // ok en test
                         .build()
-
-                        appDb.fileDiffDao()
                 }
+                single { get<AppDb>().fileDiffDao() }
                 single<IFolderRepo> { spyk(get<IFolderRepo>(named("real"))) }
                 single<IFolderCompo> {
                     spyk(
@@ -87,10 +88,38 @@ fun FileListDisplayTests.prepareKoin(testScheduler: TestCoroutineScheduler) {
     }
 }
 
+fun FileListDisplayTests.setAsInjectors(
+    repo: IFolderRepo,
+    compo: IFolderCompo,
+    vm: TauViewModel,
+    spy: ISpy,
+    dbDao: FileDiffDao,
+    testScheduler: TestCoroutineScheduler,
+) {
+    GlobalContext.stopKoin()
+
+    startKoin {
+        modules(
+            TauInjections,
+            module {
+                allowOverride(true)
+
+                single<CoroutineDispatcher> { StandardTestDispatcher(testScheduler) }
+                single{ spyk(dbDao) }
+                single<IFolderRepo> { spyk(repo) }
+                single<IFolderCompo> { spyk(compo) }
+                single<TauViewModel> { spyk(vm) }
+                single{ spyk(spy) }
+                single { DiffRepository(get(), get()) }
+            }
+        )
+    }
+}
+
 fun FileListDisplayTests.FILE_TOTO(parentPath: TauPath) = TauFile(
     parentPath = parentPath,
     name = TauItemName("toto.mp4"),
-    modificationDate = TauDate.fromLong(825)
+    modificationDate = TauDate.fromLong(825),
 )
 
 fun FileListDisplayTests.REPOFILE_TOTO(parentPath: TauPath) = TauRepoFile(
@@ -118,7 +147,6 @@ fun FileListDisplayTests.REPOFOLDER_DIVERS(parentPath: TauPath) = TauRepoFolder(
     modificationDate = TauDate(834)
 )
 
-
 class MainDispatcherRule(
     val dispatcher: TestDispatcher = StandardTestDispatcher()
 ) : TestWatcher() {
@@ -131,11 +159,78 @@ class MainDispatcherRule(
     }
 }
 
-//private fun buildTestDb(): AppDb {
-//    val dbFile = File.createTempFile("room-test-", ".db").apply { deleteOnExit() }
-//    val db = Room.databaseBuilder<AppDb>(name = ":memory:")
-//        .setDriver(BundledSQLiteDriver())   // ← pas de Context requis
-//        .build()
-//    return db
-//}
+class TestStuff: AutoCloseable {
+    lateinit var appDb: AppDb
+    lateinit var repo: IFolderRepo
+    operator fun component1() = repo
+    lateinit var compo: IFolderCompo
+    operator fun component2() = compo
+    lateinit var vm: TauViewModel
+    operator fun component3() = vm
+    lateinit var spy: ISpy
+    operator fun component4() = spy
 
+    lateinit var dbDao: FileDiffDao
+    operator fun component5() = dbDao
+
+    override fun close() {
+        // 1) couper Koin si tu l’utilises globalement dans les tests
+        GlobalContext.stopKoin()
+        FolderCompo.collectFillLaunched = false
+
+        // 2) fermer Room
+        try { appDb.close() } catch (_: Throwable) {}
+
+        // 3) si tu as des scopes internes dans VM/Compo/Spy, annule-les ici
+        // (ex: vm.clear(), compo.stop(), spy.stop()) si tu as ces APIs.
+    }
+
+    companion object {
+        fun configure(dispatcher: TestDispatcher): TestStuff {
+
+            val result = TestStuff()
+
+            result.appDb = Room.inMemoryDatabaseBuilder(
+                ApplicationProvider.getApplicationContext(),
+                AppDb::class.java
+            )
+                .allowMainThreadQueries() // ok en test
+                .build()
+
+            try {
+                result.dbDao = result.appDb.fileDiffDao()
+
+                if (result.dbDao == null)
+                    throw Exception("erreur test #8")
+
+                result.repo = spyk(FolderRepo())
+                result.compo = spyk(
+                    FolderCompo(
+                        folderRepo = result.repo,
+                        dispatcher = dispatcher,
+                        fileDiffDAO = result.dbDao!!
+                    )
+                )
+
+                result.spy = spyk(
+                    Spy(
+                        dispatcher = dispatcher,
+                        fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+                    )
+                )
+
+                result.vm = spyk(
+                    TauViewModel(
+                        folderCompo = result.compo,
+                        spy = result.spy
+                    )
+                )
+            } catch (ex: Exception) {
+                println(ex.message)
+                throw Exception("test #1 init failed")
+            }
+
+            return result
+        }
+    }
+}

@@ -35,7 +35,6 @@ interface ISpy {
     val observedFolderFlow: StateFlow<TauPath>
     fun setObservedFolder(folderPath: TauPath)
 
-
     ///////////
     // fakes //
     ///////////

@@ -24,13 +24,10 @@ import lorry.dossiertau.support.littleClasses.TauPath
 
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside.INACTIVE
 import lorry.dossiertau.data.intelligenceService.utils.events.toEventType
+import lorry.dossiertau.support.littleClasses.FolderPath
 import lorry.dossiertau.support.littleClasses.toTauDate
 import java.time.Clock
-import java.time.LocalDateTime
-import java.time.ZoneOffset
-import java.time.ZonedDateTime
 import kotlin.time.ExperimentalTime
-import kotlin.time.Instant
 
 @OptIn(ExperimentalTime::class)
 class Spy(
@@ -62,12 +59,19 @@ class Spy(
     ////////////////////////////////////////
     // répertoire observé -> surveillance //
     ////////////////////////////////////////
-    val _observedFolderFlow = MutableStateFlow<TauPath>(TauPath.EMPTY)
-    override val observedFolderFlow = _observedFolderFlow.asStateFlow()
+    val _observedFolderPathFlow = MutableStateFlow(TauPath.EMPTY)
+    override val observedFolderFlow = _observedFolderPathFlow.asStateFlow()
 
     override fun setObservedFolder(folderPath: TauPath) {
-        _observedFolderFlow.update { folderPath }
+        _observedFolderPathFlow.update { folderPath }
     }
+
+    //////////////////////////
+    // inhibiteur de l'init //
+    //////////////////////////
+
+
+
 
     ///////////////////////////////////////////////////////////////////////
     // évènements créés par l'espion suite à une opération sur le disque //
@@ -160,7 +164,6 @@ class Spy(
                             ?.getOrNull().let {
                                 if (it == null || it == 0L)
                                     Clock.systemDefaultZone().millis()
-//                                    Instant.now().toEpochMilliseconds()
                                 else it
                             }
                         val newEvent = AtomicUpdateEvent(

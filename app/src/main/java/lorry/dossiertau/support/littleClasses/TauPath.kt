@@ -10,9 +10,9 @@ import java.io.File
 
 typealias EMPTY = TauPath.Companion.EMPTYTAG
 
-//////////////////////////
-// value class : τPath2 //
-//////////////////////////
+/////////////////////////
+// value class : τPath //
+/////////////////////////
 @JvmInline
 value class TauPath(val value: Either<EMPTY, Data>) {
 
@@ -129,3 +129,7 @@ inline val TauPath.path
         is Either.Right -> this.value.value.value
     }
 
+sealed class FolderPath {
+    data object INACTIVE: FolderPath()
+    data class Path(val value: TauPath): FolderPath()
+}
