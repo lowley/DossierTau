@@ -34,6 +34,7 @@ import lorry.dossiertau.data.dbModel.DiffRepository
 import lorry.dossiertau.data.dbModel.FileDiffDao
 import lorry.dossiertau.data.dbModel.toFileDiffEntity
 import lorry.dossiertau.data.intelligenceService.utils.events.GlobalSpyLevel
+import lorry.dossiertau.data.intelligenceService.utils2.events.Snapshot
 import lorry.dossiertau.data.planes.DbCommand
 import lorry.dossiertau.support.littleClasses.path
 import org.junit.After
@@ -1006,6 +1007,36 @@ class FileListDisplayTests : KoinTest {
                 }
             }
         }
+
+
+    @Test
+    fun `#9 Spy⠂changement dossier ⇒ demande nouveau snapshot`() = runTest {
+
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        TestStuff.configure(dispatcher).use { stuff ->
+            val (repo, compo, vm, spy, dbDao) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
+
+            val PATH = "/storage/emulated/0/Download".toTauPath()
+            val FAKE_SNAPSHOT = Snapshot.FAKE
+
+            //arrange
+            coEvery { repo.createSnapshotFor(PATH) } returns FAKE_SNAPSHOT
+
+            //act
+            spy.setObservedFolder(PATH)
+
+            //assert
+            coVerify { repo.createSnapshotFor(PATH) }
+        }
+
+
+
+
+
+    }
+
+
 }
 
 

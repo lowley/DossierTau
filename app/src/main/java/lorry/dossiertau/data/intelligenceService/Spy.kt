@@ -25,13 +25,15 @@ import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside.INACTIVE
 import lorry.dossiertau.data.intelligenceService.utils.events.toEventType
 import lorry.dossiertau.support.littleClasses.toTauDate
+import lorry.dossiertau.usecases.folderContent.support.FolderRepo
 import java.time.Clock
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
 class Spy(
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
-    var fileObserver: TauFileObserver = TauFileObserver.of(INACTIVE)
+    var fileObserver: TauFileObserver = TauFileObserver.of(INACTIVE),
+    val fileRepo: FolderRepo = FolderRepo()
 ) : ISpy {
 
     private val scope: CoroutineScope = CoroutineScope(dispatcher + SupervisorJob())
@@ -65,12 +67,11 @@ class Spy(
         _observedFolderPathFlow.update { folderPath }
     }
 
-    //////////////////////////
-    // inhibiteur de l'init //
-    //////////////////////////
-
-
-
+    ////////////////////////////////
+    // réglages vivacité réaction //
+    ////////////////////////////////
+    private val quietWindowMs: Long = 500
+    private val maxWaitMs: Long = 2500
 
     ///////////////////////////////////////////////////////////////////////
     // évènements créés par l'espion suite à une opération sur le disque //
@@ -150,7 +151,6 @@ class Spy(
     }
 
     init {
-
         //////////////
         // réglages //
         //////////////
