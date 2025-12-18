@@ -1,5 +1,6 @@
 package lorry.dossiertau.fileListDisplay
 
+import android.os.FileObserver
 import androidx.room.Ignore
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -28,15 +29,20 @@ import io.mockk.Runs
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.spyk
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.plus
 import lorry.dossiertau.data.dbModel.AppDb
 import lorry.dossiertau.data.dbModel.DiffRepository
 import lorry.dossiertau.data.dbModel.FileDiffDao
 import lorry.dossiertau.data.dbModel.toFileDiffEntity
+import lorry.dossiertau.data.intelligenceService.Spy
+import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
+import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside
 import lorry.dossiertau.data.intelligenceService.utils.events.GlobalSpyLevel
 import lorry.dossiertau.data.intelligenceService.utils2.events.Snapshot
 import lorry.dossiertau.data.planes.DbCommand
 import lorry.dossiertau.support.littleClasses.path
+import lorry.dossiertau.usecases.folderContent.support.FolderRepo
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -1003,40 +1009,39 @@ class FileListDisplayTests : KoinTest {
                     stopKoin()
                     db?.close()
                     GlobalContext.getOrNull()?.get<AppDb>()?.close()
-                    GlobalContext.stopKoin()
+                    stopKoin()
                 }
             }
         }
 
-
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun `#9 Spy⠂changement dossier ⇒ demande nouveau snapshot`() = runTest {
+    fun `#9 Spy - changement dossier ⇒  demande nouveau snapshot`() = runTest {
 
         val dispatcher = StandardTestDispatcher(testScheduler)
-        TestStuff.configure(dispatcher).use { stuff ->
-            val (repo, compo, vm, spy, dbDao) = stuff
-            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
 
-            val PATH = "/storage/emulated/0/Download".toTauPath()
-            val FAKE_SNAPSHOT = Snapshot.FAKE
+        val repo: FolderRepo = spyk(FolderRepo())
+        val spy = Spy(
+            dispatcher = dispatcher,
+            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+            fileRepo = repo
+        )
 
-            //arrange
-            coEvery { repo.createSnapshotFor(PATH) } returns FAKE_SNAPSHOT
+        val PATH = "/storage/emulated/0/Download".toTauPath()
+        val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
 
-            //act
-            spy.setObservedFolder(PATH)
+        //arrange
+        coEvery { repo.createSnapshotFor(PATH) } returns FAKE_SNAPSHOT
 
-            //assert
-            coVerify { repo.createSnapshotFor(PATH) }
-        }
+        //act
+        spy.setObservedFolder(PATH)
+        advanceUntilIdle()
 
-
-
-
+        //assert
+        coVerify { repo.createSnapshotFor(PATH) }
+        expect(spy.newSnapshot).toEqual(FAKE_SNAPSHOT)
 
     }
-
-
 }
 
 

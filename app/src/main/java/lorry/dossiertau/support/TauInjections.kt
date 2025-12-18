@@ -43,12 +43,13 @@ val TauInjections = module {
     single { CoroutineScope(Dispatchers.Main + SupervisorJob()) }
     single { DiffRepository(get()) }
 
-    single { AirForce(get(), get()) }
-    single<ISpy> { Spy() }
-    single { CIA() }
-
     single<IFolderRepo>(named("real")) { FolderRepo(/*...*/) }
     single<IFolderRepo> { get(named("real")) }          // alias public
+
+    single { AirForce(get(), get()) }
+    single<ISpy> { Spy(get(), get(), get()) }
+    single { CIA() }
+
 
     single<IFolderCompo>(named("real")) { FolderCompo(
         folderRepo = get(),

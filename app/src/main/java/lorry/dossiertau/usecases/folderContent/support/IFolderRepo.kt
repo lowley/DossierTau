@@ -6,7 +6,7 @@ import lorry.dossiertau.support.littleClasses.TauPath
 
 interface IFolderRepo {
     suspend fun getItemsInFullPath(tauPath: TauPath): List<TauRepoItem>
-    fun createSnapshotFor(folderPath: TauPath): Snapshot
+    suspend fun createSnapshotFor(folderPath: TauPath): Snapshot
 
 
 }

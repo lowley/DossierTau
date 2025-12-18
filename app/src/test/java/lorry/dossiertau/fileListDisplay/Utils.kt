@@ -216,6 +216,7 @@ class TestStuff: AutoCloseable {
                     Spy(
                         dispatcher = dispatcher,
                         fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+                        fileRepo = result.repo
                     )
                 )
 

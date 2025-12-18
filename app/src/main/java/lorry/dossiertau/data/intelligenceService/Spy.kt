@@ -24,8 +24,12 @@ import lorry.dossiertau.support.littleClasses.TauPath
 
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside.INACTIVE
 import lorry.dossiertau.data.intelligenceService.utils.events.toEventType
+import lorry.dossiertau.data.intelligenceService.utils2.events.Snapshot
+import lorry.dossiertau.support.littleClasses.FolderPath
+import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauDate
 import lorry.dossiertau.usecases.folderContent.support.FolderRepo
+import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 import java.time.Clock
 import kotlin.time.ExperimentalTime
 
@@ -33,7 +37,7 @@ import kotlin.time.ExperimentalTime
 class Spy(
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     var fileObserver: TauFileObserver = TauFileObserver.of(INACTIVE),
-    val fileRepo: FolderRepo = FolderRepo()
+    val fileRepo: IFolderRepo
 ) : ISpy {
 
     private val scope: CoroutineScope = CoroutineScope(dispatcher + SupervisorJob())
@@ -64,6 +68,7 @@ class Spy(
     override val observedFolderFlow = _observedFolderPathFlow.asStateFlow()
 
     override fun setObservedFolder(folderPath: TauPath) {
+        println("setObservedFolder this=${System.identityHashCode(this)} arg=${folderPath.path}")
         _observedFolderPathFlow.update { folderPath }
     }
 
@@ -72,6 +77,14 @@ class Spy(
     ////////////////////////////////
     private val quietWindowMs: Long = 500
     private val maxWaitMs: Long = 2500
+
+    /////////////////////////////////
+    // gestion des events entrants //
+    /////////////////////////////////
+    override var newSnapshot: Snapshot = Snapshot.EMPTY(observedFolderFlow.value)
+
+//    override fun getNewSnapshot() = newSnapshot
+
 
     ///////////////////////////////////////////////////////////////////////
     // évènements créés par l'espion suite à une opération sur le disque //
@@ -155,6 +168,8 @@ class Spy(
         // réglages //
         //////////////
         observedFolderFlow.onEach { folderPath ->
+            newSnapshot = fileRepo.createSnapshotFor(folderPath)
+
             if (folderPath.value.isRight()) {
                 fileObserver.changeTarget(
                     path = folderPath,
@@ -170,7 +185,7 @@ class Spy(
                             path = path ?: TauPath.EMPTY,
                             itemType = if (path?.toFile()?.map { it.isFile }
                                     ?.getOrNull() == true) ItemType.FILE else ItemType.FOLDER,
-                           modificationDate = fileDate1.toTauDate()
+                            modificationDate = fileDate1.toTauDate()
                         )
 
                         println("Spy detected event: ${newEvent.eventType}, ${newEvent.path.value}")

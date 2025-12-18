@@ -6,6 +6,8 @@ import kotlinx.coroutines.withContext
 import lorry.dossiertau.data.diskTransfer.TauRepoFile
 import lorry.dossiertau.data.diskTransfer.TauRepoFolder
 import lorry.dossiertau.data.diskTransfer.TauRepoItem
+import lorry.dossiertau.data.intelligenceService.utils2.events.Snapshot
+import lorry.dossiertau.data.intelligenceService.utils2.events.SnapshotElement
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.toTauFileName
@@ -59,16 +61,22 @@ class FolderRepo : IFolderRepo {
             return items
         }
 
-    override fun createSnapshotFor(folderPath: TauPath) {
+    override suspend fun createSnapshotFor(folderPath: TauPath): Snapshot {
+        val files = folderPath.toFile().getOrNull()?.listFiles().orEmpty()
+        val content = files.associate { f ->
+            f.name to SnapshotElement(
+                name = f.name,
+                isDir = f.isDirectory,
+                size = if (f.isFile) f.length() else 0L,
+                lastModified = f.lastModified()
+            )
+        }
 
-
-
-
-
-
+        return Snapshot(
+            folderPath = folderPath,
+            entriesByName = content
+        )
     }
-
-
 }
 
 

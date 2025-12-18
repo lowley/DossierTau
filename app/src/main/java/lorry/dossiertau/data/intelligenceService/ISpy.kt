@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import lorry.dossiertau.data.intelligenceService.utils.events.ISpyLevel
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
+import lorry.dossiertau.data.intelligenceService.utils2.events.Snapshot
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauPath
 
@@ -41,4 +42,7 @@ interface ISpy {
     fun emitFake_DELETEITEM(itemToEmit: TauPath, itemType: ItemType, modificationDate: TauDate)
     fun emitFake_MODIFYITEM(itemToEmit: TauPath, itemType: ItemType, modificationDate: TauDate)
     fun emitFake_MOVEDFROM(itemToEmit: TauPath, itemType: ItemType, modificationDate: TauDate)
+//    fun getNewSnapshot(): Snapshot
+
+    var newSnapshot: Snapshot
 }
