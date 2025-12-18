@@ -1,5 +1,6 @@
 import org.gradle.kotlin.dsl.testImplementation
 import org.gradle.kotlin.dsl.withType
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -7,6 +8,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    id("dev.mokkery") version "3.1.1"
 
 }
 
@@ -40,12 +42,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    kotlinOptions {
-        jvmTarget = "11"
-        freeCompilerArgs = listOf("-XXLanguage:+PropertyParamAnnotationDefaultTargetMode",
-            "-XXLanguage:+NestedTypeAliases"
-        )
-    }
+//    kotlinOptions {
+//        jvmTarget = "11"
+//        freeCompilerArgs = listOf("-XXLanguage:+PropertyParamAnnotationDefaultTargetMode",
+//            "-XXLanguage:+NestedTypeAliases"
+//        )
+//    }
 
     buildFeatures {
         compose = true
@@ -68,7 +70,20 @@ android {
         jvmArgs("-XX:+EnableDynamicAgentLoading")
         // Pour diagnostiquer : "-Djdk.instrument.traceUsage"
     }
+
+    tasks.withType<KotlinCompile>().configureEach {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_11)
+
+            freeCompilerArgs.addAll(
+                "-XXLanguage:+PropertyParamAnnotationDefaultTargetMode",
+                // ajoute ici tes autres options, une par string
+            )
+        }
+    }
 }
+
+
 
 dependencies {
     implementation(libs.core.ktx)
@@ -216,5 +231,10 @@ dependencies {
     // observation des fichiers //
     //////////////////////////////
     implementation("io.github.irgaly.kfswatch:kfswatch:1.4.0")
+
+    /////////////
+    // mokkery //
+    /////////////
+    implementation("dev.mokkery:mokkery-coroutines:3.1.1")
 
 }

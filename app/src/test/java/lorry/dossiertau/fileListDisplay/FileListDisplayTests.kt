@@ -25,6 +25,11 @@ import lorry.dossiertau.data.model.*
 import lorry.dossiertau.support.littleClasses.toTauDate
 import ch.tutteli.atrium.api.fluent.en_GB.*
 import ch.tutteli.atrium.api.verbs.expect
+import dev.mokkery.answering.returns
+import dev.mokkery.everySuspend
+import dev.mokkery.spy
+import dev.mokkery.verify
+import dev.mokkery.verifySuspend
 import io.mockk.Runs
 import io.mockk.just
 import io.mockk.mockk
@@ -35,6 +40,7 @@ import lorry.dossiertau.data.dbModel.AppDb
 import lorry.dossiertau.data.dbModel.DiffRepository
 import lorry.dossiertau.data.dbModel.FileDiffDao
 import lorry.dossiertau.data.dbModel.toFileDiffEntity
+import lorry.dossiertau.data.intelligenceService.ISpy
 import lorry.dossiertau.data.intelligenceService.Spy
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside
@@ -43,6 +49,7 @@ import lorry.dossiertau.data.intelligenceService.utils2.events.Snapshot
 import lorry.dossiertau.data.planes.DbCommand
 import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.usecases.folderContent.support.FolderRepo
+import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -1020,27 +1027,27 @@ class FileListDisplayTests : KoinTest {
 
         val dispatcher = StandardTestDispatcher(testScheduler)
 
-        val repo: FolderRepo = spyk(FolderRepo())
-        val spy = Spy(
+        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo())
+        val spy = spy<ISpy>(Spy(
             dispatcher = dispatcher,
             fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
             fileRepo = repo
-        )
+        ))
 
         val PATH = "/storage/emulated/0/Download".toTauPath()
         val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
 
         //arrange
-        coEvery { repo.createSnapshotFor(PATH) } returns FAKE_SNAPSHOT
+        everySuspend { repo.createSnapshotFor(PATH) } returns FAKE_SNAPSHOT
 
         //act
         spy.setObservedFolder(PATH)
         advanceUntilIdle()
 
         //assert
-        coVerify { repo.createSnapshotFor(PATH) }
+        verifySuspend { repo.createSnapshotFor(PATH) }
+//        coVerify { repo.createSnapshotFor(PATH) }
         expect(spy.newSnapshot).toEqual(FAKE_SNAPSHOT)
-
     }
 }
 
