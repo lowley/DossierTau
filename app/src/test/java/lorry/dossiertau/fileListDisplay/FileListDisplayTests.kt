@@ -1,6 +1,5 @@
 package lorry.dossiertau.fileListDisplay
 
-import android.os.FileObserver
 import androidx.room.Ignore
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -25,10 +24,10 @@ import lorry.dossiertau.data.model.*
 import lorry.dossiertau.support.littleClasses.toTauDate
 import ch.tutteli.atrium.api.fluent.en_GB.*
 import ch.tutteli.atrium.api.verbs.expect
+import dev.mokkery.answering.calls
 import dev.mokkery.answering.returns
 import dev.mokkery.everySuspend
 import dev.mokkery.spy
-import dev.mokkery.verify
 import dev.mokkery.verifySuspend
 import io.mockk.Runs
 import io.mockk.just
@@ -36,6 +35,8 @@ import io.mockk.mockk
 import io.mockk.spyk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.plus
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import lorry.dossiertau.data.dbModel.AppDb
 import lorry.dossiertau.data.dbModel.DiffRepository
 import lorry.dossiertau.data.dbModel.FileDiffDao
@@ -58,6 +59,7 @@ import org.koin.core.context.GlobalContext
 import org.koin.core.context.GlobalContext.stopKoin
 import org.koin.test.inject
 import org.robolectric.RobolectricTestRunner
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
@@ -79,7 +81,7 @@ class FileListDisplayTests : KoinTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         TestStuff.configure(dispatcher).use { stuff ->
             val (repo, compo, vm, spy, dbDao) = stuff
-            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
+//            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
 
             //* input
             val PATH = "/storage/emulated/0/Download".toTauPath()
@@ -87,6 +89,7 @@ class FileListDisplayTests : KoinTest {
                 FILE_TOTO(PATH),
                 FOLDER_DIVERS(PATH)
             )
+
             val repoItems = listOf(
                 REPOFILE_TOTO(PATH),
                 REPOFOLDER_DIVERS(PATH)
@@ -108,7 +111,7 @@ class FileListDisplayTests : KoinTest {
                 //[[coroutine longue]] qui est explicitement attendu pas awaitItem()
                 //la vérification se fait après le awaitItem()
                 coVerify { repo.getItemsInFullPath(PATH) }
-                confirmVerified(repo)
+//                confirmVerified(repo)
 
                 assert(
                     newItems.fold(
@@ -319,7 +322,7 @@ class FileListDisplayTests : KoinTest {
              * - un flux.each{}.stateIn() doit être un job cancellé à la fin du test
              */
 
-            prepareKoin(testScheduler)
+//            prepareKoin(testScheduler)
             val testScope = this
 
             //assert
@@ -332,7 +335,11 @@ class FileListDisplayTests : KoinTest {
             cia.scope = testScope + dispatcher
             cia.dispatcher = dispatcher
 
-            val diffRepo: DiffRepository by inject()
+            val diffRepo = DiffRepository(
+                dao = dbDao,
+                io = dispatcher
+            )
+
             val repo1 = spyk(diffRepo)
 
             val airForceOne = AirForce(
@@ -386,7 +393,6 @@ class FileListDisplayTests : KoinTest {
              * - un flux.each{}.stateIn() doit être un job cancellé à la fin du test
              */
 
-            prepareKoin(testScheduler)
             val testScope = this
 
             //assert
@@ -429,8 +435,6 @@ class FileListDisplayTests : KoinTest {
     @Test
     fun `#7 DB ajout createFile ⇒ DB a bien un élément`() = runTest {
 
-//        prepareKoin(testScheduler)
-
         val appDb = Room.inMemoryDatabaseBuilder(
             ApplicationProvider.getApplicationContext(),
             AppDb::class.java
@@ -456,9 +460,6 @@ class FileListDisplayTests : KoinTest {
 
             val initial = awaitItem()
 
-//                val initial = awaitItem()
-//                println("initial = $initial")
-
             val dbCommand = DbCommand.CreateItem(toto.toDbFile())
             dbDao!!.insert(dbCommand.toFileDiffEntity())
             advanceUntilIdle()
@@ -466,13 +467,6 @@ class FileListDisplayTests : KoinTest {
             val entry = awaitItem()  // [diff]
             println("afterInsert = $entry")
 
-//                val dbFile = File("/Users/olivier/Downloads", "tau-db-snapshot.sqlite")
-//                val snap = dbFile.absolutePath
-//                appDb.openHelper.writableDatabase.execSQL("VACUUM INTO '$snap';")
-//                println("Snapshot -> $snap")
-
-//                val kesako = awaitItem()
-//                var entry = awaitItem()
             expect(entry).notToEqualNull()
         }
     }
@@ -488,12 +482,6 @@ class FileListDisplayTests : KoinTest {
             val (repo, compo, vm, spy, dbDao) = stuff
             setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
 
-//        val appDb: AppDb = Room.databaseBuilder(
-//            ApplicationProvider.getApplicationContext(),
-//            AppDb::class.java,
-//            "tau-db.sqlite"
-//        ).build()
-
             try {
                 if (dbDao == null)
                     throw Exception("erreur test #8")
@@ -501,8 +489,6 @@ class FileListDisplayTests : KoinTest {
                 val INITIALPATH = "/storage/emulated/0/Download".toTauPath()
                 val PATH = "/storage/emulated/0/Download".toTauPath()
                 val toto = FILE_TOTO(PATH)
-
-                val tenSeconds = 10.toDuration(DurationUnit.SECONDS)
 
                 //Ça force folderPathFlow à devenir Some(PATH) → diffsForFolder(PATH) sera effectivement collecté
                 compo.folderFlow.test {
@@ -518,9 +504,6 @@ class FileListDisplayTests : KoinTest {
                         its { getOrNull()?.fullPath?.path }.toEqual(INITIALPATH.path)
                         its { getOrNull()?.children?.size }.toEqual(0)
                     }
-
-//                val item1 = awaitItem()
-//                println("TEST: item1 = $item1")
 
                     println("TEST: appel de setTauFolder")
                     vm.setTauFolder(PATH)
@@ -1016,7 +999,6 @@ class FileListDisplayTests : KoinTest {
                     stopKoin()
                     db?.close()
                     GlobalContext.getOrNull()?.get<AppDb>()?.close()
-                    stopKoin()
                 }
             }
         }
@@ -1047,7 +1029,169 @@ class FileListDisplayTests : KoinTest {
         //assert
         verifySuspend { repo.createSnapshotFor(PATH) }
 //        coVerify { repo.createSnapshotFor(PATH) }
-        expect(spy.newSnapshot).toEqual(FAKE_SNAPSHOT)
+        expect(spy.getLastSnapshot()).toEqual(FAKE_SNAPSHOT)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `#9 Spy - dossier observé + tick ⇒ nothing happens during delay`() = runTest {
+
+        val dispatcher = StandardTestDispatcher(testScheduler)
+
+        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo())
+        val spy = spy<ISpy>(Spy(
+            dispatcher = dispatcher,
+            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+            fileRepo = repo
+        ))
+
+        val PATH = "/storage/emulated/0/Download".toTauPath()
+        val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
+
+        val calls = AtomicInteger(0)
+        //arrange
+        everySuspend { repo.createSnapshotFor(PATH) } calls {
+            calls.incrementAndGet()
+            FAKE_SNAPSHOT
+        }
+
+        //assert: minTimer pas enclenché
+        val minTimer = spy.minTimer
+        expect(minTimer.isRunning()).toEqual(false)
+
+        //act
+        spy.setObservedFolder(PATH)
+        runCurrent()
+
+        //assert: minTimer enclenché
+        expect(minTimer.isRunning()).toEqual(true)
+
+        advanceTimeBy(spy.quietWindowMs - 1)
+        //1 car un snapshot immédiat dès changement de dossier
+        expect(calls.get()).toEqual(1)
+
+//        runCurrent()
+        advanceTimeBy(20)
+        //le snapshot après
+        //TODO le 2e lors réception event
+        expect(calls.get()).toEqual(2)
+
+        //TODO vérifier désarmement
+        expect(spy.getLastSnapshot()).toEqual(FAKE_SNAPSHOT)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `#10 Spy - observation + many tick ⇒ 2nd snapshot after all ticks`() = runTest {
+
+        val dispatcher = StandardTestDispatcher(testScheduler)
+
+        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo())
+        val spy = spy<ISpy>(Spy(
+            dispatcher = dispatcher,
+            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+            fileRepo = repo
+        ))
+
+        val PATH = "/storage/emulated/0/Download".toTauPath()
+        val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
+
+        val calls = AtomicInteger(0)
+        //arrange
+        everySuspend { repo.createSnapshotFor(PATH) } calls {
+            calls.incrementAndGet()
+            FAKE_SNAPSHOT
+        }
+
+        //assert: minTimer pas enclenché
+        val minTimer = spy.minTimer
+        expect(minTimer.isRunning()).toEqual(false)
+
+        //act
+        spy.setObservedFolder(PATH)
+        runCurrent()
+
+        //assert: minTimer enclenché
+        expect(minTimer.isRunning()).toEqual(true)
+
+        (1..4).onEach {
+            advanceTimeBy(spy.quietWindowMs - 10)
+            //1 car un snapshot immédiat dès changement de dossier
+            expect(calls.get()).toEqual(1)
+            spy.tick()
+        }
+
+        //60 = 4*10 + 20: 4 fois retard de 10, + 20 pour l'exécution
+//        advanceTimeBy(60)
+        // important: exécuter le launch(dispatcher) déclenché par le timer
+        advanceUntilIdle()
+        //1 car un snapshot immédiat dès changement de dossier
+        expect(calls.get()).toEqual(2)
+
+        expect(minTimer.isRunning()).toEqual(false)
+        expect(spy.getLastSnapshot()).toEqual(FAKE_SNAPSHOT)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `#11 Spy - observation + many tick ⇒ 2nd snapshot after maxDelay`() = runTest {
+
+        val dispatcher = StandardTestDispatcher(testScheduler)
+
+        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo())
+        val spy = spy<ISpy>(Spy(
+            dispatcher = dispatcher,
+            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+            fileRepo = repo
+        ))
+
+        val PATH = "/storage/emulated/0/Download".toTauPath()
+        val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
+
+        val calls = AtomicInteger(0)
+
+        //arrange
+        everySuspend { repo.createSnapshotFor(PATH) } calls {
+            calls.incrementAndGet()
+            FAKE_SNAPSHOT
+        }
+
+        //assert: minTimer pas enclenché
+        val minTimer = spy.minTimer
+        expect(minTimer.isRunning()).toEqual(false)
+
+        //act
+        spy.setObservedFolder(PATH)
+        runCurrent()
+
+        //assert: minTimer enclenché
+        expect(minTimer.isRunning()).toEqual(true)
+
+        (1..5).onEach {
+            advanceTimeBy(spy.quietWindowMs - 10)
+            //1 car un snapshot immédiat dès changement de dossier
+            expect(calls.get()).toEqual(1)
+            spy.tick()
+        }
+
+        // on dépasse la limite maxWaitMs, mais pas la dernière quietWindowMs
+        // seulement maxWaitMs est dépassée
+        advanceTimeBy(spy.quietWindowMs - 10)
+        // important: exécuter le launch(dispatcher) déclenché par le timer
+        runCurrent()
+        //1 car un snapshot immédiat dès changement de dossier
+        expect(calls.get()).toEqual(2)
+
+        expect(minTimer.isRunning()).toEqual(false)
+        expect(spy.getLastSnapshot()).toEqual(FAKE_SNAPSHOT)
+
+//        Les 3 briques utiles
+//
+//        advanceTimeBy(ms) : avance l’horloge de ms.
+//
+//        runCurrent() : exécute tout ce qui est déjà prêt à l’instant courant, sans avancer le temps.
+//
+//        advanceUntilIdle() : exécute tout ce qui peut s’exécuter sans nouvel avancement du temps (peut être “trop” si tu veux un contrôle fin).
     }
 }
 

@@ -24,13 +24,13 @@ import lorry.dossiertau.support.littleClasses.TauPath
 
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside.INACTIVE
 import lorry.dossiertau.data.intelligenceService.utils.events.toEventType
+import lorry.dossiertau.data.intelligenceService.utils2.events.DebouncedTimer
 import lorry.dossiertau.data.intelligenceService.utils2.events.Snapshot
-import lorry.dossiertau.support.littleClasses.FolderPath
-import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauDate
-import lorry.dossiertau.usecases.folderContent.support.FolderRepo
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 import java.time.Clock
+import kotlin.concurrent.atomics.AtomicBoolean
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
@@ -60,7 +60,6 @@ class Spy(
         _enabledFlow.update { enabled }
     }
 
-
     ////////////////////////////////////////
     // répertoire observé -> surveillance //
     ////////////////////////////////////////
@@ -68,23 +67,38 @@ class Spy(
     override val observedFolderFlow = _observedFolderPathFlow.asStateFlow()
 
     override fun setObservedFolder(folderPath: TauPath) {
-        println("setObservedFolder this=${System.identityHashCode(this)} arg=${folderPath.path}")
         _observedFolderPathFlow.update { folderPath }
     }
 
     ////////////////////////////////
     // réglages vivacité réaction //
     ////////////////////////////////
-    private val quietWindowMs: Long = 500
-    private val maxWaitMs: Long = 2500
+    override val quietWindowMs: Long = 500
+    override val maxWaitMs: Long = 2500
+
+    override val minTimer = DebouncedTimer(scope)
+    override val maxTimer = DebouncedTimer(scope)
 
     /////////////////////////////////
     // gestion des events entrants //
     /////////////////////////////////
-    override var newSnapshot: Snapshot = Snapshot.EMPTY(observedFolderFlow.value)
+    private var lastSnapshot: Snapshot = Snapshot.EMPTY(observedFolderFlow.value)
 
-//    override fun getNewSnapshot() = newSnapshot
+    override fun getLastSnapshot() = lastSnapshot
 
+    /////////////////////////////
+    // arriv&ée d'un évènement //
+    /////////////////////////////
+    private val ticks = MutableSharedFlow<Unit>(extraBufferCapacity = 64)
+
+    @OptIn(ExperimentalAtomicApi::class)
+    private val dirty = AtomicBoolean(false)
+
+    @OptIn(ExperimentalAtomicApi::class)
+    override fun tick() {
+        dirty.store(true)
+        ticks.tryEmit(Unit)
+    }
 
     ///////////////////////////////////////////////////////////////////////
     // évènements créés par l'espion suite à une opération sur le disque //
@@ -163,16 +177,52 @@ class Spy(
         emitSpyLevel(atomicUpdateEvent)
     }
 
-    private val instanceId = System.identityHashCode(this)
     init {
-        println("instanceId=$instanceId thread = ${Thread.currentThread().name}")
-        println(Throwable("class created here").stackTraceToString())
-
         //////////////
         // réglages //
         //////////////
+
         observedFolderFlow.onEach { folderPath ->
-            newSnapshot = fileRepo.createSnapshotFor(folderPath)
+            lastSnapshot = fileRepo.createSnapshotFor(folderPath)
+
+            /////////////////////////////////////////////////////
+            // l' action entreprises après échéance des timers //
+            /////////////////////////////////////////////////////
+            val afterEndOfDelay = suspend {
+                val newSnapshot = fileRepo.createSnapshotFor(folderPath)
+                println("newSnapshot lancé: $newSnapshot")
+            }
+
+            ////////////////
+            // les timers //
+            ////////////////
+            minTimer.start(quietWindowMs) {
+                minTimer.cancel()
+                maxTimer.cancel()
+                scope.launch(dispatcher) {
+                    afterEndOfDelay()
+                }
+            }
+
+            scope.launch(dispatcher) {
+                ticks.collect {
+                    minTimer.start(quietWindowMs) {
+                        minTimer.cancel()
+                        maxTimer.cancel()
+                        scope.launch(dispatcher) {
+                            afterEndOfDelay()
+                        }
+                    }
+                }
+            }
+
+            maxTimer.start(maxWaitMs) {
+                minTimer.cancel()
+                maxTimer.cancel()
+                scope.launch(dispatcher) {
+                    afterEndOfDelay()
+                }
+            }
 
             if (folderPath.value.isRight()) {
                 fileObserver.changeTarget(
