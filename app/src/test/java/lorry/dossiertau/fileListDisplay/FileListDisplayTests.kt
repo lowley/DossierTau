@@ -6,7 +6,6 @@ import androidx.test.core.app.ApplicationProvider
 import app.cash.turbine.test
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.confirmVerified
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -28,8 +27,10 @@ import dev.mokkery.answering.calls
 import dev.mokkery.answering.returns
 import dev.mokkery.everySuspend
 import dev.mokkery.spy
+import dev.mokkery.verify
 import dev.mokkery.verifySuspend
 import io.mockk.Runs
+import io.mockk.confirmVerified
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.spyk
@@ -57,11 +58,8 @@ import org.junit.Rule
 import org.junit.runner.RunWith
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.GlobalContext.stopKoin
-import org.koin.test.inject
 import org.robolectric.RobolectricTestRunner
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.time.DurationUnit
-import kotlin.time.toDuration
 
 @RunWith(RobolectricTestRunner::class)
 class FileListDisplayTests : KoinTest {
@@ -143,7 +141,7 @@ class FileListDisplayTests : KoinTest {
             //* répertoire à observer
             val PATH = "/storage/emulated/0/Download".toTauPath()
 
-            spy.updateEventFlow.test {
+            spy.spyEventFlow.test {
 
                 advanceUntilIdle()
                 cia.spy = spy
@@ -160,7 +158,8 @@ class FileListDisplayTests : KoinTest {
                 val event = awaitItem()
                 val decision = cia.manageUpdateEvents(event)
 
-                expect(decision).notToEqualNull() {
+                expect(decision[0])
+                {
                     toBeAnInstanceOf<CIALevel.GlobalRefresh>()
                     feature { f((it as CIALevel.GlobalRefresh)::itemPath) }.toEqual(PATH)
                 }
@@ -169,7 +168,10 @@ class FileListDisplayTests : KoinTest {
                 val event2 = awaitItem()
                 val decision2 = cia.manageUpdateEvents(event2)
                 //assert
-                expect(decision2).notToEqualNull() {
+                expect(decision2)
+                    .toHaveSize(1)
+
+                expect(decision2[0]) {
                     toBeAnInstanceOf<CIALevel.CreateItem>()
                     feature { f((it as CIALevel.CreateItem)::modificationDate) }.toEqual(
                         817L.toTauDate()
@@ -212,7 +214,7 @@ class FileListDisplayTests : KoinTest {
 //            returnedFolder
 //        )
 
-            spy.updateEventFlow.test {
+            spy.spyEventFlow.test {
 
                 /**ce qui déclenche un completeScan:
                  * 1. au démarrage / lors d'un changeFolder
@@ -227,7 +229,10 @@ class FileListDisplayTests : KoinTest {
                 val event = awaitItem()
                 val decision = cia.manageUpdateEvents(event)
 
-                expect(decision).notToEqualNull() {
+                expect(decision)
+                    .toHaveSize(1)
+
+                expect(decision[0]) {
                     toBeAnInstanceOf<CIALevel.GlobalRefresh>()
                     feature { f(it::itemPath) }.toEqual(PATH)
                 }
@@ -282,19 +287,21 @@ class FileListDisplayTests : KoinTest {
             val toto = FILE_TOTO(PATH)
             val fileToEmit = toto.fullPath
 
-            spy.updateEventFlow.test {
+            spy.spyEventFlow.test {
 
                 spy.emitFake_CREATEITEM(fileToEmit, ItemType.FILE, 817L.toTauDate())
                 //act + arrange
                 val event = awaitItem()
                 val decision = cia.manageUpdateEvents(event)
 
+                expect(decision)
+                    .toHaveSize(1)
+
                 //assert
-                expect(decision) {
+                expect(decision[0]) {
                     toBeAnInstanceOf<CIALevel.CreateItem>()
-                    notToEqualNull()
-                    feature({ f(it!!::itemPath) }) { toEqual(toto.fullPath) }
-                    feature { f((it!! as CIALevel.CreateItem)::modificationDate) }.toEqual(
+                    feature({ f(it::itemPath) }) { toEqual(toto.fullPath) }
+                    feature { f((it as CIALevel.CreateItem)::modificationDate) }.toEqual(
                         817L.toTauDate()
                     )
                 }
@@ -359,7 +366,7 @@ class FileListDisplayTests : KoinTest {
             )
 
             //elle ne fait rien
-            coEvery { airForce.modifyDatabaseBy(any()) } just Runs
+            coEvery { airForce.modifyDatabaseByAll(any()) } just Runs
 
             //act
             cia.emitCIALevel(createItemDecision)
@@ -367,7 +374,7 @@ class FileListDisplayTests : KoinTest {
 
             //assert
             val dbCommand = DbCommand.CreateItem(toto.toDbFile())
-            coVerify { airForce.modifyDatabaseBy(dbCommand) }
+            coVerify { airForce.modifyDatabaseByAll(listOf(dbCommand)) }
 
             job.cancel()
         }
@@ -417,17 +424,16 @@ class FileListDisplayTests : KoinTest {
             val airForce = spyk<AirForce>(airForceOne)
             val dbCommand = DbCommand.CreateItem(toto.toDbFile())
 
-            coEvery { mockDiffDao.insert(any()) } returns 1L
+            coEvery { mockDiffDao.insertAll(any()) } returns listOf(1L)
 
             //act
-            airForce.modifyDatabaseBy(dbCommand)
+            airForce.modifyDatabaseByAll(listOf(dbCommand))
             advanceUntilIdle()
 
             //assert
-            coVerify(exactly = 1) { mockDiffDao.insert(dbCommand.toFileDiffEntity()) }
+            coVerify(exactly = 1) { mockDiffDao.insertAll(listOf(dbCommand.toFileDiffEntity())) }
         }
     }
-
 
     //////////////
     // test n°7 //
@@ -457,7 +463,6 @@ class FileListDisplayTests : KoinTest {
         val toto = FILE_TOTO(PATH)
 
         dbDao!!.diffFlow().test {
-
             val initial = awaitItem()
 
             val dbCommand = DbCommand.CreateItem(toto.toDbFile())
@@ -520,7 +525,7 @@ class FileListDisplayTests : KoinTest {
 
                     //1. transite dans DB
                     //2. lu et traité par folderCompo
-                    dbDao!!.insert(dbCommand.toFileDiffEntity())
+                    dbDao.insert(dbCommand.toFileDiffEntity())
                     advanceUntilIdle()
 
                     val item2 = awaitItem()
@@ -548,7 +553,7 @@ class FileListDisplayTests : KoinTest {
     /////////////////
     // le diff est émis mais pas encore envoyé (c'est le rôle d'AirForce)
     @Test
-    fun `#2 SpyService - royaume des changements sur le disque - Folder created()`() = runTest {
+    fun `#2۰2 SpyService - royaume des changements sur le disque - Folder created()`() = runTest {
 
         //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
         //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
@@ -564,13 +569,16 @@ class FileListDisplayTests : KoinTest {
             val cia = CIA()
             cia.spy = spy
 
-            spy.updateEventFlow.test {
+            spy.spyEventFlow.test {
 
                 advanceUntilIdle()
                 spy.setObservedFolder(PATH)
 
                 val global = awaitItem()
-                expect(global) {
+                expect(global)
+                    .toHaveSize(1)
+
+                expect(global.first()) {
                     toBeAnInstanceOf<GlobalSpyLevel>()
                 }
 
@@ -585,7 +593,10 @@ class FileListDisplayTests : KoinTest {
                 val decision = cia.manageUpdateEvents(event)
 
                 //assert
-                expect(decision).notToEqualNull() {
+                expect(decision)
+                    .toHaveSize(1)
+
+                expect(decision.first()) {
                     toBeAnInstanceOf<CIALevel.CreateItem>()
                     feature { f((it as CIALevel.CreateItem)::modificationDate) }.toEqual(
                         817L.toTauDate()
@@ -603,7 +614,7 @@ class FileListDisplayTests : KoinTest {
     /////////////////
     // le diff est émis mais pas encore envoyé (c'est le rôle d'AirForce)
     @Test
-    fun `#2 SpyService - royaume des changements sur le disque - File delete()`() = runTest {
+    fun `#2۰3 SpyService - royaume des changements sur le disque - File delete()`() = runTest {
 
         //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
         //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
@@ -618,14 +629,17 @@ class FileListDisplayTests : KoinTest {
             val PATH = "/storage/emulated/0/Download".toTauPath()
             val cia = CIA().apply { this.spy = spy }
 
-            spy.updateEventFlow.test {
+            spy.spyEventFlow.test {
 
                 advanceUntilIdle()
                 cia.spy = spy
 
                 spy.setObservedFolder(PATH)
                 val global = awaitItem()
-                expect(global) {
+                expect(global)
+                    .toHaveSize(1)
+
+                expect(global.first()) {
                     toBeAnInstanceOf<GlobalSpyLevel>()
                 }
 
@@ -640,7 +654,10 @@ class FileListDisplayTests : KoinTest {
                 val decision = cia.manageUpdateEvents(event)
 
                 //assert
-                expect(decision).notToEqualNull() {
+                expect(decision)
+                    .toHaveSize(1)
+
+                expect(decision.first()) {
                     toBeAnInstanceOf<CIALevel.DeleteItem>()
                     feature { f((it as CIALevel.DeleteItem)::modificationDate) }.toEqual(
                         817L.toTauDate()
@@ -658,7 +675,7 @@ class FileListDisplayTests : KoinTest {
     /////////////////
     // le diff est émis mais pas encore envoyé (c'est le rôle d'AirForce)
     @Test
-    fun `#2 SpyService - royaume des changements sur le disque - Folder delete()`() = runTest {
+    fun `#2۰4 SpyService - royaume des changements sur le disque - Folder delete()`() = runTest {
 
         //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
         //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
@@ -673,14 +690,17 @@ class FileListDisplayTests : KoinTest {
             val PATH = "/storage/emulated/0/Download".toTauPath()
             val cia = CIA().apply { this.spy = spy }
 
-            spy.updateEventFlow.test {
+            spy.spyEventFlow.test {
 
                 advanceUntilIdle()
                 cia.spy = spy
 
                 spy.setObservedFolder(PATH)
                 val global = awaitItem()
-                expect(global) {
+                expect(global)
+                    .toHaveSize(1)
+
+                expect(global.first()) {
                     toBeAnInstanceOf<GlobalSpyLevel>()
                 }
 
@@ -695,7 +715,10 @@ class FileListDisplayTests : KoinTest {
                 val decision = cia.manageUpdateEvents(event)
 
                 //assert
-                expect(decision).notToEqualNull() {
+                expect(decision)
+                    .toHaveSize(1)
+
+                expect(decision.first()) {
                     toBeAnInstanceOf<CIALevel.DeleteItem>()
                     feature { f((it as CIALevel.DeleteItem)::modificationDate) }.toEqual(
                         817L.toTauDate()
@@ -713,7 +736,7 @@ class FileListDisplayTests : KoinTest {
     /////////////////
     // le diff est émis mais pas encore envoyé (c'est le rôle d'AirForce)
     @Test
-    fun `#2 SpyService - royaume des changements sur le disque - File modify()`() = runTest {
+    fun `#2۰5 SpyService - royaume des changements sur le disque - File modify()`() = runTest {
 
         //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
         //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
@@ -729,14 +752,17 @@ class FileListDisplayTests : KoinTest {
             val cia = CIA()
             cia.spy = spy
 
-            spy.updateEventFlow.test {
+            spy.spyEventFlow.test {
 
                 advanceUntilIdle()
                 cia.spy = spy
 
                 spy.setObservedFolder(PATH)
                 val global = awaitItem()
-                expect(global) {
+                expect(global)
+                    .toHaveSize(1)
+
+                expect(global.first()) {
                     toBeAnInstanceOf<GlobalSpyLevel>()
                 }
 
@@ -751,7 +777,10 @@ class FileListDisplayTests : KoinTest {
                 val decision = cia.manageUpdateEvents(event)
 
                 //assert
-                expect(decision).notToEqualNull() {
+                expect(decision)
+                    .toHaveSize(1)
+
+                expect(decision.first()) {
                     toBeAnInstanceOf<CIALevel.ModifyItem>()
                     feature { f((it as CIALevel.ModifyItem)::modificationDate) }.toEqual(
                         817L.toTauDate()
@@ -765,11 +794,11 @@ class FileListDisplayTests : KoinTest {
     }
 
     /////////////////
-    // test n° 2-5 //
+    // test n° 2-6 //
     /////////////////
     // le diff est émis mais pas encore envoyé (c'est le rôle d'AirForce)
     @Test
-    fun `#2 SpyService - royaume des changements sur le disque - Folder modify()`() = runTest {
+    fun `#2۰6 SpyService - royaume des changements sur le disque - Folder modify()`() = runTest {
 
         //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
         //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
@@ -786,14 +815,17 @@ class FileListDisplayTests : KoinTest {
             //* répertoire à observer
             val PATH = "/storage/emulated/0/Download".toTauPath()
 
-            spy.updateEventFlow.test {
+            spy.spyEventFlow.test {
 
                 advanceUntilIdle()
                 cia.spy = spy
 
                 spy.setObservedFolder(PATH)
                 val global = awaitItem()
-                expect(global) {
+                expect(global)
+                    .toHaveSize(1)
+
+                expect(global.first()) {
                     toBeAnInstanceOf<GlobalSpyLevel>()
                 }
 
@@ -808,7 +840,10 @@ class FileListDisplayTests : KoinTest {
                 val decision = cia.manageUpdateEvents(event)
 
                 //assert
-                expect(decision).notToEqualNull() {
+                expect(decision)
+                    .toHaveSize(1)
+
+                expect(decision.first()) {
                     toBeAnInstanceOf<CIALevel.ModifyItem>()
                     feature { f((it as CIALevel.ModifyItem)::modificationDate) }.toEqual(
                         817L.toTauDate()
@@ -822,11 +857,11 @@ class FileListDisplayTests : KoinTest {
     }
 
     /////////////////
-    // test n° 2-6 //
+    // test n° 2-7 //
     /////////////////
     // le diff est émis mais pas encore envoyé (c'est le rôle d'AirForce)
     @Test
-    fun `#2 SpyService - royaume des changements sur le disque - File moved_from()`() =
+    fun `#2۰7 SpyService - royaume des changements sur le disque - File moved_from()`() =
         runTest {
 
             //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
@@ -843,14 +878,17 @@ class FileListDisplayTests : KoinTest {
                 val cia = CIA()
                 cia.spy = spy
 
-                spy.updateEventFlow.test {
+                spy.spyEventFlow.test {
 
                     advanceUntilIdle()
                     cia.spy = spy
 
                     spy.setObservedFolder(PATH)
                     val global = awaitItem()
-                    expect(global) {
+                    expect(global)
+                        .toHaveSize(1)
+
+                    expect(global.first()) {
                         toBeAnInstanceOf<GlobalSpyLevel>()
                     }
 
@@ -865,7 +903,10 @@ class FileListDisplayTests : KoinTest {
                     val decision = cia.manageUpdateEvents(event)
 
                     //assert
-                    expect(decision).notToEqualNull() {
+                    expect(decision)
+                        .toHaveSize(1)
+
+                    expect(decision.first()) {
                         toBeAnInstanceOf<CIALevel.DeleteItem>()
                         feature { f((it as CIALevel.DeleteItem)::modificationDate) }.toEqual(
                             817L.toTauDate()
@@ -881,11 +922,11 @@ class FileListDisplayTests : KoinTest {
         }
 
     /////////////////
-    // test n° 2-7 //
+    // test n° 2-8 //
     /////////////////
     // le diff est émis mais pas encore envoyé (c'est le rôle d'AirForce)
     @Test
-    fun `#2 SpyService - royaume des changements sur le disque - Folder moved_from()`() =
+    fun `#2۰8 SpyService - royaume des changements sur le disque - Folder moved_from()`() =
         runTest {
 
             //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
@@ -902,14 +943,17 @@ class FileListDisplayTests : KoinTest {
                 val cia = CIA()
                 cia.spy = spy
 
-                spy.updateEventFlow.test {
+                spy.spyEventFlow.test {
 
                     advanceUntilIdle()
                     cia.spy = spy
 
                     spy.setObservedFolder(PATH)
                     val global = awaitItem()
-                    expect(global) {
+                    expect(global)
+                        .toHaveSize(1)
+
+                    expect(global.first()) {
                         toBeAnInstanceOf<GlobalSpyLevel>()
                     }
 
@@ -927,7 +971,10 @@ class FileListDisplayTests : KoinTest {
                     val decision = cia.manageUpdateEvents(event)
 
                     //assert
-                    expect(decision).notToEqualNull() {
+                    expect(decision)
+                        .toHaveSize(1)
+
+                    expect(decision.first()) {
                         toBeAnInstanceOf<CIALevel.DeleteItem>()
                         feature { f((it as CIALevel.DeleteItem)::modificationDate) }.toEqual(
                             817L.toTauDate()
@@ -943,11 +990,11 @@ class FileListDisplayTests : KoinTest {
         }
 
     /////////////////
-    // test n° 2-8 //
+    // test n° 2-9 //
     /////////////////
     // le diff est émis mais pas encore envoyé (c'est le rôle d'AirForce)
     @Test
-    fun `#2 SpyService - royaume des changements sur le disque - OTHER Folder created()`() =
+    fun `#2۰9 SpyService - royaume des changements sur le disque - OTHER Folder created()`() =
         runTest {
 
             //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
@@ -965,14 +1012,18 @@ class FileListDisplayTests : KoinTest {
                 val cia = CIA()
                 cia.spy = spy
 
-                spy.updateEventFlow.test {
+                spy.spyEventFlow.test {
 
                     advanceUntilIdle()
                     cia.spy = spy
 
                     spy.setObservedFolder(PATH)
                     val global = awaitItem()
-                    expect(global).toBeAnInstanceOf<GlobalSpyLevel>()
+                    expect(global)
+                        .toHaveSize(1)
+
+                    expect(global.first())
+                        .toBeAnInstanceOf<GlobalSpyLevel>()
 
                     //act
                     val divers = FOLDER_DIVERS(OTHERPATH)
@@ -985,7 +1036,8 @@ class FileListDisplayTests : KoinTest {
                     val decision = cia.manageUpdateEvents(event)
 
                     //assert
-                    expect(decision).toEqual(null)
+                    expect(decision)
+                        .toHaveSize(0)
                     expectNoEvents()
                 }
 
@@ -1006,15 +1058,16 @@ class FileListDisplayTests : KoinTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun `#9 Spy - changement dossier ⇒  demande nouveau snapshot`() = runTest {
-
         val dispatcher = StandardTestDispatcher(testScheduler)
 
         val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo())
-        val spy = spy<ISpy>(Spy(
-            dispatcher = dispatcher,
-            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
-            fileRepo = repo
-        ))
+        val spy = spy<ISpy>(
+            Spy(
+                dispatcher = dispatcher,
+                fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+                fileRepo = repo
+            )
+        )
 
         val PATH = "/storage/emulated/0/Download".toTauPath()
         val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
@@ -1039,11 +1092,13 @@ class FileListDisplayTests : KoinTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
 
         val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo())
-        val spy = spy<ISpy>(Spy(
-            dispatcher = dispatcher,
-            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
-            fileRepo = repo
-        ))
+        val spy = spy<ISpy>(
+            Spy(
+                dispatcher = dispatcher,
+                fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+                fileRepo = repo
+            )
+        )
 
         val PATH = "/storage/emulated/0/Download".toTauPath()
         val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
@@ -1087,11 +1142,13 @@ class FileListDisplayTests : KoinTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
 
         val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo())
-        val spy = spy<ISpy>(Spy(
-            dispatcher = dispatcher,
-            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
-            fileRepo = repo
-        ))
+        val spy = spy<ISpy>(
+            Spy(
+                dispatcher = dispatcher,
+                fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+                fileRepo = repo
+            )
+        )
 
         val PATH = "/storage/emulated/0/Download".toTauPath()
         val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
@@ -1139,11 +1196,13 @@ class FileListDisplayTests : KoinTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
 
         val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo())
-        val spy = spy<ISpy>(Spy(
-            dispatcher = dispatcher,
-            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
-            fileRepo = repo
-        ))
+        val spy = spy<ISpy>(
+            Spy(
+                dispatcher = dispatcher,
+                fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+                fileRepo = repo
+            )
+        )
 
         val PATH = "/storage/emulated/0/Download".toTauPath()
         val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
@@ -1191,6 +1250,70 @@ class FileListDisplayTests : KoinTest {
 //
 //        runCurrent() : exécute tout ce qui est déjà prêt à l’instant courant, sans avancer le temps.
 //
+//        advanceUntilIdle() : exécute tout ce qui peut s’exécuter sans nouvel avancement du temps (peut être “trop” si tu veux un contrôle fin).
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `#12 Spy - comparaison 2 snapshots, mêmes ⇒ aucun diff envoyé`() = runTest {
+
+        val dispatcher = StandardTestDispatcher(testScheduler)
+
+        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo())
+        val spy = spy<ISpy>(
+            Spy(
+                dispatcher = dispatcher,
+                fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+                fileRepo = repo
+            )
+        )
+
+        val PATH = "/storage/emulated/0/Download".toTauPath()
+        val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
+
+        val calls = AtomicInteger(0)
+
+        //arrange
+        everySuspend { repo.createSnapshotFor(PATH) } calls {
+            calls.incrementAndGet()
+            FAKE_SNAPSHOT
+        }
+
+        //assert: minTimer pas enclenché
+        val minTimer = spy.minTimer
+        expect(minTimer.isRunning()).toEqual(false)
+
+        spy.spyEventFlow.test {
+
+
+            //act
+            spy.setObservedFolder(PATH)
+            advanceTimeBy(20)
+            runCurrent()
+            val global = awaitItem()
+            expect(global).notToBeAnInstanceOf<GlobalSpyLevel>()
+
+            //assert: minTimer enclenché
+            expect(minTimer.isRunning()).toEqual(true)
+
+            //act
+            spy.tick()
+            advanceTimeBy(20)
+            runCurrent()
+            advanceTimeBy(700)
+            runCurrent()
+
+            expect(minTimer.isRunning()).toEqual(false)
+            expect(spy.getLastSnapshot()).toEqual(FAKE_SNAPSHOT)
+            expectNoEvents()
+
+//            verify { spy.computeDiffsBetween(FAKE_SNAPSHOT, FAKE_SNAPSHOT) }
+        }
+
+
+//        Les 3 briques utiles
+//        advanceTimeBy(ms) : avance l’horloge de ms.
+//        runCurrent() : exécute tout ce qui est déjà prêt à l’instant courant, sans avancer le temps.
 //        advanceUntilIdle() : exécute tout ce qui peut s’exécuter sans nouvel avancement du temps (peut être “trop” si tu veux un contrôle fin).
     }
 }

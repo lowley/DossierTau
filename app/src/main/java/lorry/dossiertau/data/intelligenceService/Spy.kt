@@ -26,6 +26,7 @@ import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside.INA
 import lorry.dossiertau.data.intelligenceService.utils.events.toEventType
 import lorry.dossiertau.data.intelligenceService.utils2.events.DebouncedTimer
 import lorry.dossiertau.data.intelligenceService.utils2.events.Snapshot
+import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauDate
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 import java.time.Clock
@@ -86,9 +87,9 @@ class Spy(
 
     override fun getLastSnapshot() = lastSnapshot
 
-    /////////////////////////////
-    // arriv&ée d'un évènement //
-    /////////////////////////////
+    ////////////////////////////
+    // arrivée d'un évènement //
+    ////////////////////////////
     private val ticks = MutableSharedFlow<Unit>(extraBufferCapacity = 64)
 
     @OptIn(ExperimentalAtomicApi::class)
@@ -100,16 +101,52 @@ class Spy(
         ticks.tryEmit(Unit)
     }
 
+    override fun computeDiffsBetween(
+        sn1: Snapshot,
+        sn2: Snapshot
+    ): List<ISpyLevel> {
+
+        val createdItems = sn2.entries.minus(sn1.entries.toSet())
+        val deletedItems = sn1.entries.minus(sn2.entries.toSet())
+        val folderPath = observedFolderFlow.value
+
+        val creationSpyLevels: List<ISpyLevel> = createdItems.map{ item ->
+            AtomicSpyLevel(
+                eventType = AtomicEventType.CREATE,
+                path = folderPath,
+                itemType = if (item.isDir) ItemType.FOLDER else ItemType.FILE,
+                modificationDate = item.lastModified.toTauDate()
+            )
+        }
+
+        val deletionSpyLevels: List<ISpyLevel> = deletedItems.map{ item ->
+            AtomicSpyLevel(
+                eventType = AtomicEventType.DELETE,
+                path = folderPath,
+                itemType = if (item.isDir) ItemType.FOLDER else ItemType.FILE,
+                modificationDate = item.lastModified.toTauDate()
+            )
+        }
+
+        return creationSpyLevels + deletionSpyLevels
+    }
+
     ///////////////////////////////////////////////////////////////////////
     // évènements créés par l'espion suite à une opération sur le disque //
     ///////////////////////////////////////////////////////////////////////
-    val _updateEventFlow = MutableSharedFlow<ISpyLevel>()
+    val _updateEventFlow = MutableSharedFlow<List<ISpyLevel>>()
 
-    override val updateEventFlow: SharedFlow<ISpyLevel> = _updateEventFlow.asSharedFlow()
+    override val spyEventFlow: SharedFlow<List<ISpyLevel>> = _updateEventFlow.asSharedFlow()
 
     override fun emitSpyLevel(event: ISpyLevel) {
         scope.launch(dispatcher) {
-            _updateEventFlow.emit(event)
+            _updateEventFlow.emit(listOf(event))
+        }
+    }
+
+    override fun emitSpyLevels(events: List<ISpyLevel>) {
+        scope.launch(dispatcher) {
+            _updateEventFlow.emit(events)
         }
     }
 
@@ -183,14 +220,18 @@ class Spy(
         //////////////
 
         observedFolderFlow.onEach { folderPath ->
+            emitSpyLevel(GlobalSpyLevel(path = folderPath))
             lastSnapshot = fileRepo.createSnapshotFor(folderPath)
 
-            /////////////////////////////////////////////////////
-            // l' action entreprises après échéance des timers //
-            /////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////
+            // l' action entreprise après échéance des timers //
+            ////////////////////////////////////////////////////
             val afterEndOfDelay = suspend {
                 val newSnapshot = fileRepo.createSnapshotFor(folderPath)
-                println("newSnapshot lancé: $newSnapshot")
+                val diffs = computeDiffsBetween(lastSnapshot, newSnapshot)
+
+                if (diffs.isNotEmpty())
+                    emitSpyLevels(diffs)
             }
 
             ////////////////
@@ -223,46 +264,13 @@ class Spy(
                     afterEndOfDelay()
                 }
             }
-
-            if (folderPath.value.isRight()) {
-                fileObserver.changeTarget(
-                    path = folderPath,
-                    doOnEvent = { event, path ->
-                        val fileDate1 = path?.toFile()?.map { it.lastModified() }
-                            ?.getOrNull().let {
-                                if (it == null || it == 0L)
-                                    Clock.systemDefaultZone().millis()
-                                else it
-                            }
-                        val newEvent = AtomicSpyLevel(
-                            eventType = event.toEventType(),
-                            path = path ?: TauPath.EMPTY,
-                            itemType = if (path?.toFile()?.map { it.isFile }
-                                    ?.getOrNull() == true) ItemType.FILE else ItemType.FOLDER,
-                            modificationDate = fileDate1.toTauDate()
-                        )
-
-                        println("Spy detected event: ${newEvent.eventType}, ${newEvent.path.value}")
-                        emitSpyLevel(newEvent)
-                    }
-                )
-
-//                fileObserver = changeObserverWith(folderPath)
-                //TODO voir légitimité
-                fileObserver?.startWatching()
-                //TODO une méthode pour décider de quoi faire dans CIA? existe déjà?
-                //ici on émet un GlobalScan
-                val event = GlobalSpyLevel(folderPath)
-                emitSpyLevel(event)
-            }
-
         }.launchIn(scope)
 
         enabledFlow.onEach { newEnabled ->
             if (newEnabled)
-                fileObserver?.startWatching()
+                fileObserver.startWatching()
             else
-                fileObserver?.stopWatching()
+                fileObserver.stopWatching()
         }.launchIn(scope)
     }
 }

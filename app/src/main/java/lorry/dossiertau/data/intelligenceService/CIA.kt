@@ -42,12 +42,18 @@ class CIA() : LifecycleService() {
     /////////////////////////////////////////////////////////////////////////////////////////
     // la production de la Cia: informer TauFolder des changements dans le disque via Room //
     /////////////////////////////////////////////////////////////////////////////////////////
-    val _ciaDecisions = MutableSharedFlow<CIALevel>()
-    val ciaDecisions: SharedFlow<CIALevel> = _ciaDecisions.asSharedFlow()
+    val _ciaDecisions = MutableSharedFlow<List<CIALevel>>()
+    val ciaDecisions: SharedFlow<List<CIALevel>> = _ciaDecisions.asSharedFlow()
 
     fun emitCIALevel(decision: CIALevel) {
         scope.launch(dispatcher) {
-            _ciaDecisions.emit(decision)
+            _ciaDecisions.emit(listOf(decision))
+        }
+    }
+
+    fun emitCIALevels(decisions: List<CIALevel>) {
+        scope.launch(dispatcher) {
+            _ciaDecisions.emit(decisions)
         }
     }
 
@@ -58,9 +64,9 @@ class CIA() : LifecycleService() {
         airForce.startListeningForCIADecisions()
 
         if (eventsJob?.isActive != true) {
-            eventsJob = spy.updateEventFlow
+            eventsJob = spy.spyEventFlow
                 .onEach { event ->
-                    manageUpdateEvents(event)?.let { emitCIALevel(it) }
+                    manageUpdateEvents(event).let { emitCIALevels(it) }
                 }
                 .launchIn(lifecycleScope) // LifecycleService fournit lifecycleScope
         }
@@ -72,15 +78,15 @@ class CIA() : LifecycleService() {
         return START_STICKY
     }
 
-    fun manageUpdateEvents(event: ISpyLevel): CIALevel? {
+    fun manageUpdateEvents(events: List<ISpyLevel>): List<CIALevel> {
 
-        val result = when (event) {
-            is AtomicSpyLevel -> manageAtomicEvent(event)
-            is GlobalSpyLevel -> manageGlobalEvent(event)
-            else -> null
-        }
-
-        return result
+        val results = events.mapNotNull { event ->
+            when (event) {
+                is AtomicSpyLevel -> manageAtomicEvent(event)
+                is GlobalSpyLevel -> manageGlobalEvent(event)
+                else -> throw IllegalArgumentException("CIA receiver an event with unknown type")
+            }
+        }.also { return it }
     }
 
     @OptIn(ExperimentalTime::class)

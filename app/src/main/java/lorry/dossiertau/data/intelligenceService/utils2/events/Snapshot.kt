@@ -9,8 +9,8 @@ class Snapshot(
     val folderPath: TauPath,
     private val entriesByName: Map<String, SnapshotElement>
 ) {
-
     fun get(name: String): SnapshotElement? = entriesByName[name]
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false

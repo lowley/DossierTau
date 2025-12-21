@@ -14,7 +14,7 @@ interface ISpy {
     ///////////////////////////////////////////////////////////////////////
     // évènements créés par l'espion suite à une opération sur le disque //
     ///////////////////////////////////////////////////////////////////////
-    val updateEventFlow: SharedFlow<ISpyLevel>
+    val spyEventFlow: SharedFlow<List<ISpyLevel>>
     fun emitSpyLevel(event: ISpyLevel)
 
     //////////////////////////////////////
@@ -50,6 +50,7 @@ interface ISpy {
     fun emitFake_MOVEDFROM(itemToEmit: TauPath, itemType: ItemType, modificationDate: TauDate)
 
     fun getLastSnapshot(): Snapshot
-
     fun tick()
+    fun computeDiffsBetween(sn1: Snapshot, snapshot2: Snapshot): List<ISpyLevel>
+    fun emitSpyLevels(events: List<ISpyLevel>)
 }

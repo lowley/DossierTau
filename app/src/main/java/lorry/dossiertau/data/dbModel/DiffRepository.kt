@@ -13,6 +13,9 @@ class DiffRepository(
     suspend fun insertDiff(cmd: DbCommand, correlationId: String? = null) =
         withContext(io) { dao.insert(cmd.toFileDiffEntity(correlationId)) }
 
+    suspend fun insertDiffs(cmds: List<DbCommand>, correlationId: String? = null) =
+        withContext(io) { dao.insertAll(cmds.map{it.toFileDiffEntity(correlationId)}) }
+
     fun getDiffsIn(folder: String) =
         dao.diffsForFolder(folder)
 }

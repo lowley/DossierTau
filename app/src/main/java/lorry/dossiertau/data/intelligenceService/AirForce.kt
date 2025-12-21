@@ -18,87 +18,58 @@ class AirForce(
     val scope: CoroutineScope
 ) {
     lateinit var cia: CIA
-
     fun startListeningForCIADecisions(): Job {
-        return cia.ciaDecisions.onEach { ciaLevel ->
-            when (ciaLevel){
-                is CIALevel.CreateItem -> {
-                    val dbCommand = DbCommand.CreateItem(
-                        item = DbItem(
-                            fullPath = ciaLevel.itemPath,
-                            modificationDate = ciaLevel.modificationDate,
-                            type = ciaLevel.itemType,
+        return cia.ciaDecisions.onEach { ciaLevels ->
+
+            val commands = ciaLevels.mapNotNull { ciaLevel ->
+                when (ciaLevel){
+                    is CIALevel.CreateItem -> {
+                        DbCommand.CreateItem(
+                            item = DbItem(
+                                fullPath = ciaLevel.itemPath,
+                                modificationDate = ciaLevel.modificationDate,
+                                type = ciaLevel.itemType,
+                            )
                         )
-                    )
+                    }
 
-                    modifyDatabaseBy(dbCommand)
-                }
-
-                is CIALevel.DeleteItem -> {
-                    val dbCommand = DbCommand.DeleteItem(
-                        item = DbItem(
-                            fullPath = ciaLevel.itemPath,
-                            modificationDate = ciaLevel.modificationDate,
-                            type = ciaLevel.itemType
+                    is CIALevel.DeleteItem -> {
+                        DbCommand.DeleteItem(
+                            item = DbItem(
+                                fullPath = ciaLevel.itemPath,
+                                modificationDate = ciaLevel.modificationDate,
+                                type = ciaLevel.itemType
+                            )
                         )
-                    )
+                    }
 
-                    modifyDatabaseBy(dbCommand)
-                }
-
-                is CIALevel.ModifyItem -> {
-                    val dbCommand = DbCommand.ModifyItem(
-                        item = DbItem(
-                            fullPath = ciaLevel.itemPath,
-                            modificationDate = ciaLevel.modificationDate,
-                            type = ciaLevel.itemType
+                    is CIALevel.ModifyItem -> {
+                        DbCommand.ModifyItem(
+                            item = DbItem(
+                                fullPath = ciaLevel.itemPath,
+                                modificationDate = ciaLevel.modificationDate,
+                                type = ciaLevel.itemType
+                            )
                         )
-                    )
+                    }
 
-                    modifyDatabaseBy(dbCommand)
-                }
+                    is CIALevel.GlobalRefresh -> {
+                        DbCommand.GlobalRefresh(
+                            path = ciaLevel.itemPath,
+                            refreshDate = ciaLevel.refreshDate)
+                    }
 
-                is CIALevel.GlobalRefresh -> {
-                    val dbCommand = DbCommand.GlobalRefresh(
-                        path = ciaLevel.itemPath,
-                        refreshDate = ciaLevel.refreshDate)
-                    modifyDatabaseBy(dbCommand)
-                }
-
-                else -> {
-
+                    else -> { null }
                 }
             }
 
-
+            modifyDatabaseByAll(commands)
         }.launchIn(scope)
     }
 
-    fun modifyDatabaseBy(command: DbCommand) {
-        when(command){
-            is DbCommand.CreateItem -> {
-                scope.launch {
-                    repo.insertDiff(command)
-                }
-            }
-
-            is DbCommand.DeleteItem -> {
-                scope.launch {
-                    repo.insertDiff(command)
-                }
-            }
-
-            is DbCommand.ModifyItem -> {
-                scope.launch {
-                    repo.insertDiff(command)
-                }
-            }
-
-            is DbCommand.GlobalRefresh -> {
-                scope.launch {
-                    repo.insertDiff(command)
-                }
-            }
+    fun modifyDatabaseByAll(commands: List<DbCommand>) {
+        scope.launch {
+            repo.insertDiffs(commands)
         }
     }
 }
