@@ -113,7 +113,7 @@ class Spy(
         val creationSpyLevels: List<ISpyLevel> = createdItems.map{ item ->
             AtomicSpyLevel(
                 eventType = AtomicEventType.CREATE,
-                path = folderPath,
+                path = folderPath.appendToTauPath(item.name),
                 itemType = if (item.isDir) ItemType.FOLDER else ItemType.FILE,
                 modificationDate = item.lastModified.toTauDate()
             )
@@ -122,7 +122,7 @@ class Spy(
         val deletionSpyLevels: List<ISpyLevel> = deletedItems.map{ item ->
             AtomicSpyLevel(
                 eventType = AtomicEventType.DELETE,
-                path = folderPath,
+                path = folderPath.appendToTauPath(item.name),
                 itemType = if (item.isDir) ItemType.FOLDER else ItemType.FILE,
                 modificationDate = item.lastModified.toTauDate()
             )

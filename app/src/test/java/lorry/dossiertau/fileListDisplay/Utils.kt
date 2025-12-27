@@ -2,7 +2,7 @@ package lorry.dossiertau.fileListDisplay
 
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
-import io.mockk.spyk
+import dev.mokkery.spy
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -22,6 +22,10 @@ import lorry.dossiertau.data.intelligenceService.ISpy
 import lorry.dossiertau.data.intelligenceService.Spy
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside
+import lorry.dossiertau.data.intelligenceService.utils2.events.SnapshotElement
+import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
+import lorry.dossiertau.data.intelligenceService.utils2.repo.ISpyRepo
+import lorry.dossiertau.data.intelligenceService.utils2.repo.SpyRepo
 import lorry.dossiertau.data.model.TauFolder
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauItemName
@@ -31,7 +35,6 @@ import lorry.dossiertau.usecases.folderContent.FolderCompo
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
 import lorry.dossiertau.usecases.folderContent.support.FolderRepo
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
-import org.junit.After
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 import org.koin.core.context.GlobalContext
@@ -57,17 +60,15 @@ fun FileListDisplayTests.prepareKoin(testScheduler: TestCoroutineScheduler) {
                         .build()
                 }
                 single { get<AppDb>().fileDiffDao() }
-                single<IFolderRepo> { spyk(get<IFolderRepo>(named("real"))) }
+                single<IFolderRepo> { spy(get<IFolderRepo>(named("real"))) }
                 single<IFolderCompo> {
-                    spyk(
-                        FolderCompo(
-                            folderRepo = get(),
-                            dispatcher = StandardTestDispatcher(testScheduler),
-                            fileDiffDAO = get()
-                        )
+                    FolderCompo(
+                        folderRepo = get<IFolderRepo>(),
+                        dispatcher = StandardTestDispatcher(testScheduler),
+                        fileDiffDAO = get<FileDiffDao>()
                     )
                 }
-                single<TauViewModel> { spyk(TauViewModel(get(), get())) }
+                single<TauViewModel> { TauViewModel(get(), get()) }
 
                 single<CoroutineDispatcher> { Dispatchers.IO }
 
@@ -95,6 +96,7 @@ fun FileListDisplayTests.setAsInjectors(
     spy: ISpy,
     dbDao: FileDiffDao,
     testScheduler: TestCoroutineScheduler,
+    spyRepo1: ISpyRepo,
 ) {
     GlobalContext.stopKoin()
 
@@ -105,12 +107,13 @@ fun FileListDisplayTests.setAsInjectors(
                 allowOverride(true)
 
                 single<CoroutineDispatcher> { StandardTestDispatcher(testScheduler) }
-                single{ spyk(dbDao) }
-                single<IFolderRepo> { spyk(repo) }
-                single<IFolderCompo> { spyk(compo) }
-                single<TauViewModel> { spyk(vm) }
-                single{ spyk(spy) }
+                single { spy(dbDao) }
+                single<IFolderRepo> { spy(repo) }
+                single<IFolderCompo> { compo }
+                single<TauViewModel> { vm }
+                single { spy(spy) }
                 single { DiffRepository(get(), get()) }
+                single<ISpyRepo> { spy(spyRepo1) }
             }
         )
     }
@@ -126,6 +129,14 @@ fun FileListDisplayTests.REPOFILE_TOTO(parentPath: TauPath) = TauRepoFile(
     parentPath = parentPath,
     name = TauItemName("toto.mp4"),
     modificationDate = TauDate.fromLong(825)
+)
+
+fun FileListDisplayTests.SNAPSHOT_TOTO(parentPath: TauPath) = SnapshotElement(
+    name = "TOTO.txt",
+    isDir = true,
+    size = 523L,
+    lastModified = 833L,
+    fileId = FileId.fileIdOf(5L, 3L)
 )
 
 fun FileListDisplayTests.FOLDER_DIVERS(parentPath: TauPath) = TauFolder(
@@ -159,7 +170,7 @@ class MainDispatcherRule(
     }
 }
 
-class TestStuff: AutoCloseable {
+class TestStuff : AutoCloseable {
     lateinit var appDb: AppDb
     lateinit var repo: IFolderRepo
     operator fun component1() = repo
@@ -173,13 +184,19 @@ class TestStuff: AutoCloseable {
     lateinit var dbDao: FileDiffDao
     operator fun component5() = dbDao
 
+    lateinit var spyRepo: ISpyRepo
+    operator fun component6() = spyRepo
+
     override fun close() {
         // 1) couper Koin si tu l’utilises globalement dans les tests
         GlobalContext.stopKoin()
         FolderCompo.collectFillLaunched = false
 
         // 2) fermer Room
-        try { appDb.close() } catch (_: Throwable) {}
+        try {
+            appDb.close()
+        } catch (_: Throwable) {
+        }
 
         // 3) si tu as des scopes internes dans VM/Compo/Spy, annule-les ici
         // (ex: vm.clear(), compo.stop(), spy.stop()) si tu as ces APIs.
@@ -203,16 +220,17 @@ class TestStuff: AutoCloseable {
                 if (result.dbDao == null)
                     throw Exception("erreur test #8")
 
-                result.repo = spyk(FolderRepo())
-                result.compo = spyk(
-                    FolderCompo(
-                        folderRepo = result.repo,
-                        dispatcher = dispatcher,
-                        fileDiffDAO = result.dbDao!!
-                    )
+                result.spyRepo = spy<ISpyRepo>(SpyRepo())
+
+                result.repo = spy<IFolderRepo>(FolderRepo(result.spyRepo))
+                result.compo = FolderCompo(
+                    folderRepo = result.repo,
+                    dispatcher = dispatcher,
+                    fileDiffDAO = result.dbDao!!
                 )
 
-                result.spy = spyk(
+
+                result.spy = spy<ISpy>(
                     Spy(
                         dispatcher = dispatcher,
                         fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
@@ -220,12 +238,11 @@ class TestStuff: AutoCloseable {
                     )
                 )
 
-                result.vm = spyk(
-                    TauViewModel(
-                        folderCompo = result.compo,
-                        spy = result.spy
-                    )
+                result.vm = TauViewModel(
+                    folderCompo = result.compo,
+                    spy = result.spy
                 )
+
             } catch (ex: Exception) {
                 println(ex.message)
                 throw Exception("test #1 init failed")

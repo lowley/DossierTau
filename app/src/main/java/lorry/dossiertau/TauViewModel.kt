@@ -8,7 +8,7 @@ import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
 
-class TauViewModel(
+open class TauViewModel(
     val folderCompo: IFolderCompo,
     val spy: ISpy
 ): ViewModel() {

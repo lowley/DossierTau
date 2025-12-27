@@ -1,6 +1,7 @@
 package lorry.dossiertau.data.intelligenceService.utils2.events
 
 import arrow.core.zip
+import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauPath
@@ -47,14 +48,16 @@ class Snapshot(
             name = "FAKE",
             isDir = false,
             size = 1L,
-            lastModified = 1L
+            lastModified = 1L,
+            fileId = FileId.EMPTY
         ).createSnapshotWith(path)
 
         fun FAKE(path: TauPath) = SnapshotElement(
             name = "FAKE",
             isDir = false,
             size = 1L,
-            lastModified = 1L
+            lastModified = 1L,
+            fileId = FileId.EMPTY
         ).createSnapshotWith(path)
 
         fun EMPTY(path: String) = Snapshot(

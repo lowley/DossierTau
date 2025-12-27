@@ -32,10 +32,10 @@ import lorry.dossiertau.support.littleClasses.parentPath
 import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 
-class FolderCompo(
-    val folderRepo: IFolderRepo,
+open class FolderCompo(
+    open val folderRepo: IFolderRepo,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
-    private val fileDiffDAO: FileDiffDao
+    val fileDiffDAO: FileDiffDao
 ) : IFolderCompo {
 
     companion object {

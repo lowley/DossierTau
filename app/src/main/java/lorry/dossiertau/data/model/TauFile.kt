@@ -1,6 +1,7 @@
 package lorry.dossiertau.data.model
 
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
+import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.data.model.TauFolder.Data
 import lorry.dossiertau.data.planes.DbItem
 import lorry.dossiertau.support.littleClasses.TauDate
@@ -24,7 +25,8 @@ sealed class TauFile private constructor() : TauItem {
         override val picture: TauPicture = TauPicture.NONE,
         override val modificationDate: TauDate = TauDate.now(),
 
-        val size: Long = 0L
+        val size: Long = 0L,
+        override val fileId: FileId,
     ) : TauFile(), TauDataCommon {
 
         constructor(
@@ -32,14 +34,16 @@ sealed class TauFile private constructor() : TauItem {
             fullPath: TauPath,
             picture: TauPicture = TauPicture.NONE,
             modificationDate: TauDate = TauDate.now(),
-            size: Long = 0L
+            size: Long = 0L,
+            fileId: FileId = FileId.EMPTY
         ) : this(
             id = id,
             parentPath = splitParentAndName(fullPath).first,
             name = splitParentAndName(fullPath).second,
             picture = picture,
             modificationDate = modificationDate,
-            size = size
+            size = size,
+            fileId = fileId
         )
     }
 
@@ -49,14 +53,16 @@ sealed class TauFile private constructor() : TauItem {
             fullPath: TauPath,
             picture: TauPicture = TauPicture.NONE,
             modificationDate: TauDate = TauDate.now(),
-            size: Long = 0L
+            size: Long = 0L,
+            fileId: FileId = FileId.EMPTY
         ): TauFile = Data(
             id = id,
             parentPath = splitParentAndName(fullPath).first,
             name = splitParentAndName(fullPath).second,
             picture = picture,
             modificationDate = modificationDate,
-            size = size
+            size = size,
+            fileId = fileId
         )
 
         operator fun invoke(
@@ -65,8 +71,9 @@ sealed class TauFile private constructor() : TauItem {
             name: TauItemName,
             picture: TauPicture = TauPicture.NONE,
             modificationDate: TauDate = TauDate.now(),
-            size: Long = 0L
-        ): TauFile = Data(id, parentPath, name, picture, modificationDate, size)
+            size: Long = 0L,
+            fileId: FileId = FileId.EMPTY
+        ): TauFile = Data(id, parentPath, name, picture, modificationDate, size, fileId)
 
         private fun splitParentAndName(full: TauPath): Pair<TauPath, TauItemName> {
             val s = full.path
@@ -81,6 +88,7 @@ sealed class TauFile private constructor() : TauItem {
 inline val TauFile.name: TauItemName get() = asData?.name ?: TauItemName.EMPTY
 inline val TauFile.parentPath: TauPath get() = asData?.parentPath ?: TauPath.EMPTY
 inline val TauFile.picture: TauPicture get() = asData?.picture ?: TauPicture.NONE
+inline val TauFile.fileId: FileId get() = asData?.fileId ?: FileId.EMPTY
 inline val TauFile.modificationDate: TauDate
     get() = asData?.modificationDate ?: TauDate.fromLong(0L)
 

@@ -1,6 +1,7 @@
 package lorry.dossiertau.data.model
 
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
+import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.data.planes.DbItem
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauIdentifier
@@ -19,6 +20,7 @@ sealed class TauFolder private constructor(): TauItem {
         override val name: TauItemName,
         override val picture: TauPicture = TauPicture.NONE,
         override val modificationDate: TauDate = TauDate.now(),
+        override val fileId: FileId,
 
         val children: List<TauItem> = emptyList()
 
@@ -30,6 +32,7 @@ sealed class TauFolder private constructor(): TauItem {
             picture: TauPicture = TauPicture.NONE,
             modificationDate: TauDate = TauDate.now(),
             children: List<TauItem> = emptyList<TauItem>(),
+            fileId: FileId = FileId.EMPTY
         ) : this(
             parentPath = splitParentAndName(fullPath).first,
             name = splitParentAndName(fullPath).second,
@@ -37,6 +40,7 @@ sealed class TauFolder private constructor(): TauItem {
             modificationDate = modificationDate,
             children = children,
             id = id,
+            fileId = fileId
         )
 
         override fun toString(): String {
@@ -45,8 +49,9 @@ sealed class TauFolder private constructor(): TauItem {
             val modificationDate = modificationDate.toddMMyyyyHHmmss()
             val children = children.size
             val path = parentPath
+            val id = fileId.id
 
-            return "\uD835\uDED5Folder ▶ 🪧($name) 🌿$path 🪁(${children}) 🖼️${hasPicture} 📆${modificationDate} ◀"
+            return "\uD835\uDED5Folder ▶ 🪧($name) 🌿$path 🪁(${children}) 🖼️${hasPicture} 📆${modificationDate} \uD83D\uDD11 (DEV ${id?.dev}, INO ${id?.ino}) ◀"
         }
     }
 
@@ -57,6 +62,7 @@ sealed class TauFolder private constructor(): TauItem {
             picture: TauPicture = TauPicture.NONE,
             modificationDate: TauDate = TauDate.now(),
             children: List<TauItem> = emptyList<TauItem>(),
+            fileId: FileId = FileId.EMPTY
         ): TauFolder {
             return Data(
                 id = id,
@@ -65,6 +71,7 @@ sealed class TauFolder private constructor(): TauItem {
                 picture = picture,
                 modificationDate = modificationDate,
                 children = children,
+                fileId = fileId
             )
         }
 
@@ -75,6 +82,7 @@ sealed class TauFolder private constructor(): TauItem {
             picture: TauPicture = TauPicture.NONE,
             modificationDate: TauDate = TauDate.now(),
             children: List<TauItem> = emptyList<TauItem>(),
+            fileId: FileId = FileId.EMPTY
         ): TauFolder {
             return Data(
                 id = id,
@@ -83,6 +91,7 @@ sealed class TauFolder private constructor(): TauItem {
                 picture = picture,
                 modificationDate = modificationDate,
                 children = children,
+                fileId = fileId
             )
         }
 
@@ -162,6 +171,7 @@ inline val TauFolder.parentPath: TauPath get() = asData?.parentPath ?: TauPath.E
 inline val TauFolder.picture: TauPicture get() = asData?.picture ?: TauPicture.NONE
 inline val TauFolder.modificationDate: TauDate
     get() = asData?.modificationDate ?: TauDate.fromLong(0L)
+inline val TauFolder.fileId: FileId get() = asData?.fileId ?: FileId.EMPTY
 
 inline val TauFolder.children: List<TauItem> get() = asData?.children ?: emptyList()
 

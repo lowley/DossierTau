@@ -1,6 +1,7 @@
 package lorry.dossiertau.data.model
 
 import kotlinx.serialization.Serializable
+import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauIdentifier
 import lorry.dossiertau.support.littleClasses.TauItemName
@@ -19,6 +20,7 @@ interface TauDataCommon {
     val name: TauItemName
     val picture: TauPicture
     val modificationDate: TauDate
+    val fileId: FileId
 
     val fullPath: TauPath
         get() = parentPath.normalizeWithSlash().appendToTauPath(name)

@@ -49,5 +49,27 @@
     },
     "isImported": false,
     "prerequisiteTaskId": "TASK_1"
+  },
+  {
+    "id": "TASK_19",
+    "priority": "LOW",
+    "tags": [],
+    "title": "computeDiffsBetween: gérer modifications",
+    "description": "",
+    "status": "TODO",
+    "date": {
+      "date": {
+        "year": 2025,
+        "month": 12,
+        "day": 21
+      },
+      "time": {
+        "hour": 16,
+        "minute": 6,
+        "second": 30,
+        "nano": 667066500
+      }
+    },
+    "isImported": false
   }
 ]

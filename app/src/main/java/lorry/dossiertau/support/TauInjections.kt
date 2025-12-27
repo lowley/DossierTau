@@ -14,6 +14,7 @@ import lorry.dossiertau.data.intelligenceService.CIA
 import lorry.dossiertau.data.intelligenceService.ISpy
 import lorry.dossiertau.data.intelligenceService.Spy
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside
+import lorry.dossiertau.data.intelligenceService.utils2.repo.SpyRepo
 import lorry.dossiertau.usecases.folderContent.FolderCompo
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
 import lorry.dossiertau.usecases.folderContent.support.FolderRepo
@@ -42,8 +43,9 @@ val TauInjections = module {
     single<FileDiffDao> { get<AppDb>().fileDiffDao() }
     single { CoroutineScope(Dispatchers.Main + SupervisorJob()) }
     single { DiffRepository(get()) }
+    single { SpyRepo() }
 
-    single<IFolderRepo>(named("real")) { FolderRepo(/*...*/) }
+    single<IFolderRepo>(named("real")) { FolderRepo(get<SpyRepo>()) }
     single<IFolderRepo> { get(named("real")) }          // alias public
 
     single { AirForce(get(), get()) }

@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
+import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.data.model.TauFile
 import lorry.dossiertau.data.model.TauFolder
 import lorry.dossiertau.data.model.TauItem
@@ -32,7 +33,8 @@ data class DiffEntity(
     val full_path: String,                    // TauPath normalisé (sans slash final)
     val modified_at_epoch_ms: String,           // TauDate
     val item_type: String,
-    val parentPath: String// "FILE" / "DIR" (ItemType)
+    val parentPath: String, // "FILE" / "DIR" (ItemType)
+    val fileId: FileId = FileId.EMPTY
 )
 
 @OptIn(ExperimentalUuidApi::class)
@@ -45,7 +47,8 @@ fun DbCommand.toFileDiffEntity(correlationId: String? = null): DiffEntity {
             full_path = item.fullPath.path,
             modified_at_epoch_ms = item.modificationDate.value.epochMillisToDateTime(),
             item_type = item.type.name,
-            parentPath = item.fullPath.parentPath.path
+            parentPath = item.fullPath.parentPath.path,
+            fileId = item.fileId
         )
 
         is DbCommand.DeleteItem -> DiffEntity(
@@ -54,7 +57,8 @@ fun DbCommand.toFileDiffEntity(correlationId: String? = null): DiffEntity {
             full_path = item.fullPath.path,
             modified_at_epoch_ms = item.modificationDate.value.epochMillisToDateTime(),
             item_type = item.type.name,
-            parentPath = item.fullPath.parentPath.path
+            parentPath = item.fullPath.parentPath.path,
+            fileId = item.fileId
         )
 
         is DbCommand.ModifyItem -> DiffEntity(
@@ -63,7 +67,8 @@ fun DbCommand.toFileDiffEntity(correlationId: String? = null): DiffEntity {
             full_path = item.fullPath.path,
             modified_at_epoch_ms = item.modificationDate.value.epochMillisToDateTime(),
             item_type = item.type.name,
-            parentPath = item.fullPath.parentPath.path
+            parentPath = item.fullPath.parentPath.path,
+            fileId = item.fileId
         )
 
         is DbCommand.GlobalRefresh -> DiffEntity(
@@ -72,7 +77,7 @@ fun DbCommand.toFileDiffEntity(correlationId: String? = null): DiffEntity {
             full_path = path.path,
             modified_at_epoch_ms = refreshDate.value.epochMillisToDateTime(),
             item_type = ItemType.FOLDER.name,
-            parentPath = path.parentPath.path
+            parentPath = path.parentPath.path,
         )
     }
 
@@ -96,7 +101,8 @@ fun DiffEntity.toTauItem(): TauItem {
                         picture = TauPicture.NONE,
                         modificationDate = this.modified_at_epoch_ms
                             .dateTimetoEpochMillis()
-                            .toTauDate()
+                            .toTauDate(),
+                        fileId = this.fileId
                     )
 
                 ItemType.FOLDER.name ->
@@ -107,7 +113,8 @@ fun DiffEntity.toTauItem(): TauItem {
                         picture = TauPicture.NONE,
                         modificationDate = this.modified_at_epoch_ms
                             .dateTimetoEpochMillis()
-                            .toTauDate()
+                            .toTauDate(),
+                        fileId = this.fileId
                     )
 
                 else -> TauFile.EMPTY

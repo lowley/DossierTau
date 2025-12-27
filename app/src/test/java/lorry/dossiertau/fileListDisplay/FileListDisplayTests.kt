@@ -4,6 +4,7 @@ import androidx.room.Ignore
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.cash.turbine.test
+import app.cash.turbine.turbineScope
 import io.mockk.coEvery
 import io.mockk.coVerify
 import kotlinx.coroutines.flow.drop
@@ -25,12 +26,12 @@ import ch.tutteli.atrium.api.fluent.en_GB.*
 import ch.tutteli.atrium.api.verbs.expect
 import dev.mokkery.answering.calls
 import dev.mokkery.answering.returns
+import dev.mokkery.answering.sequentially
+import dev.mokkery.every
 import dev.mokkery.everySuspend
 import dev.mokkery.spy
-import dev.mokkery.verify
 import dev.mokkery.verifySuspend
 import io.mockk.Runs
-import io.mockk.confirmVerified
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.spyk
@@ -39,6 +40,7 @@ import kotlinx.coroutines.plus
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import lorry.dossiertau.data.dbModel.AppDb
+import lorry.dossiertau.data.dbModel.DiffEntity
 import lorry.dossiertau.data.dbModel.DiffRepository
 import lorry.dossiertau.data.dbModel.FileDiffDao
 import lorry.dossiertau.data.dbModel.toFileDiffEntity
@@ -46,8 +48,11 @@ import lorry.dossiertau.data.intelligenceService.ISpy
 import lorry.dossiertau.data.intelligenceService.Spy
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside
+import lorry.dossiertau.data.intelligenceService.utils.events.AtomicEventType
+import lorry.dossiertau.data.intelligenceService.utils.events.AtomicSpyLevel
 import lorry.dossiertau.data.intelligenceService.utils.events.GlobalSpyLevel
 import lorry.dossiertau.data.intelligenceService.utils2.events.Snapshot
+import lorry.dossiertau.data.intelligenceService.utils2.repo.SpyRepo
 import lorry.dossiertau.data.planes.DbCommand
 import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.usecases.folderContent.support.FolderRepo
@@ -78,7 +83,7 @@ class FileListDisplayTests : KoinTest {
 
         val dispatcher = StandardTestDispatcher(testScheduler)
         TestStuff.configure(dispatcher).use { stuff ->
-            val (repo, compo, vm, spy, dbDao) = stuff
+            val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
 //            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
 
             //* input
@@ -96,7 +101,7 @@ class FileListDisplayTests : KoinTest {
             // premier droppé: celui de la déclaration du MutableStateFlow: [[folderFlowDeclaration]]
             // deuxième droppé: celui de l'init{} du TauViewModel: [[tauViewModelInit]]
             compo.folderFlow.drop(2).test {
-                coEvery { repo.getItemsInFullPath(PATH) } returns repoItems
+                everySuspend { repo.getItemsInFullPath(PATH) } returns repoItems
 
                 //act
                 vm.setTauFolder(folderPath = PATH)
@@ -108,7 +113,7 @@ class FileListDisplayTests : KoinTest {
                 //le coVerify est après le awaitItem car ce dernier lance un scope.launch
                 //[[coroutine longue]] qui est explicitement attendu pas awaitItem()
                 //la vérification se fait après le awaitItem()
-                coVerify { repo.getItemsInFullPath(PATH) }
+                everySuspend { repo.getItemsInFullPath(PATH) }
 //                confirmVerified(repo)
 
                 assert(
@@ -132,8 +137,8 @@ class FileListDisplayTests : KoinTest {
 
         val dispatcher = StandardTestDispatcher(testScheduler)
         TestStuff.configure(dispatcher).use { stuff ->
-            val (repo, compo, vm, spy, dbDao) = stuff
-            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
+            val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
 
             val cia = CIA()
 
@@ -196,8 +201,8 @@ class FileListDisplayTests : KoinTest {
 
         val dispatcher = StandardTestDispatcher(testScheduler)
         TestStuff.configure(dispatcher).use { stuff ->
-            val (repo, compo, vm, spy, dbDao) = stuff
-            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
+            val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
 
             //arrange
             //* répertoire à observer
@@ -255,8 +260,8 @@ class FileListDisplayTests : KoinTest {
 
         val dispatcher = StandardTestDispatcher(testScheduler)
         TestStuff.configure(dispatcher).use { stuff ->
-            val (repo, compo, vm, spy, dbDao) = stuff
-            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
+            val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
 
             //assert
             //* répertoire à observer
@@ -320,8 +325,8 @@ class FileListDisplayTests : KoinTest {
 
         val dispatcher = StandardTestDispatcher(testScheduler)
         TestStuff.configure(dispatcher).use { stuff ->
-            val (repo, compo, vm, spy, dbDao) = stuff
-            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
+            val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
 
             /**
              * idées à retenir
@@ -391,8 +396,8 @@ class FileListDisplayTests : KoinTest {
 
         val dispatcher = StandardTestDispatcher(testScheduler)
         TestStuff.configure(dispatcher).use { stuff ->
-            val (repo, compo, vm, spy, dbDao) = stuff
-            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
+            val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
 
             /**
              * idées à retenir
@@ -484,8 +489,8 @@ class FileListDisplayTests : KoinTest {
 
         val dispatcher = StandardTestDispatcher(testScheduler)
         TestStuff.configure(dispatcher).use { stuff ->
-            val (repo, compo, vm, spy, dbDao) = stuff
-            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
+            val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
 
             try {
                 if (dbDao == null)
@@ -560,8 +565,8 @@ class FileListDisplayTests : KoinTest {
 
         val dispatcher = StandardTestDispatcher(testScheduler)
         TestStuff.configure(dispatcher).use { stuff ->
-            val (repo, compo, vm, spy, dbDao) = stuff
-            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
+            val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
 
             //assert
             //* répertoire à observer
@@ -621,8 +626,8 @@ class FileListDisplayTests : KoinTest {
 
         val dispatcher = StandardTestDispatcher(testScheduler)
         TestStuff.configure(dispatcher).use { stuff ->
-            val (repo, compo, vm, spy, dbDao) = stuff
-            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
+            val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
 
             //assert
             //* répertoire à observer
@@ -682,8 +687,8 @@ class FileListDisplayTests : KoinTest {
 
         val dispatcher = StandardTestDispatcher(testScheduler)
         TestStuff.configure(dispatcher).use { stuff ->
-            val (repo, compo, vm, spy, dbDao) = stuff
-            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
+            val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
 
             //assert
             //* répertoire à observer
@@ -743,8 +748,8 @@ class FileListDisplayTests : KoinTest {
 
         val dispatcher = StandardTestDispatcher(testScheduler)
         TestStuff.configure(dispatcher).use { stuff ->
-            val (repo, compo, vm, spy, dbDao) = stuff
-            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
+            val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
 
             //assert
             //* répertoire à observer
@@ -805,8 +810,8 @@ class FileListDisplayTests : KoinTest {
 
         val dispatcher = StandardTestDispatcher(testScheduler)
         TestStuff.configure(dispatcher).use { stuff ->
-            val (repo, compo, vm, spy, dbDao) = stuff
-            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
+            val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
 
             val cia = CIA()
             cia.spy = spy
@@ -869,8 +874,8 @@ class FileListDisplayTests : KoinTest {
 
             val dispatcher = StandardTestDispatcher(testScheduler)
             TestStuff.configure(dispatcher).use { stuff ->
-                val (repo, compo, vm, spy, dbDao) = stuff
-                setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
+                val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
+                setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
 
                 //assert
                 //* répertoire à observer
@@ -934,8 +939,8 @@ class FileListDisplayTests : KoinTest {
 
             val dispatcher = StandardTestDispatcher(testScheduler)
             TestStuff.configure(dispatcher).use { stuff ->
-                val (repo, compo, vm, spy, dbDao) = stuff
-                setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
+                val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
+                setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
 
                 //assert
                 //* répertoire à observer
@@ -1002,8 +1007,8 @@ class FileListDisplayTests : KoinTest {
 
             val dispatcher = StandardTestDispatcher(testScheduler)
             TestStuff.configure(dispatcher).use { stuff ->
-                val (repo, compo, vm, spy, dbDao) = stuff
-                setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler)
+                val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
+                setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
 
                 //assert
                 //* répertoire à observer
@@ -1060,7 +1065,8 @@ class FileListDisplayTests : KoinTest {
     fun `#9 Spy - changement dossier ⇒  demande nouveau snapshot`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
 
-        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo())
+        val spyRepo = SpyRepo()
+        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
         val spy = spy<ISpy>(
             Spy(
                 dispatcher = dispatcher,
@@ -1091,7 +1097,8 @@ class FileListDisplayTests : KoinTest {
 
         val dispatcher = StandardTestDispatcher(testScheduler)
 
-        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo())
+        val spyRepo = SpyRepo()
+        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
         val spy = spy<ISpy>(
             Spy(
                 dispatcher = dispatcher,
@@ -1141,7 +1148,8 @@ class FileListDisplayTests : KoinTest {
 
         val dispatcher = StandardTestDispatcher(testScheduler)
 
-        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo())
+        val spyRepo = SpyRepo()
+        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
         val spy = spy<ISpy>(
             Spy(
                 dispatcher = dispatcher,
@@ -1195,7 +1203,8 @@ class FileListDisplayTests : KoinTest {
 
         val dispatcher = StandardTestDispatcher(testScheduler)
 
-        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo())
+        val spyRepo = SpyRepo()
+        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
         val spy = spy<ISpy>(
             Spy(
                 dispatcher = dispatcher,
@@ -1259,7 +1268,8 @@ class FileListDisplayTests : KoinTest {
 
         val dispatcher = StandardTestDispatcher(testScheduler)
 
-        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo())
+        val spyRepo = SpyRepo()
+        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
         val spy = spy<ISpy>(
             Spy(
                 dispatcher = dispatcher,
@@ -1315,6 +1325,155 @@ class FileListDisplayTests : KoinTest {
 //        advanceTimeBy(ms) : avance l’horloge de ms.
 //        runCurrent() : exécute tout ce qui est déjà prêt à l’instant courant, sans avancer le temps.
 //        advanceUntilIdle() : exécute tout ce qui peut s’exécuter sans nouvel avancement du temps (peut être “trop” si tu veux un contrôle fin).
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `#13 Spy ∎ comparaison 2 snapshots, ≠ ⇒ 1 insertion envoyée`() = runTest {
+
+        val dispatcher = StandardTestDispatcher(testScheduler)
+
+        val spyRepo = SpyRepo()
+        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
+        val spy = spy<ISpy>(
+            Spy(
+                dispatcher = dispatcher,
+                fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+                fileRepo = repo
+            )
+        )
+
+        val PATH = "/storage/emulated/0/Download".toTauPath()
+        val INITIAL_SNAPSHOT = Snapshot.FAKE(PATH)
+        val AFTER_INSERTION = Snapshot(
+            folderPath = PATH,
+            entriesByName = (INITIAL_SNAPSHOT.entries + SNAPSHOT_TOTO(PATH))
+                .associate { it.name to it }
+        )
+
+        val calls = AtomicInteger(0)
+
+        //arrange
+        everySuspend { repo.createSnapshotFor(PATH) } sequentially {
+//            calls.incrementAndGet()
+            returns(INITIAL_SNAPSHOT)
+            returns(AFTER_INSERTION)
+        }
+
+        //assert: minTimer pas enclenché
+        val minTimer = spy.minTimer
+        expect(minTimer.isRunning()).toEqual(false)
+
+        spy.spyEventFlow.test {
+
+            //act
+            spy.setObservedFolder(PATH)
+            advanceTimeBy(20)
+            runCurrent()
+            val global = awaitItem()
+            expect(global).notToBeAnInstanceOf<GlobalSpyLevel>()
+
+            //assert: minTimer enclenché
+            expect(minTimer.isRunning()).toEqual(true)
+
+            //act
+            spy.tick()
+            advanceTimeBy(20)
+            runCurrent()
+            advanceTimeBy(700)
+            runCurrent()
+
+            expect(minTimer.isRunning()).toEqual(false)
+            expect(spy.getLastSnapshot()).toEqual(INITIAL_SNAPSHOT)
+
+            val oneDiff = awaitItem()
+            expect(oneDiff).notToBeEmpty()
+            expect(oneDiff[0]) {
+                toBeAnInstanceOf<AtomicSpyLevel>()
+                feature { f((it as AtomicSpyLevel)::eventType) }.toEqual(AtomicEventType.CREATE)
+                feature { f((it as AtomicSpyLevel)::path) }
+                    .toEqual(AFTER_INSERTION.folderPath.appendToTauPath(SNAPSHOT_TOTO(PATH).name))
+            }
+
+//            verify { spy.computeDiffsBetween(FAKE_SNAPSHOT, FAKE_SNAPSHOT) }
+        }
+
+
+//        Les 3 briques utiles
+//        advanceTimeBy(ms) : avance l’horloge de ms.
+//        runCurrent() : exécute tout ce qui est déjà prêt à l’instant courant, sans avancer le temps.
+//        advanceUntilIdle() : exécute tout ce qui peut s’exécuter sans nouvel avancement du temps (peut être “trop” si tu veux un contrôle fin).
+    }
+
+    ///////////////
+    // test n°14 //
+    ///////////////
+    @Test
+    fun `#14 chaîne inode ∎ inode bien écrite en base`() = runTest {
+
+        turbineScope {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+
+            TestStuff.configure(dispatcher).use { stuff ->
+                val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
+                setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
+
+                val spyFlow = spy.spyEventFlow.testIn(this)
+                val dbFlow = dbDao.diffFlow().drop(1).testIn(this)
+
+                val cia = CIA()
+                cia.spy = spy
+
+                val PATH = "/storage/emulated/0/Download".toTauPath()
+
+                advanceUntilIdle()
+                spy.setObservedFolder(PATH)
+                val global = spyFlow.awaitItem()
+
+                val diffRepo = DiffRepository(
+                    dao = dbDao,
+                    io = dispatcher
+                )
+
+                val testScope = this
+                val airForce = AirForce(
+                    repo = diffRepo,
+                    scope = testScope
+                )
+
+                airForce.cia = cia
+                val job = airForce.startListeningForCIADecisions()
+
+                //act
+                val divers = FOLDER_DIVERS(PATH)
+                val folderToEmit = divers.fullPath
+
+                every { spyRepo.getIdOf(divers.fullPath) } returns divers.fileId
+
+                spy.emitFake_CREATEITEM(folderToEmit, ItemType.FOLDER, 817L.toTauDate())
+                //act + arrange
+                advanceTimeBy(500)
+                runCurrent()
+                val event = spyFlow.awaitItem()
+                val decision = cia.manageUpdateEvents(event)
+                cia.emitCIALevels(decision)
+
+                advanceTimeBy(500)
+                runCurrent()
+                val entry = dbFlow.awaitItem()
+                println("afterInsert = $entry")
+
+                expect(entry).notToEqualNull(){
+                    toBeAnInstanceOf<DiffEntity>()
+                    feature { f((it as DiffEntity)::full_path) }.toEqual(folderToEmit.path)
+                    feature { f((it as DiffEntity)::fileId) }.toEqual(divers.fileId)
+                }
+
+                job.cancel()
+                spyFlow.cancel()
+                dbFlow.cancel()
+            }
+        }
     }
 }
 

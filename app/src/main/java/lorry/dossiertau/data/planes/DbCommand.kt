@@ -2,6 +2,7 @@ package lorry.dossiertau.data.planes
 
 import kotlinx.serialization.Serializable
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
+import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauIdentifier
@@ -44,6 +45,7 @@ data class DbItem(
     val fullPath: TauPath,
     val modificationDate: TauDate = TauDate.now(),
     val type: ItemType,
+    val fileId: FileId = FileId.EMPTY
 ){
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -53,6 +55,7 @@ data class DbItem(
 
         if (fullPath != other.fullPath) return false
         if (modificationDate != other.modificationDate) return false
+        if (fileId != other.fileId) return false
         if (type != other.type) return false
 
         return true
@@ -74,7 +77,8 @@ data class DbItemBig(
     val fullPath: TauPath,
     val modificationDate: TauDate = TauDate.now(),
     val type: ItemType,
-    val children: List<TauItem>
+    val children: List<TauItem>,
+    val fileId: FileId = FileId.EMPTY
 ){
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -86,6 +90,7 @@ data class DbItemBig(
         if (modificationDate != other.modificationDate) return false
         if (type != other.type) return false
         if (children != other.children) return false
+        if (fileId != other.fileId) return false
 
         return true
     }
@@ -95,6 +100,7 @@ data class DbItemBig(
         result = 31 * result + modificationDate.hashCode()
         result = 31 * result + type.hashCode()
         result = 31 * result + children.hashCode()
+        result = 37 * result + fileId.hashCode()
         return result
     }
 }

@@ -8,13 +8,18 @@ import lorry.dossiertau.data.diskTransfer.TauRepoFolder
 import lorry.dossiertau.data.diskTransfer.TauRepoItem
 import lorry.dossiertau.data.intelligenceService.utils2.events.Snapshot
 import lorry.dossiertau.data.intelligenceService.utils2.events.SnapshotElement
+import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
+import lorry.dossiertau.data.intelligenceService.utils2.repo.ISpyRepo
+import lorry.dossiertau.data.intelligenceService.utils2.repo.SpyRepo
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.toTauFileName
 import lorry.dossiertau.support.littleClasses.toTauPath
 import java.io.File
 
-class FolderRepo : IFolderRepo {
+open class FolderRepo(
+    val spyRepo: ISpyRepo
+) : IFolderRepo {
     private fun convertFileToTauRepoItem(file: File): TauRepoItem? {
         if (file.parent == null)
             return null
@@ -68,7 +73,8 @@ class FolderRepo : IFolderRepo {
                 name = f.name,
                 isDir = f.isDirectory,
                 size = if (f.isFile) f.length() else 0L,
-                lastModified = f.lastModified()
+                lastModified = f.lastModified(),
+                fileId = spyRepo.getIdOf(f.path.toTauPath())
             )
         }
 
