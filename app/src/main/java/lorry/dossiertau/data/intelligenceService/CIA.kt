@@ -64,7 +64,7 @@ class CIA() : LifecycleService() {
         airForce.startListeningForCIADecisions()
 
         if (eventsJob?.isActive != true) {
-            eventsJob = spy.spyEventFlow
+            eventsJob = spy.spyLevelFlow
                 .onEach { event ->
                     manageUpdateEvents(event).let { emitCIALevels(it) }
                 }

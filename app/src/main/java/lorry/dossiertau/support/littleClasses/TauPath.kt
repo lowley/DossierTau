@@ -125,7 +125,7 @@ inline val TauPath.name
 
 inline val TauPath.path
     get() = when (this.value) {
-        is Either.Left -> ""
+        is Either.Left -> "EMPTY"
         is Either.Right -> this.value.value.value
     }
 

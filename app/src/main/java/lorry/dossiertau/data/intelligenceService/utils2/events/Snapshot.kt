@@ -41,6 +41,9 @@ class Snapshot(
     val entries: Collection<SnapshotElement>
         get() = entriesByName.values
 
+    override fun toString(): String {
+        return "Snapshot(\uD81A\uDCFB ${folderPath.path}, ∋ ${entries.size})"
+    }
 
     companion object {
 
