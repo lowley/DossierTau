@@ -12,6 +12,8 @@ class Snapshot(
 ) {
     fun get(name: String): SnapshotElement? = entriesByName[name]
 
+    val instanceId = System.identityHashCode(this).toString(16).uppercase().take(5)
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false

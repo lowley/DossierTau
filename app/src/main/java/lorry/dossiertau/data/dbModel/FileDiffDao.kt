@@ -42,7 +42,7 @@ interface FileDiffDao {
     @Query(
         """
     SELECT * FROM file_diffs
-    ORDER BY modifiedAtIso DESC
+    ORDER BY diffId DESC
     limit 1
   """
     )

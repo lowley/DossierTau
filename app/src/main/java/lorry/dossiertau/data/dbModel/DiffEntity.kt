@@ -35,7 +35,19 @@ data class DiffEntity(
     val item_type: String,
     val parentPath: String, // "FILE" / "DIR" (ItemType)
     val fileId: FileId = FileId.EMPTY
-)
+){
+
+    fun display(): String{
+
+        return "⏵ $op_type ↈ $item_type ↈ $full_path ↈ $modifiedAtIso ⏴"
+
+
+
+    }
+
+
+
+}
 
 @OptIn(ExperimentalUuidApi::class)
 fun DbCommand.toFileDiffEntity(correlationId: String? = null): DiffEntity {

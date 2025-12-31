@@ -6,6 +6,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -38,6 +39,7 @@ import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.time.ExperimentalTime
+import java.util.concurrent.atomic.AtomicReference
 
 @OptIn(ExperimentalTime::class)
 open class Spy(
@@ -47,6 +49,8 @@ open class Spy(
     private val scope: CoroutineScope = CoroutineScope(dispatcher + SupervisorJob())
 ) : ISpy {
     val watcher = KfsDirectoryWatcher(scope)
+
+    private val instanceId = System.identityHashCode(this).toString(16).uppercase().take(5)
 
     ////////////////////////////////////
     // interrupteur de fonctionnement //
@@ -88,10 +92,17 @@ open class Spy(
     /////////////////////////////////
     // gestion des events entrants //
     /////////////////////////////////
-    private var _lastSnapshot = MutableStateFlow(Snapshot.EMPTY(observedFolderFlow.value))
+
+    // Le canal pour recevoir les demandes de snapshot
+    // Capacity = UNLIMITED pour ne rater aucune modif disque
+    private val commandChannel = Channel<Unit>(Channel.UNLIMITED)
+    private val snapshotAtomic = AtomicReference<Snapshot>(Snapshot.EMPTY(TauPath.EMPTY))
+    private val _lastSnapshot = MutableStateFlow(snapshotAtomic.get())
     override val lastSnapshotFlow: StateFlow<Snapshot> = _lastSnapshot.asStateFlow()
 
     override fun setLastSnapshot(newSnapshot: Snapshot) {
+        println("from setLastSnapshot: ${newSnapshot.entries.size}")
+        snapshotAtomic.set(newSnapshot)
         _lastSnapshot.value = newSnapshot
     }
 
@@ -232,25 +243,40 @@ open class Spy(
         emitSpyLevel(atomicUpdateEvent)
     }
 
+    // 0) Action "snapshot + diffs" qui lit TOUJOURS le folder courant au moment de l'exécution
+    suspend fun executeSnapshotLogic() {
+        println("[SPY $instanceId] entrée dans afterEndOfDelayLatestFolder()")
+        val currentFolderPath = observedFolderFlow.value
+
+        val oldSnapshot = snapshotAtomic.get()
+        val newSnapshot = fileRepo.createSnapshotFor(currentFolderPath)
+//        println("from afterEndOfDelayLatestFolder: lastSnapshot[SN ${lastSnapshotFlow.value.instanceId}](${lastSnapshotFlow.value.entries.size})")
+        println("from afterEndOfDelayLatestFolder: oldSnapshot[SN ${oldSnapshot.instanceId}](${oldSnapshot.entries.size})")
+        println("from afterEndOfDelayLatestFolder: newSnapshot(${newSnapshot.entries.size})")
+        val diffs = computeDiffsBetween(oldSnapshot, newSnapshot)
+
+        println("from afterEndOfDelayLatestFolder: setLastSnapshot[SN ${newSnapshot.instanceId}](${newSnapshot.entries.size})")
+        setLastSnapshot(newSnapshot)
+        if (diffs.isNotEmpty()) emitSpyLevels(diffs)
+    }
+
     init {
+        // Le SEUL endroit où l'on traite les snapshots
+        // Cette coroutine tourne en boucle et traite les messages un par un
+        scope.launch(dispatcher) {
+            for (command in commandChannel) {
+                executeSnapshotLogic()
+            }
+        }
+
         //////////////
         // réglages //
         //////////////
         data class PrevCurr<T>(val prev: T?, val curr: T)
 
-        // 0) Action "snapshot + diffs" qui lit TOUJOURS le folder courant au moment de l'exécution
         suspend fun afterEndOfDelayLatestFolder() {
-            println("entrée dans afterEndOfDelayLatestFolder()")
-            val currentFolderPath = observedFolderFlow.value
-
-            val newSnapshot = fileRepo.createSnapshotFor(currentFolderPath)
-            println("from afterEndOfDelayLatestFolder: lastSnapshot(${lastSnapshotFlow.value.entries.size})")
-            println("from afterEndOfDelayLatestFolder: newSnapshot(${newSnapshot.entries.size})")
-            val diffs = computeDiffsBetween(lastSnapshotFlow.value, newSnapshot)
-
-            println("from afterEndOfDelayLatestFolder: setLastSnapshot(${newSnapshot.entries.size})")
-            setLastSnapshot(newSnapshot)
-            if (diffs.isNotEmpty()) emitSpyLevels(diffs)
+            println("[$instanceId] Signal de mise à jour envoyé au Channel")
+            commandChannel.send(Unit)
         }
 
         // 1) Un seul collect KFS -> tick()
@@ -292,7 +318,7 @@ open class Spy(
             }
             .drop(1)
             .onEach { (previousFolderPath, currentFolderPath) ->
-                println("entrée dans bloc exécution folderFlow: ${currentFolderPath.path}")
+                println("[SPY $instanceId] entrée dans bloc exécution folderFlow: ${currentFolderPath.path}")
                 emitSpyLevel(GlobalSpyLevel(path = currentFolderPath))
 
                 if (previousFolderPath != null)
@@ -307,7 +333,7 @@ open class Spy(
                 // snapshot initial du folder courant
                 println("[SPY ${Thread.currentThread().name}] appel à createSnapshotFor (${currentFolderPath.path})")
                 val initialSnapshot = fileRepo.createSnapshotFor(currentFolderPath)
-                println("from observedFolderFlow: setLastSnapshot(${initialSnapshot.entries.size})")
+                println("from observedFolderFlow: setLastSnapshot[SN ${initialSnapshot.instanceId}](${initialSnapshot.entries.size})")
                 setLastSnapshot(initialSnapshot)
             }
             .launchIn(scope)
