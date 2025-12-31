@@ -2,6 +2,7 @@ package lorry.dossiertau.usecases.folderContent
 
 import arrow.core.None
 import arrow.core.Option
+import arrow.core.getOrElse
 import arrow.core.toOption
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -114,16 +115,16 @@ open class FolderCompo(
 
                 is DiffEntity -> {
                     val diff = diffOrPath as DiffEntity
-                    val path = folderPathFlow.value
+                    val path = folderFlow.value.getOrElse{TauFolder.EMPTY}.fullPath
 
                     when (diffOrPath.op_type) {
                         OpType.FolderRefresh.text -> {
-                            if (diff.full_path == path.getOrNull()?.path)
+                            if (diff.full_path == path.path)
                                 emit(diff)
                         }
 
                         else -> {
-                            if (diff.parentPath == path.getOrNull()?.path)
+                            if (diff.parentPath == path.path)
                                 emit(diff)
                         }
                     }
