@@ -31,7 +31,7 @@ data class DiffEntity(
     val correlationId: String?,               // optionnel: TauIdentifier.toString()
     val op_type: String,                      // "CREATE_FILE" (plus tard: DELETE/RENAME…)
     val full_path: String,                    // TauPath normalisé (sans slash final)
-    val modified_at_epoch_ms: String,           // TauDate
+    val modifiedAtIso: Instant?,           // TauDate
     val item_type: String,
     val parentPath: String, // "FILE" / "DIR" (ItemType)
     val fileId: FileId = FileId.EMPTY
@@ -45,7 +45,7 @@ fun DbCommand.toFileDiffEntity(correlationId: String? = null): DiffEntity {
             correlationId = correlationId ?: item.id.value.toString(),
             op_type = OpType.CreateItem.text,
             full_path = item.fullPath.path,
-            modified_at_epoch_ms = item.modificationDate.value.epochMillisToDateTime(),
+            modifiedAtIso = Instant.ofEpochMilli(item.modificationDate.value),
             item_type = item.type.name,
             parentPath = item.fullPath.parentPath.path,
             fileId = item.fileId
@@ -55,7 +55,7 @@ fun DbCommand.toFileDiffEntity(correlationId: String? = null): DiffEntity {
             correlationId = correlationId ?: item.id.value.toString(),
             op_type = OpType.DeleteItem.text,
             full_path = item.fullPath.path,
-            modified_at_epoch_ms = item.modificationDate.value.epochMillisToDateTime(),
+            modifiedAtIso = Instant.ofEpochMilli(item.modificationDate.value),
             item_type = item.type.name,
             parentPath = item.fullPath.parentPath.path,
             fileId = item.fileId
@@ -65,7 +65,7 @@ fun DbCommand.toFileDiffEntity(correlationId: String? = null): DiffEntity {
             correlationId = correlationId ?: item.id.value.toString(),
             op_type = OpType.ModifyItem.text,
             full_path = item.fullPath.path,
-            modified_at_epoch_ms = item.modificationDate.value.epochMillisToDateTime(),
+            modifiedAtIso = Instant.ofEpochMilli(item.modificationDate.value),
             item_type = item.type.name,
             parentPath = item.fullPath.parentPath.path,
             fileId = item.fileId
@@ -75,7 +75,7 @@ fun DbCommand.toFileDiffEntity(correlationId: String? = null): DiffEntity {
             correlationId = correlationId,
             op_type = OpType.FolderRefresh.text,
             full_path = path.path,
-            modified_at_epoch_ms = refreshDate.value.epochMillisToDateTime(),
+            modifiedAtIso = Instant.ofEpochMilli(refreshDate.value),
             item_type = ItemType.FOLDER.name,
             parentPath = path.parentPath.path,
         )
@@ -99,8 +99,7 @@ fun DiffEntity.toTauItem(): TauItem {
                         else Uuid.random().toTauIdentifier(),
                         fullPath = this.full_path.toTauPath(),
                         picture = TauPicture.NONE,
-                        modificationDate = this.modified_at_epoch_ms
-                            .dateTimetoEpochMillis()
+                        modificationDate = (this.modifiedAtIso?.toEpochMilli() ?: 0L)
                             .toTauDate(),
                         fileId = this.fileId
                     )
@@ -111,8 +110,7 @@ fun DiffEntity.toTauItem(): TauItem {
                         else Uuid.random().toTauIdentifier(),
                         fullPath = this.full_path.toTauPath(),
                         picture = TauPicture.NONE,
-                        modificationDate = this.modified_at_epoch_ms
-                            .dateTimetoEpochMillis()
+                        modificationDate = (this.modifiedAtIso?.toEpochMilli() ?: 0L)
                             .toTauDate(),
                         fileId = this.fileId
                     )

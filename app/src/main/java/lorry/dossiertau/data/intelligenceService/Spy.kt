@@ -92,7 +92,7 @@ open class Spy(
     override val lastSnapshotFlow: StateFlow<Snapshot> = _lastSnapshot.asStateFlow()
 
     override fun setLastSnapshot(newSnapshot: Snapshot) {
-        _lastSnapshot.update { newSnapshot }
+        _lastSnapshot.value = newSnapshot
     }
 
     ////////////////////////////
@@ -244,10 +244,13 @@ open class Spy(
             val currentFolderPath = observedFolderFlow.value
 
             val newSnapshot = fileRepo.createSnapshotFor(currentFolderPath)
+            println("from afterEndOfDelayLatestFolder: lastSnapshot(${lastSnapshotFlow.value.entries.size})")
+            println("from afterEndOfDelayLatestFolder: newSnapshot(${newSnapshot.entries.size})")
             val diffs = computeDiffsBetween(lastSnapshotFlow.value, newSnapshot)
 
-            if (diffs.isNotEmpty()) emitSpyLevels(diffs)
+            println("from afterEndOfDelayLatestFolder: setLastSnapshot(${newSnapshot.entries.size})")
             setLastSnapshot(newSnapshot)
+            if (diffs.isNotEmpty()) emitSpyLevels(diffs)
         }
 
         // 1) Un seul collect KFS -> tick()
@@ -303,7 +306,9 @@ open class Spy(
 
                 // snapshot initial du folder courant
                 println("[SPY ${Thread.currentThread().name}] appel à createSnapshotFor (${currentFolderPath.path})")
-                setLastSnapshot(fileRepo.createSnapshotFor(currentFolderPath))
+                val initialSnapshot = fileRepo.createSnapshotFor(currentFolderPath)
+                println("from observedFolderFlow: setLastSnapshot(${initialSnapshot.entries.size})")
+                setLastSnapshot(initialSnapshot)
             }
             .launchIn(scope)
     }

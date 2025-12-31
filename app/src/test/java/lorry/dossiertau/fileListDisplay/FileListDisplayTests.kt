@@ -1570,6 +1570,66 @@ class FileListDisplayTests : KoinTest {
         //TODO vérifier désarmement
         expect(spy.lastSnapshotFlow.value).toEqual(FAKE_SNAPSHOT)
     }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `#16 Spy ∎ comparaison 2 snapshots ⇒ 1 suppression`() = runTest {
+
+        val dispatcher = StandardTestDispatcher(testScheduler)
+
+        val spyRepo = SpyRepo()
+        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
+        val spy = Spy(
+            dispatcher = dispatcher,
+            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+            fileRepo = repo
+        )
+
+        val PATH = "/storage/emulated/0/Download".toTauPath()
+        val INITIAL_SNAPSHOT = Snapshot.FAKE(PATH)
+        val AFTER_INSERTION = Snapshot(
+            folderPath = PATH,
+            entriesByName = (INITIAL_SNAPSHOT.entries + SNAPSHOT_TOTO(PATH))
+                .associate { it.name to it }
+        )
+
+        val calls = AtomicInteger(0)
+
+        //arrange
+        everySuspend { repo.createSnapshotFor(PATH) } sequentially {
+            returns(AFTER_INSERTION)
+            returns(INITIAL_SNAPSHOT)
+        }
+
+        //assert: minTimer pas enclenché
+        val minTimer = spy.minTimer
+        expect(minTimer.isRunning()).toEqual(false)
+
+        spy.spyLevelFlow.test {
+
+            //act
+            spy.startSurveillance()
+            spy.setObservedFolder(PATH)
+            runCurrent()
+            val global = awaitItem()
+            expect(global).notToBeAnInstanceOf<GlobalSpyLevel>()
+
+            //act
+            spy.tick()
+            runCurrent()
+
+            expect(spy.lastSnapshotFlow.value).toEqual(INITIAL_SNAPSHOT)
+
+            val oneDiff = awaitItem()
+            expect(oneDiff).notToBeEmpty()
+            expect(oneDiff[0]) {
+                toBeAnInstanceOf<AtomicSpyLevel>()
+                feature { f((it as AtomicSpyLevel)::eventType) }.toEqual(AtomicEventType.DELETE)
+                feature { f((it as AtomicSpyLevel)::path) }
+                    .toEqual(AFTER_INSERTION.folderPath.appendToTauPath(SNAPSHOT_TOTO(PATH).name))
+            }
+        }
+    }
 }
 
 

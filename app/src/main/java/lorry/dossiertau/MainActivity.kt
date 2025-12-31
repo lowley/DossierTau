@@ -41,6 +41,7 @@ import arrow.core.Some
 import lorry.dossiertau.data.intelligenceService.CIA
 import lorry.dossiertau.data.model.children
 import lorry.dossiertau.data.model.fullPath
+import lorry.dossiertau.data.model.isFile
 import lorry.dossiertau.data.model.isFolder
 import lorry.dossiertau.data.model.name
 import lorry.dossiertau.support.littleClasses.TauPath
@@ -157,7 +158,8 @@ class MainActivity : ComponentActivity() {
 //        userScrollEnabled = true,
                 ) {
                     items(currentFolder.getOrNull()!!.children.size) { index ->
-                        val item = currentFolder.getOrNull()!!.children[index]
+                        val item = currentFolder.getOrNull()!!.children
+                            .sortedBy { it.isFile().toString() + it.name }[index]
 
                         Box(
                             modifier = Modifier

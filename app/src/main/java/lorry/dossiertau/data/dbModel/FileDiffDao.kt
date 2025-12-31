@@ -19,7 +19,7 @@ interface FileDiffDao {
     SELECT * FROM file_diffs
     WHERE (op_type='CREATE_ITEM' or op_type='MODIFY_ITEM' or op_type='DELETE_ITEM')
       AND full_path LIKE :folder
-          ORDER BY modified_at_epoch_ms DESC
+          ORDER BY modifiedAtIso DESC
           limit 1
   """
     )
@@ -31,7 +31,7 @@ interface FileDiffDao {
     SELECT * FROM file_diffs
     WHERE (op_type='CREATE_ITEM' or op_type='MODIFY_ITEM' or op_type='DELETE_ITEM')
       AND parentPath like :folder
-          ORDER BY modified_at_epoch_ms DESC
+          ORDER BY modifiedAtIso DESC
           limit 1
 
   """
@@ -42,7 +42,7 @@ interface FileDiffDao {
     @Query(
         """
     SELECT * FROM file_diffs
-    ORDER BY modified_at_epoch_ms DESC
+    ORDER BY modifiedAtIso DESC
     limit 1
   """
     )

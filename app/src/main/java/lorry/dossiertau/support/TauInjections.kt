@@ -13,7 +13,9 @@ import lorry.dossiertau.data.intelligenceService.AirForce
 import lorry.dossiertau.data.intelligenceService.CIA
 import lorry.dossiertau.data.intelligenceService.ISpy
 import lorry.dossiertau.data.intelligenceService.Spy
+import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside
+import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside.INACTIVE
 import lorry.dossiertau.data.intelligenceService.utils2.repo.SpyRepo
 import lorry.dossiertau.usecases.folderContent.FolderCompo
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
@@ -32,16 +34,17 @@ val TauInjections = module {
             // Si tu utilises sqlite-bundled en prod :
             // .setDriver(BundledSQLiteDriver())
             .fallbackToDestructiveMigration() // à remplacer par vrai plan de migration asap
-            .setQueryCallback(
-                { sql, bindArgs ->
-                    println("SQL: sql=$sql | args=$bindArgs")
-                },
-                Executors.newSingleThreadExecutor()
-            )
+//            .setQueryCallback(
+//                { sql, bindArgs ->
+//                    println("SQL: sql=$sql | args=$bindArgs")
+//                },
+//                Executors.newSingleThreadExecutor()
+//            )
             .build()
     }
     single<FileDiffDao> { get<AppDb>().fileDiffDao() }
     single { CoroutineScope(Dispatchers.Main + SupervisorJob()) }
+    single { Dispatchers.IO }
     single { DiffRepository(get()) }
     single { SpyRepo() }
 
@@ -49,7 +52,7 @@ val TauInjections = module {
     single<IFolderRepo> { get(named("real")) }          // alias public
 
     single { AirForce(get(), get()) }
-    single<ISpy> { Spy(get(), get(), get()) }
+    single<ISpy> { Spy(get(), TauFileObserver.of(INACTIVE), get(), get()) }
     single { CIA() }
 
 
@@ -65,9 +68,5 @@ val TauInjections = module {
     single<TauViewModel>(named("real")) { TauViewModel(get(), get()) }
     single<TauViewModel> { get(named("real")) }
 
-
-}
-
-val RoomModule = module {
 
 }
