@@ -2,6 +2,7 @@ package lorry.dossiertau.data.intelligenceService.utils.events
 
 import android.os.FileObserver
 import lorry.dossiertau.data.intelligenceService.utils.CIALevel
+import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.parentPath
@@ -12,6 +13,7 @@ data class AtomicSpyLevel(
     override val path: TauPath,
     val itemType: ItemType,
     val modificationDate: TauDate,
+    val itemId: FileId
 ): ISpyLevel
 
 internal val fileInsideReaction = { insidePath: TauPath, aroundPath: TauPath, potentialTransferringDecision: CIALevel ->
@@ -44,21 +46,21 @@ enum class ItemType{
 }
 
 //* cette méthode a des effets de bord
-fun createIncomingEvent(code: Int, path: TauPath): AtomicSpyLevel? {
-
-    val eventType = code.toEventType()
-    val file = path.toFile().getOrNull()
-    if ((eventType !in listOf(AtomicEventType.DELETE, AtomicEventType.DELETE_SELF, AtomicEventType.MOVED_FROM)) &&
-        file?.exists() != true)
-        return null
-
-    return AtomicSpyLevel(
-        eventType = eventType,
-        path = path,
-        itemType = if (path.toFile().getOrNull()!!.isFile) ItemType.FILE else ItemType.FOLDER,
-        modificationDate = file?.lastModified().toTauDate(),
-    )
-}
+//fun createIncomingEvent(code: Int, path: TauPath): AtomicSpyLevel? {
+//
+//    val eventType = code.toEventType()
+//    val file = path.toFile().getOrNull()
+//    if ((eventType !in listOf(AtomicEventType.DELETE, AtomicEventType.DELETE_SELF, AtomicEventType.MOVED_FROM)) &&
+//        file?.exists() != true)
+//        return null
+//
+//    return AtomicSpyLevel(
+//        eventType = eventType,
+//        path = path,
+//        itemType = if (path.toFile().getOrNull()!!.isFile) ItemType.FILE else ItemType.FOLDER,
+//        modificationDate = file?.lastModified().toTauDate(),
+//    )
+//}
 
 fun Int.toEventType(): AtomicEventType {
 // On neutralise le bit ISDIR et on garde seulement les bits d'événements.

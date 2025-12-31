@@ -33,6 +33,7 @@ import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside.INACTIVE
 import lorry.dossiertau.data.intelligenceService.utils2.events.DebouncedTimer
 import lorry.dossiertau.data.intelligenceService.utils2.events.Snapshot
+import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauDate
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
@@ -140,7 +141,8 @@ open class Spy(
                 eventType = AtomicEventType.CREATE,
                 path = folderPath.appendToTauPath(item.name),
                 itemType = if (item.isDir) ItemType.FOLDER else ItemType.FILE,
-                modificationDate = item.lastModified.toTauDate()
+                modificationDate = item.lastModified.toTauDate(),
+                itemId = item.fileId
             )
         }
 
@@ -149,7 +151,8 @@ open class Spy(
                 eventType = AtomicEventType.DELETE,
                 path = folderPath.appendToTauPath(item.name),
                 itemType = if (item.isDir) ItemType.FOLDER else ItemType.FILE,
-                modificationDate = item.lastModified.toTauDate()
+                modificationDate = item.lastModified.toTauDate(),
+                itemId = item.fileId
             )
         }
 
@@ -189,6 +192,7 @@ open class Spy(
             path = itemToEmit,
             itemType = itemType,
             modificationDate = modificationDate,
+            itemId = FileId.fileIdOf(5L, 8L)
         )
 
         emitSpyLevel(fakeEvent)
@@ -204,6 +208,7 @@ open class Spy(
             path = itemToEmit,
             itemType = itemType,
             modificationDate = modificationDate,
+            itemId = FileId.fileIdOf(5L, 8L)
         )
 
         emitSpyLevel(fakeEvent)
@@ -219,6 +224,7 @@ open class Spy(
             path = itemToEmit,
             itemType = itemType,
             modificationDate = modificationDate,
+            itemId = FileId.fileIdOf(5L, 8L)
         )
 
         emitSpyLevel(fakeEvent)
@@ -234,6 +240,7 @@ open class Spy(
             path = itemToEmit,
             itemType = itemType,
             modificationDate = modificationDate,
+            itemId = FileId.fileIdOf(5L, 8L)
         )
 
         emitSpyLevel(fakeEvent)

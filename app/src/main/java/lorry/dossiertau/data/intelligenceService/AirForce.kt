@@ -22,13 +22,14 @@ class AirForce(
         return cia.ciaDecisions.onEach { ciaLevels ->
 
             val commands = ciaLevels.mapNotNull { ciaLevel ->
-                when (ciaLevel){
+                when (ciaLevel) {
                     is CIALevel.CreateItem -> {
                         DbCommand.CreateItem(
                             item = DbItem(
                                 fullPath = ciaLevel.itemPath,
                                 modificationDate = ciaLevel.modificationDate,
                                 type = ciaLevel.itemType,
+                                fileId = ciaLevel.itemId
                             )
                         )
                     }
@@ -38,7 +39,8 @@ class AirForce(
                             item = DbItem(
                                 fullPath = ciaLevel.itemPath,
                                 modificationDate = ciaLevel.modificationDate,
-                                type = ciaLevel.itemType
+                                type = ciaLevel.itemType,
+                                fileId = ciaLevel.itemId
                             )
                         )
                     }
@@ -48,7 +50,8 @@ class AirForce(
                             item = DbItem(
                                 fullPath = ciaLevel.itemPath,
                                 modificationDate = ciaLevel.modificationDate,
-                                type = ciaLevel.itemType
+                                type = ciaLevel.itemType,
+                                fileId = ciaLevel.itemId
                             )
                         )
                     }
@@ -56,10 +59,13 @@ class AirForce(
                     is CIALevel.GlobalRefresh -> {
                         DbCommand.GlobalRefresh(
                             path = ciaLevel.itemPath,
-                            refreshDate = ciaLevel.refreshDate)
+                            refreshDate = ciaLevel.refreshDate
+                        )
                     }
 
-                    else -> { null }
+                    else -> {
+                        null
+                    }
                 }
             }
 

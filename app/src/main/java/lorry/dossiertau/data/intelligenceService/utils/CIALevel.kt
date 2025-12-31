@@ -1,6 +1,7 @@
 package lorry.dossiertau.data.intelligenceService.utils
 
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
+import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauPath
 
@@ -12,18 +13,21 @@ sealed class CIALevel(
         val eventPath: TauPath,
         val modificationDate: TauDate,
         val itemType: ItemType,
+        val itemId: FileId
     ): CIALevel(eventPath)
 
     data class DeleteItem(
         val eventPath: TauPath,
         val modificationDate: TauDate,
         val itemType: ItemType,
+        val itemId: FileId
     ): CIALevel(eventPath)
 
     data class ModifyItem(
         val eventPath: TauPath,
         val modificationDate: TauDate,
         val itemType: ItemType,
+        val itemId: FileId
     ): CIALevel(eventPath)
 
     data class GlobalRefresh(

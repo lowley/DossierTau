@@ -115,6 +115,7 @@ class CIA() : LifecycleService() {
                         eventPath = event.path,
                         modificationDate = event.modificationDate,
                         itemType = event.itemType,
+                        itemId = event.itemId
                     )
                 )
             }
@@ -127,6 +128,7 @@ class CIA() : LifecycleService() {
                         eventPath = event.path,
                         modificationDate = event.modificationDate,
                         itemType = event.itemType,
+                        itemId = event.itemId
                     )
                 )
             }
@@ -143,6 +145,7 @@ class CIA() : LifecycleService() {
                         eventPath = event.path,
                         modificationDate = event.modificationDate,
                         itemType = event.itemType,
+                        itemId = event.itemId
                     )
                 )
             }
@@ -155,6 +158,7 @@ class CIA() : LifecycleService() {
                         eventPath = event.path,
                         modificationDate = event.modificationDate,
                         itemType = event.itemType,
+                        itemId = event.itemId
                     )
                 )
             }
