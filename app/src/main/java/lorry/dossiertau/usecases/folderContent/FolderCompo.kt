@@ -12,11 +12,15 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combineTransform
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import lorry.dossiertau.data.dbModel.DiffEntity
 import lorry.dossiertau.data.dbModel.FileDiffDao
 import lorry.dossiertau.data.dbModel.OpType
 import lorry.dossiertau.data.dbModel.toTauItem
@@ -100,19 +104,35 @@ open class FolderCompo(
     }
 
     private suspend fun collectDiffs() {
-        combineTransform(fileDiffDAO.diffFlow().filterNotNull(), folderPathFlow){ diff, path ->
-            when (diff.op_type){
-                OpType.FolderRefresh.text -> {
-                    if (diff.full_path == path.getOrNull()?.path)
-                        emit(diff)
+        merge(fileDiffDAO.diffFlow().drop(1).filterNotNull(), folderPathFlow).transform { diffOrPath ->
+            println("COLLECTDIFFS: reçu path: $diffOrPath")
+            when (diffOrPath) {
+                is TauPath -> {
+//                    setFolderFlow(diffOrPath)
+                    emit(null)
                 }
 
-                else -> {
-                    if (diff.parentPath == path.getOrNull()?.path)
-                        emit(diff)
+                is DiffEntity -> {
+                    val diff = diffOrPath as DiffEntity
+                    val path = folderPathFlow.value
+
+                    when (diffOrPath.op_type) {
+                        OpType.FolderRefresh.text -> {
+                            if (diff.full_path == path.getOrNull()?.path)
+                                emit(diff)
+                        }
+
+                        else -> {
+                            if (diff.parentPath == path.getOrNull()?.path)
+                                emit(diff)
+                        }
+                    }
                 }
             }
-        }.collect { diff ->
+        }
+            .filterNotNull()
+            .collect { diff ->
+
                 println("COLLECTDIFFS: reçu diff: $diff")
                 val folder = folderFlow.value.getOrNull() ?: return@collect
 
