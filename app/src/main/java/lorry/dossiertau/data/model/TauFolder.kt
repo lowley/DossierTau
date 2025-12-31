@@ -112,11 +112,11 @@ sealed class TauFolder private constructor(): TauItem {
             return this
 
         val data = this as Data
-        if (itemToAdd?.asDataCommon?.fullPath in children!!.map { it.asDataCommon?.fullPath }) {
+        if (itemToAdd.asDataCommon?.fullPath in children!!.map { it.asDataCommon?.fullPath }) {
             return this
         }
 
-        return data.copy(children = children!!.plus(itemToAdd))
+        return data.copy(children = children.plus(itemToAdd))
     }
 
     fun removeItem(itemToRemove: TauItem): TauFolder{
@@ -149,12 +149,13 @@ sealed class TauFolder private constructor(): TauItem {
             return this
 
         val data = this as Data
-        if (itemToModify?.asDataCommon?.fullPath !in children!!.map { it.asDataCommon?.fullPath }) {
+        if (itemToModify.asDataCommon?.fileId !in children!!.map { it.asDataCommon?.fileId }) {
             return this
         }
 
         return data.copy(
-            children = children!!.filter { item -> item.asDataCommon?.fullPath != itemToModify.asDataCommon?.fullPath }.plus(itemToModify)
+            children = children.filter { item -> item.asDataCommon?.fileId != itemToModify.asDataCommon?.fileId }
+                .plus(itemToModify)
         )
     }
 

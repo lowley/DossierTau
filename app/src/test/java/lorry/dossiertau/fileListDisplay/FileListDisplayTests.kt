@@ -54,9 +54,9 @@ import lorry.dossiertau.data.intelligenceService.utils.events.AtomicEventType
 import lorry.dossiertau.data.intelligenceService.utils.events.AtomicSpyLevel
 import lorry.dossiertau.data.intelligenceService.utils.events.GlobalSpyLevel
 import lorry.dossiertau.data.intelligenceService.utils2.events.Snapshot
+import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.data.intelligenceService.utils2.repo.SpyRepo
 import lorry.dossiertau.data.planes.DbCommand
-import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.usecases.folderContent.support.FolderRepo
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
@@ -68,6 +68,7 @@ import org.koin.core.context.GlobalContext
 import org.koin.core.context.GlobalContext.stopKoin
 import org.robolectric.RobolectricTestRunner
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.milliseconds
 
 @RunWith(RobolectricTestRunner::class)
 class FileListDisplayTests : KoinTest {
@@ -160,7 +161,7 @@ class FileListDisplayTests : KoinTest {
                 val fileToEmit = toto.fullPath
 
 
-                spy.emitFake_CREATEITEM(fileToEmit, ItemType.FILE, 817L.toTauDate())
+                spy.emitFake_CREATEITEM(fileToEmit, ItemType.FILE, 817L.toTauDate(), toto.fileId)
                 //act + arrange
                 advanceUntilIdle()
                 val event = awaitItem()
@@ -297,7 +298,7 @@ class FileListDisplayTests : KoinTest {
 
             spy.spyLevelFlow.test {
 
-                spy.emitFake_CREATEITEM(fileToEmit, ItemType.FILE, 817L.toTauDate())
+                spy.emitFake_CREATEITEM(fileToEmit, ItemType.FILE, 817L.toTauDate(), toto.fileId)
                 //act + arrange
                 val event = awaitItem()
                 val decision = cia.manageUpdateEvents(event)
@@ -370,7 +371,8 @@ class FileListDisplayTests : KoinTest {
             val createItemDecision = CIALevel.CreateItem(
                 eventPath = toto.fullPath,
                 modificationDate = toto.modificationDate,
-                itemType = ItemType.FILE
+                itemType = ItemType.FILE,
+                itemId = FileId.fileIdOf(23L, 14L)
             )
 
             //elle ne fait rien
@@ -594,7 +596,7 @@ class FileListDisplayTests : KoinTest {
                 val divers = FOLDER_DIVERS(PATH)
                 val folderToEmit = divers.fullPath
 
-                spy.emitFake_CREATEITEM(folderToEmit, ItemType.FOLDER, 817L.toTauDate())
+                spy.emitFake_CREATEITEM(folderToEmit, ItemType.FOLDER, 817L.toTauDate(), divers.fileId)
                 //act + arrange
                 advanceUntilIdle()
                 val event = awaitItem()
@@ -1037,7 +1039,7 @@ class FileListDisplayTests : KoinTest {
                     val divers = FOLDER_DIVERS(OTHERPATH)
                     val folderToEmit = divers.fullPath
 
-                    spy.emitFake_CREATEITEM(folderToEmit, ItemType.FOLDER, 817L.toTauDate())
+                    spy.emitFake_CREATEITEM(folderToEmit, ItemType.FOLDER, 817L.toTauDate(), divers.fileId)
                     //act + arrange
                     advanceUntilIdle()
                     val event = awaitItem()
@@ -1472,7 +1474,7 @@ class FileListDisplayTests : KoinTest {
 
                 every { spyRepo.getIdOf(divers.fullPath) } returns divers.fileId
 
-                spy.emitFake_CREATEITEM(folderToEmit, ItemType.FOLDER, 817L.toTauDate())
+                spy.emitFake_CREATEITEM(folderToEmit, ItemType.FOLDER, 817L.toTauDate(), divers.fileId)
                 //act + arrange
                 advanceTimeBy(500)
                 runCurrent()
@@ -1628,6 +1630,70 @@ class FileListDisplayTests : KoinTest {
                 feature { f((it as AtomicSpyLevel)::path) }
                     .toEqual(AFTER_INSERTION.folderPath.appendToTauPath(SNAPSHOT_TOTO(PATH).name))
             }
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `#17 Spy ∎ comparaison 2 snapshots ⇒ renommage #1`() = runTest {
+
+        val dispatcher = StandardTestDispatcher(testScheduler)
+
+        val spyRepo = SpyRepo()
+        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
+        val spy = Spy(
+            dispatcher = dispatcher,
+            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+            fileRepo = repo
+        )
+
+        val PATH = "/storage/emulated/0/Download".toTauPath()
+
+        val calls = AtomicInteger(0)
+
+        //arrange
+        everySuspend { repo.createSnapshotFor(PATH) } sequentially {
+            returns(SNAPSHOT_BEFORE_RENAME)
+            returns(SNAPSHOT_AFTER_RENAME1)
+            returns(SNAPSHOT_AFTER_RENAME1)
+        }
+
+        //assert: minTimer pas enclenché
+        val minTimer = spy.minTimer
+        expect(minTimer.isRunning()).toEqual(false)
+
+        spy.spyLevelFlow.test(timeout = 800.milliseconds) {
+
+            //act
+            spy.startSurveillance()
+            spy.setObservedFolder(PATH)
+            runCurrent()
+            val global = awaitItem()
+            expect(global).notToBeAnInstanceOf<GlobalSpyLevel>()
+
+            //act I
+            spy.tick()
+            runCurrent()
+
+            expect(spy.lastSnapshotFlow.value).toEqual(SNAPSHOT_BEFORE_RENAME)
+
+            val firstDiff = awaitItem()
+            expect(firstDiff).toHaveSize(1)
+            expect(firstDiff[0]) {
+                toBeAnInstanceOf<AtomicSpyLevel>()
+                feature { f((it as AtomicSpyLevel)::eventType) }.toEqual(AtomicEventType.MODIFY)
+                feature { f((it as AtomicSpyLevel)::path) }
+                    .toEqual(SNAPSHOT_AFTER_RENAME1.folderPath.appendToTauPath(SNAPSHOT_AFTER_RENAME1.names.last()))
+                feature { f((it as AtomicSpyLevel)::itemId) }.toEqual(SNAPSHOT_BEFORE_RENAME.entries.first().fileId)
+
+            }
+
+            spy.tick()
+            runCurrent()
+            advanceUntilIdle()
+
+            expect(spy.lastSnapshotFlow.value).toEqual(SNAPSHOT_AFTER_RENAME1)
+            expectNoEvents()
         }
     }
 }

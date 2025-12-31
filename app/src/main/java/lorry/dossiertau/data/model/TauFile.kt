@@ -97,5 +97,6 @@ inline val TauFile.size: Long get() = asData?.size ?: 0L
 fun TauFile.toDbFile() = DbItem(
     fullPath = this.fullPath,
     modificationDate = this.modificationDate,
-    type = ItemType.FILE
+    type = ItemType.FILE,
+    fileId = this.fileId
 )

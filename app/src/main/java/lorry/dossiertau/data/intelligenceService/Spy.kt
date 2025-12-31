@@ -136,27 +136,48 @@ open class Spy(
         val deletedItems = sn1.entries.minus(sn2.entries.toSet())
         val folderPath = observedFolderFlow.value
 
-        val creationSpyLevels: List<ISpyLevel> = createdItems.map { item ->
-            AtomicSpyLevel(
-                eventType = AtomicEventType.CREATE,
-                path = folderPath.appendToTauPath(item.name),
-                itemType = if (item.isDir) ItemType.FOLDER else ItemType.FILE,
-                modificationDate = item.lastModified.toTauDate(),
-                itemId = item.fileId
-            )
+        val creationOrModificationSpyLevels: List<ISpyLevel> = createdItems.map { item ->
+            val sameFileId = sn1.entries.firstOrNull { it.fileId == item.fileId }
+
+            if (sameFileId != null) {
+                //renommage
+                AtomicSpyLevel(
+                    eventType = AtomicEventType.MODIFY,
+                    path = folderPath.appendToTauPath(item.name),
+                    itemType = if (item.isDir) ItemType.FOLDER else ItemType.FILE,
+                    modificationDate = item.lastModified.toTauDate(),
+                    itemId = item.fileId
+                )
+            } else
+            //création
+                AtomicSpyLevel(
+                    eventType = AtomicEventType.CREATE,
+                    path = folderPath.appendToTauPath(item.name),
+                    itemType = if (item.isDir) ItemType.FOLDER else ItemType.FILE,
+                    modificationDate = item.lastModified.toTauDate(),
+                    itemId = item.fileId
+                )
         }
 
-        val deletionSpyLevels: List<ISpyLevel> = deletedItems.map { item ->
-            AtomicSpyLevel(
-                eventType = AtomicEventType.DELETE,
-                path = folderPath.appendToTauPath(item.name),
-                itemType = if (item.isDir) ItemType.FOLDER else ItemType.FILE,
-                modificationDate = item.lastModified.toTauDate(),
-                itemId = item.fileId
-            )
+        val deletionSpyLevels: List<ISpyLevel> = deletedItems.mapNotNull { item ->
+            val sameFileId = creationOrModificationSpyLevels.firstOrNull {
+                (it as AtomicSpyLevel).itemId == item.fileId
+            }
+
+            //si sameFileId != null, le fichier existant dans creationOrModificationSpyLevels
+            //c'est qu'il est renommé donc déjà traité par MODIFY
+            if (sameFileId == null)
+                AtomicSpyLevel(
+                    eventType = AtomicEventType.DELETE,
+                    path = folderPath.appendToTauPath(item.name),
+                    itemType = if (item.isDir) ItemType.FOLDER else ItemType.FILE,
+                    modificationDate = item.lastModified.toTauDate(),
+                    itemId = item.fileId
+                )
+            else null
         }
 
-        return creationSpyLevels + deletionSpyLevels
+        return creationOrModificationSpyLevels + deletionSpyLevels
     }
 
     ///////////////////////////////////////////////////////////////////////
@@ -185,14 +206,15 @@ open class Spy(
     override fun emitFake_CREATEITEM(
         itemToEmit: TauPath,
         itemType: ItemType,
-        modificationDate: TauDate
+        modificationDate: TauDate,
+        fileId: FileId
     ) {
         val fakeEvent = AtomicSpyLevel(
             eventType = AtomicEventType.CREATE,
             path = itemToEmit,
             itemType = itemType,
             modificationDate = modificationDate,
-            itemId = FileId.fileIdOf(5L, 8L)
+            itemId = fileId
         )
 
         emitSpyLevel(fakeEvent)

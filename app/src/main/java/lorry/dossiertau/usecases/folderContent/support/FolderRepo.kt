@@ -28,12 +28,14 @@ open class FolderRepo(
             TauRepoFile(
                 parentPath = file?.parent!!.toTauPath(),
                 name = file.name.toTauFileName(),
-                modificationDate = TauDate(file.lastModified())
+                modificationDate = TauDate(file.lastModified()),
+                fileId = spyRepo.getIdOf(file.path.toTauPath())
             )
         else TauRepoFolder(
             parentPath = file.parent!!.toTauPath(),
             name = file.name.toTauFileName(),
             modificationDate = TauDate(file.lastModified()),
+            fileId = spyRepo.getIdOf(file.path.toTauPath())
         )
 
         return result

@@ -6,6 +6,7 @@ import lorry.dossiertau.data.intelligenceService.utils.events.ISpyLevel
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.data.intelligenceService.utils2.events.DebouncedTimer
 import lorry.dossiertau.data.intelligenceService.utils2.events.Snapshot
+import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauPath
 
@@ -44,7 +45,7 @@ interface ISpy {
     ///////////
     // fakes //
     ///////////
-    fun emitFake_CREATEITEM(fileToEmit: TauPath, itemType: ItemType, modificationDate: TauDate)
+    fun emitFake_CREATEITEM(fileToEmit: TauPath, itemType: ItemType, modificationDate: TauDate,fileId: FileId)
     fun emitFake_DELETEITEM(itemToEmit: TauPath, itemType: ItemType, modificationDate: TauDate)
     fun emitFake_MODIFYITEM(itemToEmit: TauPath, itemType: ItemType, modificationDate: TauDate)
     fun emitFake_MOVEDFROM(itemToEmit: TauPath, itemType: ItemType, modificationDate: TauDate)

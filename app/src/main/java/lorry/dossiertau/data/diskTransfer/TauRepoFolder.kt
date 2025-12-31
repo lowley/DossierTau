@@ -1,5 +1,6 @@
 package lorry.dossiertau.data.diskTransfer
 
+import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.data.model.TauFolder
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.support.littleClasses.TauDate
@@ -14,10 +15,11 @@ data class TauRepoFolder (
     override val parentPath: TauPath = TauPath.EMPTY,
     override val name: TauItemName = TauItemName.EMPTY,
     override val modificationDate: TauDate = TauDate.now(),
+    override val fileId: FileId,
 
 
 
-): TauRepoItem {
+    ): TauRepoItem {
 
     constructor(
         fullPath: TauPath,
@@ -25,11 +27,13 @@ data class TauRepoFolder (
         modificationDate: TauDate = TauDate.now(),
         children: List<TauItem> = emptyList(),
         id: TauIdentifier = TauIdentifier.random(),
+        fileId: FileId = FileId.EMPTY
     ) : this(
         parentPath = splitParentAndName(fullPath).first,
         name = splitParentAndName(fullPath).second,
         modificationDate = modificationDate,
         id = id,
+        fileId = fileId
     )
 
     companion object {
@@ -51,5 +55,6 @@ fun TauRepoFolder.toTauFolder(): TauFolder{
         picture = TauPicture.NONE,
         modificationDate = this.modificationDate,
         children = listOf<TauItem>(),
+        fileId = this.fileId
     )
 }

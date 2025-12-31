@@ -1,6 +1,7 @@
 package lorry.dossiertau.data.diskTransfer
 
 import kotlinx.serialization.Serializable
+import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauIdentifier
@@ -13,7 +14,7 @@ sealed interface TauRepoItem {
     val parentPath: TauPath
     val name: TauItemName
     val modificationDate: TauDate
-
+    val fileId: FileId
 }
 
 fun Collection<TauRepoItem>.files() = this.filter { it is TauRepoFile }

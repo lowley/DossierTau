@@ -22,6 +22,7 @@ import lorry.dossiertau.data.intelligenceService.ISpy
 import lorry.dossiertau.data.intelligenceService.Spy
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside
+import lorry.dossiertau.data.intelligenceService.utils2.events.Snapshot
 import lorry.dossiertau.data.intelligenceService.utils2.events.SnapshotElement
 import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.data.intelligenceService.utils2.repo.ISpyRepo
@@ -123,12 +124,14 @@ fun FileListDisplayTests.FILE_TOTO(parentPath: TauPath) = TauFile(
     parentPath = parentPath,
     name = TauItemName("toto.mp4"),
     modificationDate = TauDate.fromLong(825),
+    fileId = FileId.fileIdOf(23L, 14L)
 )
 
 fun FileListDisplayTests.REPOFILE_TOTO(parentPath: TauPath) = TauRepoFile(
     parentPath = parentPath,
     name = TauItemName("toto.mp4"),
-    modificationDate = TauDate.fromLong(825)
+    modificationDate = TauDate.fromLong(825),
+    fileId = FileId.fileIdOf(5L, 8L)
 )
 
 fun FileListDisplayTests.SNAPSHOT_TOTO(parentPath: TauPath) = SnapshotElement(
@@ -141,7 +144,8 @@ fun FileListDisplayTests.SNAPSHOT_TOTO(parentPath: TauPath) = SnapshotElement(
 
 fun FileListDisplayTests.FOLDER_DIVERS(parentPath: TauPath) = TauFolder(
     fullPath = TauPath.of("${parentPath.path}/divers"),
-    modificationDate = TauDate(834)
+    modificationDate = TauDate(834),
+    fileId = FileId.fileIdOf(15L, 61L)
 )
 
 fun FileListDisplayTests.FOLDER_FULL(path: TauPath) = TauFolder(
@@ -157,6 +161,55 @@ fun FileListDisplayTests.REPOFOLDER_DIVERS(parentPath: TauPath) = TauRepoFolder(
     fullPath = TauPath.of("$parentPath/divers"),
     modificationDate = TauDate(834)
 )
+
+val FileListDisplayTests.SNAPSHOT_BEFORE_RENAME: Snapshot
+    get() = Snapshot(
+        folderPath = TauPath.of("/storage/emulated/0/Download"),
+        entriesByName = mapOf(
+            "toto.txt" to SnapshotElement(
+                name = "toto.txt",
+                isDir = false,
+                size = 10L,
+                lastModified = 5L,
+                fileId = FileId.fileIdOf(8L, 13L)
+            )
+        )
+    )
+
+val FileListDisplayTests.SNAPSHOT_AFTER_RENAME1: Snapshot
+    get() = Snapshot(
+        folderPath = TauPath.of("/storage/emulated/0/Download"),
+        entriesByName = mapOf(
+//            "toto.txt" to SnapshotElement(
+//                name = "toto.txt",
+//                isDir = false,
+//                size = 10L,
+//                lastModified = 5L,
+//                fileId = FileId.fileIdOf(8L, 13L)
+//            ),
+            "titi.txt" to SnapshotElement(
+                name = "titi.txt",
+                isDir = false,
+                size = 10L,
+                lastModified = 5L,
+                fileId = FileId.fileIdOf(8L, 13L)
+            )
+        )
+    )
+
+//val FileListDisplayTests.SNAPSHOT_AFTER_RENAME2: Snapshot
+//    get() = Snapshot(
+//        folderPath = TauPath.of("/storage/emulated/0/Download"),
+//        entriesByName = mapOf(
+//            "titi.txt" to SnapshotElement(
+//                name = "titi.txt",
+//                isDir = false,
+//                size = 10L,
+//                lastModified = 5L,
+//                fileId = FileId.fileIdOf(8L, 13L)
+//            )
+//        )
+//    )
 
 class MainDispatcherRule(
     val dispatcher: TestDispatcher = StandardTestDispatcher()
