@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,6 +23,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -48,11 +50,14 @@ import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.ui.theme.DossierTauTheme
+import lorry.dossiertau.usecases.generateHTMLs.Links
 import org.koin.android.ext.android.inject
 
 class MainActivity : ComponentActivity() {
 
     val viewModel: TauViewModel by inject()
+    val links: Links by inject()
+
     val folderCompo = viewModel.folderCompo
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -218,14 +223,18 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun BottomAppBar() {
-        Box(
+        Row(
             modifier = Modifier
                 .navigationBarsPadding()
                 .fillMaxWidth()
                 .height(35.dp)
-                .background(Color.LightGray)
         ) {
 
+            Button(
+                modifier = Modifier,
+                content = { Text(text = "make HTML") },
+                onClick = { links.generateLinks() },
+            )
         }
     }
 

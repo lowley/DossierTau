@@ -237,4 +237,11 @@ dependencies {
     /////////////
     implementation("dev.mokkery:mokkery-coroutines:3.1.1")
 
+    ////////////////////
+    // accès internet //
+    ////////////////////
+    implementation("io.ktor:ktor-client-okhttp:2.3.12")
+    implementation("io.ktor:ktor-client-content-negotiation:2.3.12")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.12")
+
 }
