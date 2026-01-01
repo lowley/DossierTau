@@ -252,22 +252,6 @@ open class Spy(
         emitSpyLevel(fakeEvent)
     }
 
-    override fun emitFake_MOVEDFROM(
-        itemToEmit: TauPath,
-        itemType: ItemType,
-        modificationDate: TauDate
-    ) {
-        val fakeEvent = AtomicSpyLevel(
-            eventType = AtomicEventType.MOVED_FROM,
-            path = itemToEmit,
-            itemType = itemType,
-            modificationDate = modificationDate,
-            itemId = FileId.fileIdOf(5L, 8L)
-        )
-
-        emitSpyLevel(fakeEvent)
-    }
-
     suspend fun doOnEvent(atomicUpdateEvent: AtomicSpyLevel) {
         emitSpyLevel(atomicUpdateEvent)
     }

@@ -18,5 +18,12 @@ sealed class FileId(){
 
     inline val id: FileIdValue?
         get() = (this as? FileIdValue) ?: null
+
+    override fun toString(): String {
+        return when (this){
+            is EMPTY -> "∅"
+            is FileIdValue -> "\uD83D\uDCBD ${this.dev} / \uD83D\uDCC4 ${this.ino}"
+        }
+    }
 }
 

@@ -866,138 +866,138 @@ class FileListDisplayTests : KoinTest {
         }
     }
 
-    /////////////////
-    // test n° 2-7 //
-    /////////////////
-    // le diff est émis mais pas encore envoyé (c'est le rôle d'AirForce)
-    @Test
-    fun `#2۰7 SpyService - royaume des changements sur le disque - File moved_from()`() =
-        runTest {
-
-            //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
-            //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
-
-            val dispatcher = StandardTestDispatcher(testScheduler)
-            TestStuff.configure(dispatcher).use { stuff ->
-                val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
-                setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
-
-                //assert
-                //* répertoire à observer
-                val PATH = "/storage/emulated/0/Download".toTauPath()
-                val cia = CIA()
-                cia.spy = spy
-
-                spy.spyLevelFlow.test {
-
-                    advanceUntilIdle()
-                    cia.spy = spy
-
-                    spy.setObservedFolder(PATH)
-                    val global = awaitItem()
-                    expect(global)
-                        .toHaveSize(1)
-
-                    expect(global.first()) {
-                        toBeAnInstanceOf<GlobalSpyLevel>()
-                    }
-
-                    //act
-                    val toto = FILE_TOTO(PATH)
-                    val fileToEmit = toto.fullPath
-
-                    spy.emitFake_MOVEDFROM(fileToEmit, ItemType.FILE, 817L.toTauDate())
-                    //act + arrange
-                    advanceUntilIdle()
-                    val event = awaitItem()
-                    val decision = cia.manageUpdateEvents(event)
-
-                    //assert
-                    expect(decision)
-                        .toHaveSize(1)
-
-                    expect(decision.first()) {
-                        toBeAnInstanceOf<CIALevel.DeleteItem>()
-                        feature { f((it as CIALevel.DeleteItem)::modificationDate) }.toEqual(
-                            817L.toTauDate()
-                        )
-                        feature { f((it as CIALevel.DeleteItem)::itemType) }.toEqual(
-                            ItemType.FILE
-                        )
-                    }
-
-                    cancelAndIgnoreRemainingEvents()
-                }
-            }
-        }
+//    /////////////////
+//    // test n° 2-7 //
+//    /////////////////
+//    // le diff est émis mais pas encore envoyé (c'est le rôle d'AirForce)
+//    @Test
+//    fun `#2۰7 SpyService - royaume des changements sur le disque - File moved_from()`() =
+//        runTest {
+//
+//            //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
+//            //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
+//
+//            val dispatcher = StandardTestDispatcher(testScheduler)
+//            TestStuff.configure(dispatcher).use { stuff ->
+//                val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
+//                setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
+//
+//                //assert
+//                //* répertoire à observer
+//                val PATH = "/storage/emulated/0/Download".toTauPath()
+//                val cia = CIA()
+//                cia.spy = spy
+//
+//                spy.spyLevelFlow.test {
+//
+//                    advanceUntilIdle()
+//                    cia.spy = spy
+//
+//                    spy.setObservedFolder(PATH)
+//                    val global = awaitItem()
+//                    expect(global)
+//                        .toHaveSize(1)
+//
+//                    expect(global.first()) {
+//                        toBeAnInstanceOf<GlobalSpyLevel>()
+//                    }
+//
+//                    //act
+//                    val toto = FILE_TOTO(PATH)
+//                    val fileToEmit = toto.fullPath
+//
+//                    spy.emitFake_MOVEDFROM(fileToEmit, ItemType.FILE, 817L.toTauDate())
+//                    //act + arrange
+//                    advanceUntilIdle()
+//                    val event = awaitItem()
+//                    val decision = cia.manageUpdateEvents(event)
+//
+//                    //assert
+//                    expect(decision)
+//                        .toHaveSize(1)
+//
+//                    expect(decision.first()) {
+//                        toBeAnInstanceOf<CIALevel.DeleteItem>()
+//                        feature { f((it as CIALevel.DeleteItem)::modificationDate) }.toEqual(
+//                            817L.toTauDate()
+//                        )
+//                        feature { f((it as CIALevel.DeleteItem)::itemType) }.toEqual(
+//                            ItemType.FILE
+//                        )
+//                    }
+//
+//                    cancelAndIgnoreRemainingEvents()
+//                }
+//            }
+//        }
 
     /////////////////
     // test n° 2-8 //
     /////////////////
     // le diff est émis mais pas encore envoyé (c'est le rôle d'AirForce)
-    @Test
-    fun `#2۰8 SpyService - royaume des changements sur le disque - Folder moved_from()`() =
-        runTest {
-
-            //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
-            //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
-
-            val dispatcher = StandardTestDispatcher(testScheduler)
-            TestStuff.configure(dispatcher).use { stuff ->
-                val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
-                setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
-
-                //assert
-                //* répertoire à observer
-                val PATH = "/storage/emulated/0/Download".toTauPath()
-                val cia = CIA()
-                cia.spy = spy
-
-                spy.spyLevelFlow.test {
-
-                    advanceUntilIdle()
-                    cia.spy = spy
-
-                    spy.setObservedFolder(PATH)
-                    val global = awaitItem()
-                    expect(global)
-                        .toHaveSize(1)
-
-                    expect(global.first()) {
-                        toBeAnInstanceOf<GlobalSpyLevel>()
-                    }
-
-                    advanceUntilIdle()
-                    println("observedFolder = ${cia.spy.observedFolderFlow.value}")
-
-                    //act
-                    val divers = FOLDER_DIVERS(PATH)
-                    val folderToEmit = divers.fullPath
-
-                    spy.emitFake_MOVEDFROM(folderToEmit, ItemType.FOLDER, 817L.toTauDate())
-                    //act + arrange
-                    advanceUntilIdle()
-                    val event = awaitItem()
-                    val decision = cia.manageUpdateEvents(event)
-
-                    //assert
-                    expect(decision)
-                        .toHaveSize(1)
-
-                    expect(decision.first()) {
-                        toBeAnInstanceOf<CIALevel.DeleteItem>()
-                        feature { f((it as CIALevel.DeleteItem)::modificationDate) }.toEqual(
-                            817L.toTauDate()
-                        )
-                        feature { f((it as CIALevel.DeleteItem)::itemType) }.toEqual(
-                            ItemType.FOLDER
-                        )
-                    }
-
-                    cancelAndIgnoreRemainingEvents()
-                }
-            }
-        }
+//    @Test
+//    fun `#2۰8 SpyService - royaume des changements sur le disque - Folder moved_from()`() =
+//        runTest {
+//
+//            //* SPY ----   events on items   ---->  CIA ---- treated infos     ----> AIRFORCE
+//            //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
+//
+//            val dispatcher = StandardTestDispatcher(testScheduler)
+//            TestStuff.configure(dispatcher).use { stuff ->
+//                val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
+//                setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
+//
+//                //assert
+//                //* répertoire à observer
+//                val PATH = "/storage/emulated/0/Download".toTauPath()
+//                val cia = CIA()
+//                cia.spy = spy
+//
+//                spy.spyLevelFlow.test {
+//
+//                    advanceUntilIdle()
+//                    cia.spy = spy
+//
+//                    spy.setObservedFolder(PATH)
+//                    val global = awaitItem()
+//                    expect(global)
+//                        .toHaveSize(1)
+//
+//                    expect(global.first()) {
+//                        toBeAnInstanceOf<GlobalSpyLevel>()
+//                    }
+//
+//                    advanceUntilIdle()
+//                    println("observedFolder = ${cia.spy.observedFolderFlow.value}")
+//
+//                    //act
+//                    val divers = FOLDER_DIVERS(PATH)
+//                    val folderToEmit = divers.fullPath
+//
+//                    spy.emitFake_MOVEDFROM(folderToEmit, ItemType.FOLDER, 817L.toTauDate())
+//                    //act + arrange
+//                    advanceUntilIdle()
+//                    val event = awaitItem()
+//                    val decision = cia.manageUpdateEvents(event)
+//
+//                    //assert
+//                    expect(decision)
+//                        .toHaveSize(1)
+//
+//                    expect(decision.first()) {
+//                        toBeAnInstanceOf<CIALevel.DeleteItem>()
+//                        feature { f((it as CIALevel.DeleteItem)::modificationDate) }.toEqual(
+//                            817L.toTauDate()
+//                        )
+//                        feature { f((it as CIALevel.DeleteItem)::itemType) }.toEqual(
+//                            ItemType.FOLDER
+//                        )
+//                    }
+//
+//                    cancelAndIgnoreRemainingEvents()
+//                }
+//            }
+//        }
 
     /////////////////
     // test n° 2-9 //

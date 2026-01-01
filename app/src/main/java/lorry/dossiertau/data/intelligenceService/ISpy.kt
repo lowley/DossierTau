@@ -48,7 +48,6 @@ interface ISpy {
     fun emitFake_CREATEITEM(fileToEmit: TauPath, itemType: ItemType, modificationDate: TauDate,fileId: FileId)
     fun emitFake_DELETEITEM(itemToEmit: TauPath, itemType: ItemType, modificationDate: TauDate)
     fun emitFake_MODIFYITEM(itemToEmit: TauPath, itemType: ItemType, modificationDate: TauDate)
-    fun emitFake_MOVEDFROM(itemToEmit: TauPath, itemType: ItemType, modificationDate: TauDate)
 
     fun tick()
     fun computeDiffsBetween(sn1: Snapshot, snapshot2: Snapshot): List<ISpyLevel>

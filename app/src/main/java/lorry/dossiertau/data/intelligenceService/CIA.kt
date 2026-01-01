@@ -99,14 +99,6 @@ class CIA() : LifecycleService() {
 
     private fun manageAtomicEvent(event: AtomicSpyLevel): CIALevel? {
         return when (val type = event.eventType) {
-            AtomicEventType.ATTRIB -> {
-                return null
-            }
-
-            AtomicEventType.CLOSE_WRITE -> {
-                return null
-            }
-
             AtomicEventType.CREATE -> {
                 type.reactWhenReceived(
                     event.path,
@@ -133,10 +125,6 @@ class CIA() : LifecycleService() {
                 )
             }
 
-            AtomicEventType.DELETE_SELF -> {
-                return null
-            }
-
             AtomicEventType.MODIFY -> {
                 type.reactWhenReceived(
                     event.path,
@@ -148,32 +136,6 @@ class CIA() : LifecycleService() {
                         itemId = event.itemId
                     )
                 )
-            }
-
-            AtomicEventType.MOVED_FROM -> {
-                type.reactWhenReceived(
-                    event.path,
-                    spy.observedFolderFlow.value,
-                    CIALevel.DeleteItem(
-                        eventPath = event.path,
-                        modificationDate = event.modificationDate,
-                        itemType = event.itemType,
-                        itemId = event.itemId
-                    )
-                )
-            }
-
-            AtomicEventType.MOVED_TO -> {
-                return null
-            }
-
-            AtomicEventType.MOVE_SELF -> {
-                return null
-
-            }
-
-            AtomicEventType.UNKNOWN -> {
-                return null
             }
         }
     }
