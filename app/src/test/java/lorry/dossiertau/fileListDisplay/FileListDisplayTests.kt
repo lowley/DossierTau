@@ -31,6 +31,7 @@ import dev.mokkery.every
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
 import dev.mokkery.spy
+import dev.mokkery.verify.VerifyMode.Companion.exactly
 import dev.mokkery.verifySuspend
 import io.mockk.Runs
 import io.mockk.just
@@ -57,9 +58,18 @@ import lorry.dossiertau.data.intelligenceService.utils2.events.Snapshot
 import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.data.intelligenceService.utils2.repo.SpyRepo
 import lorry.dossiertau.data.planes.DbCommand
+import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.support.littleClasses.path
+import lorry.dossiertau.support.littleClasses.toTauFileName
 import lorry.dossiertau.usecases.folderContent.support.FolderRepo
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
+import lorry.dossiertau.usecases.generateHTMLs.Links
+import lorry.dossiertau.usecases.generateHTMLs.VmLinks
+import lorry.dossiertau.usecases.generateHTMLs.repos.DiskRepo
+import lorry.dossiertau.usecases.generateHTMLs.repos.NasRepo
+import lorry.dossiertau.usecases.generateHTMLs.repos.WebScrappingRepo
+import lorry.dossiertau.usecases.generateHTMLs.support.Actress
+import lorry.dossiertau.usecases.generateHTMLs.support.Subject
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -1695,6 +1705,53 @@ class FileListDisplayTests : KoinTest {
             expect(spy.lastSnapshotFlow.value).toEqual(SNAPSHOT_AFTER_RENAME1)
             expectNoEvents()
         }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `#18 Links ∎ rename file`() = runTest {
+
+        val dispatcher = StandardTestDispatcher(testScheduler)
+
+        val vmLinks = VmLinks()
+        val nasRepo = spy(NasRepo())
+        val diskRepo = spy(DiskRepo())
+        val webScrappingRepo = spy(WebScrappingRepo())
+
+        val originalVideoFileName = "threesomes & foursomes.bonnge.three.machin.mp4".toTauFileName()
+        val finalVideoFileName = "threesomes & foursomes.bonnge.three.machin.markmo.bando.mp4".toTauFileName()
+
+        val links = Links(
+            vm = vmLinks,
+            nasRepo = nasRepo,
+            diskRepo = diskRepo,
+            webScrappingRepo = webScrappingRepo
+        )
+
+        //arrange
+        everySuspend { diskRepo.getLocalActresses() } returns listOf(morgan(), cova(), rhoades(), gee())
+        everySuspend { diskRepo.getLocalSubjects() } returns listOf(trio(), lesbos(), bandeau(), black())
+
+        everySuspend { nasRepo.renameFile(
+            from = any<TauItemName>(),
+            to = any<TauItemName>())
+        } calls {}
+
+        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf(morgan(), gee())
+        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) }returns listOf(trio(), bandeau())
+
+        //act
+        links.generateLinks()
+
+        //assert
+        verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
+        verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
+        verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName) }
+        verifySuspend(exactly(1)) { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) }
+        verifySuspend(exactly(1)) { nasRepo.renameFile(
+            from = originalVideoFileName,
+            to = finalVideoFileName
+        ) }
     }
 }
 

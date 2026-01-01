@@ -36,6 +36,8 @@ import lorry.dossiertau.usecases.folderContent.FolderCompo
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
 import lorry.dossiertau.usecases.folderContent.support.FolderRepo
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
+import lorry.dossiertau.usecases.generateHTMLs.support.Actress
+import lorry.dossiertau.usecases.generateHTMLs.support.Subject
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 import org.koin.core.context.GlobalContext
@@ -210,6 +212,17 @@ val FileListDisplayTests.SNAPSHOT_AFTER_RENAME1: Snapshot
 //            )
 //        )
 //    )
+
+fun FileListDisplayTests.morgan() = Actress(name = "marketa morgan", shortcuts = listOf("markmo"))
+fun FileListDisplayTests.cova() = Actress(name = "jana cova", shortcuts = listOf("janaco"))
+fun rhoades() = Actress(name = "lana rhoades", shortcuts = listOf("lanarh"))
+fun gee() = Actress(name = "bonni gee", shortcuts = listOf("bonnge"))
+
+fun trio() = Subject(name = "triolisme", shortcuts = listOf("trio", "three", "trios"))
+fun lesbos() = Subject(name = "lesbiennes", shortcuts = listOf("lesbos","sapho", "sappho", "lesbian", "lesbians"))
+fun bandeau() = Subject(name = "bandeau", shortcuts = listOf("bando"))
+fun black() = Subject(name = "black", shortcuts = listOf("black", "blacks"))
+
 
 class MainDispatcherRule(
     val dispatcher: TestDispatcher = StandardTestDispatcher()

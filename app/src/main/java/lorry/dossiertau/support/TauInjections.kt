@@ -23,8 +23,10 @@ import lorry.dossiertau.usecases.folderContent.support.FolderRepo
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 import lorry.dossiertau.usecases.generateHTMLs.Links
 import lorry.dossiertau.usecases.generateHTMLs.VmLinks
+import lorry.dossiertau.usecases.generateHTMLs.repos.DiskRepo
+import lorry.dossiertau.usecases.generateHTMLs.repos.NasRepo
+import lorry.dossiertau.usecases.generateHTMLs.repos.WebScrappingRepo
 import org.koin.core.qualifier.named
-import java.util.concurrent.Executors
 
 val TauInjections = module {
 
@@ -66,7 +68,10 @@ val TauInjections = module {
     single<IFolderCompo> { get(named("real")) }
 
     single { VmLinks() }
-    single { Links(get()) }
+    single { NasRepo() }
+    single { DiskRepo() }
+    single { WebScrappingRepo() }
+    single { Links(get(), get(), get(), get()) }
 
     single<TauViewModel>(named("real")) { TauViewModel(get(), get()) }
     single<TauViewModel> { get(named("real")) }

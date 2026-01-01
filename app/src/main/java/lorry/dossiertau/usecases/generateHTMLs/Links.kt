@@ -2,28 +2,35 @@ package lorry.dossiertau.usecases.generateHTMLs
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.okhttp.OkHttp
-import io.ktor.client.request.get
-import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.bodyAsText
-import io.ktor.client.statement.readBytes
 import kotlinx.coroutines.*
+import lorry.dossiertau.usecases.generateHTMLs.repos.DiskRepo
+import lorry.dossiertau.usecases.generateHTMLs.repos.NasRepo
+import lorry.dossiertau.usecases.generateHTMLs.support.MoviesApi
+import lorry.dossiertau.usecases.generateHTMLs.repos.WebScrappingRepo
+import okhttp3.OkHttpClient
+import okhttp3.ResponseBody
+import retrofit2.HttpException
+import retrofit2.Retrofit
 import java.io.ByteArrayOutputStream
 import java.net.*
 
 class Links(
-    val vm: VmLinks
+    val vm: VmLinks,
+    val nasRepo: NasRepo,
+    val diskRepo: DiskRepo,
+    val webScrappingRepo: WebScrappingRepo
 ) {
     val login = "Pvc7NXwy6y7r33YurTuDoZ89"
     val password = "gKVRhVNy7gfjejv6qbrTVX4R"
-    val server = "nl.socks.nordhold.net"
+//    val server = "brussels.be.socks.nordhold.net"
+    val server = "se.socks.nordhold.net"
+//    val server = "nl.socks.nordhold.net"
     val port = 1080
 
     val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     fun generateLinks() {
-        scope.launch {
+        scope.launch(Dispatchers.IO) {
             fetchViaNordVPN()
         }
     }
@@ -35,29 +42,97 @@ class Links(
             }
         })
 
-        val client = HttpClient(OkHttp) {
-            engine {
-                proxy = Proxy(Proxy.Type.SOCKS, InetSocketAddress(server, port))
-                config { proxy(proxy) }
+//        val client = HttpClient(OkHttp) {
+//            engine {
+//                proxy = Proxy(Proxy.Type.SOCKS, InetSocketAddress(server, port))
+//                config { proxy(proxy) }
+//            }
+//        }
+        //        val retrofit = Retrofit.Builder()
+//            .baseUrl("https://www.hotmovies.com/") // ← ta nouvelle base (doit se terminer par '/')
+//            .build()
+//        val api = retrofit.create(MoviesApi::class.java)
+//        val responseBody = api.fetchPage(title = "cheeky+and+welcoming")
+
+        val proxy = Proxy(Proxy.Type.SOCKS, InetSocketAddress(server, port))
+        val client = OkHttpClient.Builder()
+            .proxy(proxy)
+            .addInterceptor { chain ->
+                val request = chain.request().newBuilder()
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                    .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+                    .header("Accept-Language", "fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3")
+                    .header("Referer", "https://www.google.com/")
+                    .header("Cookie", "ageConfirmed=true")
+                    .build()
+                chain.proceed(request)
             }
+            .build()
+
+//        val retrofit = Retrofit.Builder()
+//            .baseUrl("https://ipinfo.io/json/") // ← ta nouvelle base (doit se terminer par '/')
+//            .client(client)
+//            .build()
+        val retrofit = Retrofit.Builder()
+            .baseUrl("https://www.hotmovies.com/") // ← ta nouvelle base (doit se terminer par '/')
+            .client(client)
+            .build()
+        val api = retrofit.create(MoviesApi::class.java)
+        val responseBody = try {
+            api.fetchPage(title = "cheeky+and+welcoming")
+        }catch (e: HttpException) {
+            if (e.code() == 403) {
+                println("Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
+                ResponseBody.create(null, "")
+            } else {
+                println("Erreur HTTP : ${e.code()}")
+                ResponseBody.create(null, "")
+            }
+        } catch (e: Exception) {
+            println("Erreur réseau : ${e.message}")
+            ResponseBody.create(null, "")
         }
 
-        val textResp0 = client.get("https://ipinfo.io/json")  // Test IP d'abord
-        println("KTOR IP via Nord SOCKS5: ${textResp0.bodyAsText().replace("\n", "")}")
+        val html = responseBody.string()
+        println("KTOR html=$html")
 
-        // Texte
-        val textResp: HttpResponse = client.get("https://stackoverflow.com/questions/71980361/how-to-get-a-image-png-with-ktor-client-get-request")
-        val text = textResp.bodyAsText()
-        println("KTOR text: $text")
+        ///////////////////////////////////////////////////////////////////////////
+        val responseBody2 = try {
+            api.fetchPage2()
+        }catch (e: HttpException) {
+            if (e.code() == 403) {
+                println("Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
+                ResponseBody.create(null, "")
+            } else {
+                println("Erreur HTTP : ${e.code()}")
+                ResponseBody.create(null, "")
+            }
+        } catch (e: Exception) {
+            println("Erreur réseau : ${e.message}")
+            ResponseBody.create(null, "")
+        }
 
-        // Image (faible, bytes)
-        val imageBytes: ByteArray =
-            client.get("https://www.lacremedugaming.fr/wp-content/uploads/creme-gaming/2025/12/fallout-saison-2-date-et-heure-de-sortie-episode-4.jpg")
-                .readBytes()
-        val picture = imageBytes.toBitmap()
-        println("KTOR image: ${imageBytes.toString()}")
+        val html2 = responseBody2.string()
+        println("KTOR html=$html2")
 
-        client.close()
+
+//        val textResp0 = client.get("https://ipinfo.io/json")  // Test IP d'abord
+//        println("KTOR IP via Nord SOCKS5: ${textResp0.bodyAsText().replace("\n", "")}")
+//
+//        // Texte
+//        val textResp: HttpResponse = client.get("https://stackoverflow.com/questions/71980361/how-to-get-a-image-png-with-ktor-client-get-request")
+//        val text = textResp.bodyAsText()
+//        println("KTOR text: $text")
+//
+//        // Image (faible, bytes)
+//        val imageBytes: ByteArray =
+//            client.get("https://www.lacremedugaming.fr/wp-content/uploads/creme-gaming/2025/12/fallout-saison-2-date-et-heure-de-sortie-episode-4.jpg")
+//                .readBytes()
+//        val picture = imageBytes.toBitmap()
+//        println("KTOR image: ${imageBytes.toString()}")
+
+        //IMPORTANT
+//        client.close()
     }
 }
 
