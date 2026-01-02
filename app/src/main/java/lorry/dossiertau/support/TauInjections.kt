@@ -73,7 +73,7 @@ val TauInjections = module {
     single { WebScrappingRepo() }
     single { Links(get(), get(), get(), get()) }
 
-    single<TauViewModel>(named("real")) { TauViewModel(get(), get()) }
+    single<TauViewModel>(named("real")) { TauViewModel(get(), get(), get()) }
     single<TauViewModel> { get(named("real")) }
 
 

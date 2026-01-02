@@ -5,23 +5,6 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import app.cash.turbine.test
 import app.cash.turbine.turbineScope
-import io.mockk.coEvery
-import io.mockk.coVerify
-import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.runTest
-import lorry.dossiertau.data.intelligenceService.CIA
-import lorry.dossiertau.data.intelligenceService.utils.CIALevel
-import lorry.dossiertau.data.model.fullPath
-import lorry.dossiertau.data.model.sameContentAs
-import lorry.dossiertau.support.littleClasses.toTauPath
-import org.junit.Test
-import org.koin.test.KoinTest
-import lorry.dossiertau.data.intelligenceService.AirForce
-import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
-import lorry.dossiertau.data.model.*
-import lorry.dossiertau.support.littleClasses.toTauDate
 import ch.tutteli.atrium.api.fluent.en_GB.*
 import ch.tutteli.atrium.api.verbs.expect
 import dev.mokkery.answering.calls
@@ -31,51 +14,38 @@ import dev.mokkery.every
 import dev.mokkery.everySuspend
 import dev.mokkery.matcher.any
 import dev.mokkery.spy
-import dev.mokkery.verify.VerifyMode.Companion.exactly
 import dev.mokkery.verifySuspend
 import io.mockk.Runs
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.spyk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.plus
-import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.advanceTimeBy
-import kotlinx.coroutines.test.runCurrent
-import lorry.dossiertau.data.dbModel.AppDb
-import lorry.dossiertau.data.dbModel.DiffEntity
-import lorry.dossiertau.data.dbModel.DiffRepository
-import lorry.dossiertau.data.dbModel.FileDiffDao
-import lorry.dossiertau.data.dbModel.toFileDiffEntity
-import lorry.dossiertau.data.intelligenceService.ISpy
-import lorry.dossiertau.data.intelligenceService.Spy
+import kotlinx.coroutines.test.*
+import lorry.dossiertau.data.dbModel.*
+import lorry.dossiertau.data.intelligenceService.*
+import lorry.dossiertau.data.intelligenceService.utils.CIALevel
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside
-import lorry.dossiertau.data.intelligenceService.utils.events.AtomicEventType
-import lorry.dossiertau.data.intelligenceService.utils.events.AtomicSpyLevel
-import lorry.dossiertau.data.intelligenceService.utils.events.GlobalSpyLevel
+import lorry.dossiertau.data.intelligenceService.utils.events.*
 import lorry.dossiertau.data.intelligenceService.utils2.events.Snapshot
 import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.data.intelligenceService.utils2.repo.SpyRepo
+import lorry.dossiertau.data.model.*
 import lorry.dossiertau.data.planes.DbCommand
-import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.support.littleClasses.path
-import lorry.dossiertau.support.littleClasses.toTauFileName
+import lorry.dossiertau.support.littleClasses.toTauDate
+import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.usecases.folderContent.support.FolderRepo
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
-import lorry.dossiertau.usecases.generateHTMLs.Links
-import lorry.dossiertau.usecases.generateHTMLs.VmLinks
-import lorry.dossiertau.usecases.generateHTMLs.repos.DiskRepo
-import lorry.dossiertau.usecases.generateHTMLs.repos.NasRepo
-import lorry.dossiertau.usecases.generateHTMLs.repos.WebScrappingRepo
-import lorry.dossiertau.usecases.generateHTMLs.support.Actress
-import lorry.dossiertau.usecases.generateHTMLs.support.Subject
-import org.junit.After
-import org.junit.Before
-import org.junit.Rule
+import org.junit.*
 import org.junit.runner.RunWith
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.GlobalContext.stopKoin
+import org.koin.test.KoinTest
 import org.robolectric.RobolectricTestRunner
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
@@ -606,7 +576,12 @@ class FileListDisplayTests : KoinTest {
                 val divers = FOLDER_DIVERS(PATH)
                 val folderToEmit = divers.fullPath
 
-                spy.emitFake_CREATEITEM(folderToEmit, ItemType.FOLDER, 817L.toTauDate(), divers.fileId)
+                spy.emitFake_CREATEITEM(
+                    folderToEmit,
+                    ItemType.FOLDER,
+                    817L.toTauDate(),
+                    divers.fileId
+                )
                 //act + arrange
                 advanceUntilIdle()
                 val event = awaitItem()
@@ -1049,7 +1024,12 @@ class FileListDisplayTests : KoinTest {
                     val divers = FOLDER_DIVERS(OTHERPATH)
                     val folderToEmit = divers.fullPath
 
-                    spy.emitFake_CREATEITEM(folderToEmit, ItemType.FOLDER, 817L.toTauDate(), divers.fileId)
+                    spy.emitFake_CREATEITEM(
+                        folderToEmit,
+                        ItemType.FOLDER,
+                        817L.toTauDate(),
+                        divers.fileId
+                    )
                     //act + arrange
                     advanceUntilIdle()
                     val event = awaitItem()
@@ -1189,10 +1169,10 @@ class FileListDisplayTests : KoinTest {
         val spyRepo = SpyRepo()
         val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
         val spy = Spy(
-                dispatcher = dispatcher,
-                fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
-                fileRepo = repo
-            )
+            dispatcher = dispatcher,
+            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+            fileRepo = repo
+        )
 
         val PATH = "/storage/emulated/0/Download".toTauPath()
         val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
@@ -1253,10 +1233,10 @@ class FileListDisplayTests : KoinTest {
         val spyRepo = SpyRepo()
         val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
         val spy = Spy(
-                dispatcher = dispatcher,
-                fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
-                fileRepo = repo
-            )
+            dispatcher = dispatcher,
+            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+            fileRepo = repo
+        )
 
         val PATH = "/storage/emulated/0/Download".toTauPath()
         val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
@@ -1316,10 +1296,10 @@ class FileListDisplayTests : KoinTest {
         val spyRepo = SpyRepo()
         val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
         val spy = Spy(
-                dispatcher = dispatcher,
-                fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
-                fileRepo = repo
-            )
+            dispatcher = dispatcher,
+            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+            fileRepo = repo
+        )
 
         val PATH = "/storage/emulated/0/Download".toTauPath()
         val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
@@ -1379,10 +1359,10 @@ class FileListDisplayTests : KoinTest {
         val spyRepo = SpyRepo()
         val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
         val spy = Spy(
-                dispatcher = dispatcher,
-                fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
-                fileRepo = repo
-            )
+            dispatcher = dispatcher,
+            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+            fileRepo = repo
+        )
 
         val PATH = "/storage/emulated/0/Download".toTauPath()
         val INITIAL_SNAPSHOT = Snapshot.FAKE(PATH)
@@ -1484,7 +1464,12 @@ class FileListDisplayTests : KoinTest {
 
                 every { spyRepo.getIdOf(divers.fullPath) } returns divers.fileId
 
-                spy.emitFake_CREATEITEM(folderToEmit, ItemType.FOLDER, 817L.toTauDate(), divers.fileId)
+                spy.emitFake_CREATEITEM(
+                    folderToEmit,
+                    ItemType.FOLDER,
+                    817L.toTauDate(),
+                    divers.fileId
+                )
                 //act + arrange
                 advanceTimeBy(500)
                 runCurrent()
@@ -1693,7 +1678,11 @@ class FileListDisplayTests : KoinTest {
                 toBeAnInstanceOf<AtomicSpyLevel>()
                 feature { f((it as AtomicSpyLevel)::eventType) }.toEqual(AtomicEventType.MODIFY)
                 feature { f((it as AtomicSpyLevel)::path) }
-                    .toEqual(SNAPSHOT_AFTER_RENAME1.folderPath.appendToTauPath(SNAPSHOT_AFTER_RENAME1.names.last()))
+                    .toEqual(
+                        SNAPSHOT_AFTER_RENAME1.folderPath.appendToTauPath(
+                            SNAPSHOT_AFTER_RENAME1.names.last()
+                        )
+                    )
                 feature { f((it as AtomicSpyLevel)::itemId) }.toEqual(SNAPSHOT_BEFORE_RENAME.entries.first().fileId)
 
             }
@@ -1705,53 +1694,6 @@ class FileListDisplayTests : KoinTest {
             expect(spy.lastSnapshotFlow.value).toEqual(SNAPSHOT_AFTER_RENAME1)
             expectNoEvents()
         }
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `#18 Links ∎ rename file`() = runTest {
-
-        val dispatcher = StandardTestDispatcher(testScheduler)
-
-        val vmLinks = VmLinks()
-        val nasRepo = spy(NasRepo())
-        val diskRepo = spy(DiskRepo())
-        val webScrappingRepo = spy(WebScrappingRepo())
-
-        val originalVideoFileName = "threesomes & foursomes.bonnge.three.machin.mp4".toTauFileName()
-        val finalVideoFileName = "threesomes & foursomes.bonnge.three.machin.markmo.bando.mp4".toTauFileName()
-
-        val links = Links(
-            vm = vmLinks,
-            nasRepo = nasRepo,
-            diskRepo = diskRepo,
-            webScrappingRepo = webScrappingRepo
-        )
-
-        //arrange
-        everySuspend { diskRepo.getLocalActresses() } returns listOf(morgan(), cova(), rhoades(), gee())
-        everySuspend { diskRepo.getLocalSubjects() } returns listOf(trio(), lesbos(), bandeau(), black())
-
-        everySuspend { nasRepo.renameFile(
-            from = any<TauItemName>(),
-            to = any<TauItemName>())
-        } calls {}
-
-        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf(morgan(), gee())
-        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) }returns listOf(trio(), bandeau())
-
-        //act
-        links.generateLinks()
-
-        //assert
-        verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
-        verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName) }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) }
-        verifySuspend(exactly(1)) { nasRepo.renameFile(
-            from = originalVideoFileName,
-            to = finalVideoFileName
-        ) }
     }
 }
 

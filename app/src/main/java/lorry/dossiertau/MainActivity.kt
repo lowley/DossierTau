@@ -143,7 +143,7 @@ class MainActivity : ComponentActivity() {
     fun MainPage(
         modifier: Modifier = Modifier,
         setCurrentFolder: (TauPath) -> Unit,
-        ) {
+    ) {
 
         //faire dans le ViewModel plusieurs State
         //chacun comportant plusieurs valeurs & fonctions fonctionnellement groupées
@@ -184,8 +184,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
-            }
-            else {
+            } else {
                 Text(
                     modifier = Modifier
                         .align(Alignment.Center),
@@ -233,7 +232,9 @@ class MainActivity : ComponentActivity() {
             Button(
                 modifier = Modifier,
                 content = { Text(text = "make HTML") },
-                onClick = { links.generateLinks() },
+                onClick = {
+                    viewModel.onMakeHTML()
+                },
             )
         }
     }
@@ -272,6 +273,7 @@ fun currentFolderPathText(
 
                 result
             }
+
             is None -> "<aucun chemin sélectionné>"
         },
         onValueChange = {

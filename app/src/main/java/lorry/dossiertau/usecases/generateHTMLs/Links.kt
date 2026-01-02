@@ -3,7 +3,12 @@ package lorry.dossiertau.usecases.generateHTMLs
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import kotlinx.coroutines.*
+import lorry.dossiertau.support.littleClasses.TauItemName
+import lorry.dossiertau.support.littleClasses.toTauFileName
 import lorry.dossiertau.usecases.generateHTMLs.repos.DiskRepo
+import lorry.dossiertau.usecases.generateHTMLs.repos.IDiskRepo
+import lorry.dossiertau.usecases.generateHTMLs.repos.INasRepo
+import lorry.dossiertau.usecases.generateHTMLs.repos.IWebScrappingRepo
 import lorry.dossiertau.usecases.generateHTMLs.repos.NasRepo
 import lorry.dossiertau.usecases.generateHTMLs.support.MoviesApi
 import lorry.dossiertau.usecases.generateHTMLs.repos.WebScrappingRepo
@@ -16,23 +21,66 @@ import java.net.*
 
 class Links(
     val vm: VmLinks,
-    val nasRepo: NasRepo,
-    val diskRepo: DiskRepo,
-    val webScrappingRepo: WebScrappingRepo
+    val nasRepo: INasRepo,
+    val diskRepo: IDiskRepo,
+    val webScrappingRepo: IWebScrappingRepo
 ) {
     val login = "Pvc7NXwy6y7r33YurTuDoZ89"
     val password = "gKVRhVNy7gfjejv6qbrTVX4R"
-//    val server = "brussels.be.socks.nordhold.net"
+
+    //    val server = "brussels.be.socks.nordhold.net"
     val server = "se.socks.nordhold.net"
-//    val server = "nl.socks.nordhold.net"
+
+    //    val server = "nl.socks.nordhold.net"
     val port = 1080
 
     val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    fun generateLinks() {
-        scope.launch(Dispatchers.IO) {
-            fetchViaNordVPN()
+    suspend fun generateLinks() {
+
+        val fileFullPaths = nasRepo.getVideoPaths()
+        val toRename = mutableMapOf<TauItemName, TauItemName>()
+
+        (1..fileFullPaths.size).onEach {
+
+            val videoPath = fileFullPaths[it - 1]
+            val videoShortcuts = videoPath.value.split(".")
+
+            val localActresses = diskRepo.getLocalActresses()
+            val localSubjects = diskRepo.getLocalSubjects()
+
+            val movieActresses = webScrappingRepo.getMovieActresses(name = videoPath)
+            val movieSubjects = webScrappingRepo.getMovieSubjects(name = videoPath)
+
+            movieActresses.onEach { actress ->
+
+                //utilise [[égalité des Actress]]
+                if (actress in localActresses){
+
+                    //l'actrice n'est pas dans les shortcuts de la video
+                    if (actress.shortcuts.none { shortcut ->
+                        shortcut in videoShortcuts
+                    }){
+                        //on prend en compte anciens renommage le cas échéant
+                        val newVideoPath = (toRename[videoPath]?.value?.split(".") ?: videoShortcuts)
+                            .dropLast(1)
+                            .plus(actress.shortcuts.first())
+                            .plus(videoShortcuts.last())
+                            .joinToString(".")
+
+                        toRename.put(videoPath, newVideoPath.toTauFileName())
+                    }
+                }
+            }
+
+            toRename.onEach { fileToRename ->
+                nasRepo.renameFile(fileToRename.key, fileToRename.value)
+            }
         }
+
+//        scope.launch(Dispatchers.IO) {
+//            fetchViaNordVPN()
+//        }
     }
 
     suspend fun fetchViaNordVPN() {
@@ -59,8 +107,14 @@ class Links(
             .proxy(proxy)
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
-                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                    .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+                    .header(
+                        "User-Agent",
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                    )
+                    .header(
+                        "Accept",
+                        "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
+                    )
                     .header("Accept-Language", "fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3")
                     .header("Referer", "https://www.google.com/")
                     .header("Cookie", "ageConfirmed=true")
@@ -80,7 +134,7 @@ class Links(
         val api = retrofit.create(MoviesApi::class.java)
         val responseBody = try {
             api.fetchPage(title = "cheeky+and+welcoming")
-        }catch (e: HttpException) {
+        } catch (e: HttpException) {
             if (e.code() == 403) {
                 println("Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
                 ResponseBody.create(null, "")
@@ -99,7 +153,7 @@ class Links(
         ///////////////////////////////////////////////////////////////////////////
         val responseBody2 = try {
             api.fetchPage2()
-        }catch (e: HttpException) {
+        } catch (e: HttpException) {
             if (e.code() == 403) {
                 println("Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
                 ResponseBody.create(null, "")

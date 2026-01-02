@@ -3,15 +3,15 @@ package lorry.dossiertau.usecases.generateHTMLs.repos
 import lorry.dossiertau.usecases.generateHTMLs.support.Actress
 import lorry.dossiertau.usecases.generateHTMLs.support.Subject
 
-class DiskRepo {
+class DiskRepo: IDiskRepo {
 
-    fun getLocalActresses(): List<Actress>{
+    override suspend fun getLocalActresses(): List<Actress>{
         return emptyList()
 
 
     }
 
-    fun getLocalSubjects(): List<Subject>{
+    override suspend fun getLocalSubjects(): List<Subject>{
         return emptyList()
 
 
