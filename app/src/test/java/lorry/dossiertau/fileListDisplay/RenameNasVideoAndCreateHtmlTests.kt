@@ -27,13 +27,13 @@ import org.robolectric.RobolectricTestRunner
 
 
 @RunWith(RobolectricTestRunner::class)
-class RenameNasVideoAndCreateHtmlTests: KoinTest {
+class RenameNasVideoAndCreateHtmlTests : KoinTest {
 
-        @get:Rule
-        val mainDispatcherRule = MainDispatcherRule()
+    @get:Rule
+    val mainDispatcherRule = MainDispatcherRule()
 
-        var db: AppDb? = null
-        var dbDao: FileDiffDao? = null
+    var db: AppDb? = null
+    var dbDao: FileDiffDao? = null
 
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -94,7 +94,7 @@ class RenameNasVideoAndCreateHtmlTests: KoinTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun `#18 Links ∎ rename file #2 ∎ one actress`() = runTest {
+    fun `#19 Links ∎ rename file #2 ∎ one actress`() = runTest {
 
         val dispatcher = StandardTestDispatcher(testScheduler)
 
@@ -161,7 +161,7 @@ class RenameNasVideoAndCreateHtmlTests: KoinTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun `#19 Links ∎ rename file #3 ∎ 2 actresses`() = runTest {
+    fun `#20 Links ∎ rename file #3 ∎ 2 actresses`() = runTest {
 
         val dispatcher = StandardTestDispatcher(testScheduler)
 
@@ -170,7 +170,8 @@ class RenameNasVideoAndCreateHtmlTests: KoinTest {
         val diskRepo = mock<IDiskRepo>()
         val webScrappingRepo = mock<IWebScrappingRepo>()
 
-        val originalVideoFileName = "threesomes & foursomes.bonnge.three.machin.markmo.mp4".toTauFileName()
+        val originalVideoFileName =
+            "threesomes & foursomes.bonnge.three.machin.markmo.mp4".toTauFileName()
         val finalVideoFileName =
             "threesomes & foursomes.bonnge.three.machin.markmo.janaco.lanarh.mp4".toTauFileName()
 
@@ -229,7 +230,7 @@ class RenameNasVideoAndCreateHtmlTests: KoinTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun `#20 Links ∎ rename file #4 ∎ 2 actresses whom 1 exists`() = runTest {
+    fun `#21 Links ∎ rename file #4 ∎ 2 actresses whom 1 exists`() = runTest {
 
         val dispatcher = StandardTestDispatcher(testScheduler)
 
@@ -238,7 +239,8 @@ class RenameNasVideoAndCreateHtmlTests: KoinTest {
         val diskRepo = mock<IDiskRepo>()
         val webScrappingRepo = mock<IWebScrappingRepo>()
 
-        val originalVideoFileName = "threesomes & foursomes.bonnge.three.machin.markmo.mp4".toTauFileName()
+        val originalVideoFileName =
+            "threesomes & foursomes.bonnge.three.machin.markmo.mp4".toTauFileName()
         val finalVideoFileName =
             "threesomes & foursomes.bonnge.three.machin.markmo.lanarh.mp4".toTauFileName()
 
@@ -295,6 +297,73 @@ class RenameNasVideoAndCreateHtmlTests: KoinTest {
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `#22 Links ∎ rename file #5 ∎ 1 subject`() = runTest {
+
+        val dispatcher = StandardTestDispatcher(testScheduler)
+
+        val vmLinks = VmLinks()
+        val nasRepo = mock<INasRepo>()
+        val diskRepo = mock<IDiskRepo>()
+        val webScrappingRepo = mock<IWebScrappingRepo>()
+
+        val originalVideoFileName =
+            "threesomes & foursomes.bonnge.three.machin.markmo.mp4".toTauFileName()
+        val finalVideoFileName =
+            "threesomes & foursomes.bonnge.three.machin.markmo.trio.mp4".toTauFileName()
+
+        val links = Links(
+            vm = vmLinks,
+            nasRepo = nasRepo,
+            diskRepo = diskRepo,
+            webScrappingRepo = webScrappingRepo
+        )
+
+        //arrange
+        everySuspend { diskRepo.getLocalActresses() } returns listOf(
+            morgan(),
+            cova(),
+            rhoades(),
+            gee()
+        )
+        everySuspend { diskRepo.getLocalSubjects() } returns listOf(
+            trio(),
+            lesbos(),
+            bandeau(),
+            black()
+        )
+
+        everySuspend { nasRepo.getVideoPaths() } returns listOf(originalVideoFileName)
+
+        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf()
+        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf(
+            trio()
+        )
+
+        everySuspend {
+            nasRepo.renameFile(
+                from = any<TauItemName>(),
+                to = any<TauItemName>()
+            )
+        } calls {}
+
+        //act
+        links.generateLinks()
+
+        //assert
+        verifySuspend(exactly(1)) { nasRepo.getVideoPaths() }
+        verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
+        verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
+        verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName) }
+        verifySuspend(exactly(1)) { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) }
+        verifySuspend(exactly(1)) {
+            nasRepo.renameFile(
+                from = originalVideoFileName,
+                to = finalVideoFileName
+            )
+        }
+    }
 
 
 }

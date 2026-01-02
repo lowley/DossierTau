@@ -12,12 +12,15 @@ import lorry.dossiertau.usecases.generateHTMLs.repos.IWebScrappingRepo
 import lorry.dossiertau.usecases.generateHTMLs.repos.NasRepo
 import lorry.dossiertau.usecases.generateHTMLs.support.MoviesApi
 import lorry.dossiertau.usecases.generateHTMLs.repos.WebScrappingRepo
+import lorry.dossiertau.usecases.generateHTMLs.support.Actress
 import okhttp3.OkHttpClient
 import okhttp3.ResponseBody
 import retrofit2.HttpException
 import retrofit2.Retrofit
 import java.io.ByteArrayOutputStream
 import java.net.*
+import kotlin.collections.joinToString
+import kotlin.collections.plus
 
 class Links(
     val vm: VmLinks,
@@ -39,12 +42,10 @@ class Links(
     suspend fun generateLinks() {
 
         val fileFullPaths = nasRepo.getVideoPaths()
-        val toRename = mutableMapOf<TauItemName, TauItemName>()
 
         (1..fileFullPaths.size).onEach {
 
             val videoPath = fileFullPaths[it - 1]
-            val videoShortcuts = videoPath.value.split(".")
 
             val localActresses = diskRepo.getLocalActresses()
             val localSubjects = diskRepo.getLocalSubjects()
@@ -52,35 +53,51 @@ class Links(
             val movieActresses = webScrappingRepo.getMovieActresses(name = videoPath)
             val movieSubjects = webScrappingRepo.getMovieSubjects(name = videoPath)
 
-            movieActresses.onEach { actress ->
-
-                //utilise [[égalité des Actress]]
-                if (actress in localActresses){
-
-                    //l'actrice n'est pas dans les shortcuts de la video
-                    if (actress.shortcuts.none { shortcut ->
-                        shortcut in videoShortcuts
-                    }){
-                        //on prend en compte anciens renommage le cas échéant
-                        val newVideoPath = (toRename[videoPath]?.value?.split(".") ?: videoShortcuts)
-                            .dropLast(1)
-                            .plus(actress.shortcuts.first())
-                            .plus(videoShortcuts.last())
-                            .joinToString(".")
-
-                        toRename.put(videoPath, newVideoPath.toTauFileName())
-                    }
-                }
-            }
-
-            toRename.onEach { fileToRename ->
-                nasRepo.renameFile(fileToRename.key, fileToRename.value)
-            }
+            renameFileWithActresses(
+                videoPath = videoPath,
+                localActresses = localActresses,
+                movieActresses = movieActresses
+            )
         }
 
 //        scope.launch(Dispatchers.IO) {
 //            fetchViaNordVPN()
 //        }
+    }
+
+    private suspend fun renameFileWithActresses(
+        videoPath: TauItemName,
+        localActresses: List<Actress>,
+        movieActresses: List<Actress>
+    ) {
+        val videoShortcuts = videoPath.value.split(".")
+
+        val toRename = mutableMapOf<TauItemName, TauItemName>()
+        movieActresses.onEach { actress ->
+
+            //utilise [[égalité des Actress]]
+            if (actress in localActresses){
+                val shortcutsToUse = toRename[videoPath]?.value?.split(".") ?: videoShortcuts
+
+                //l'actrice n'est pas dans les shortcuts de la video
+                if (actress.shortcuts.none { shortcut ->
+                        shortcut in (shortcutsToUse)
+                    }){
+                    //on prend en compte anciens renommage le cas échéant
+                    val newVideoPath = shortcutsToUse
+                        .dropLast(1)
+                        .plus(actress.shortcuts.first())
+                        .plus(videoShortcuts.last())
+                        .joinToString(".")
+
+                    toRename.put(videoPath, newVideoPath.toTauFileName())
+                }
+            }
+        }
+
+        toRename.onEach { fileToRename ->
+            nasRepo.renameFile(fileToRename.key, fileToRename.value)
+        }
     }
 
     suspend fun fetchViaNordVPN() {
