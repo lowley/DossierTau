@@ -218,15 +218,15 @@ val FileListDisplayTests.SNAPSHOT_AFTER_RENAME1: Snapshot
 //        )
 //    )
 
-fun RenameNasVideoAndCreateHtmlTests.morgan() = Actress(name = "marketa morgan", shortcuts = listOf("markmo"))
-fun RenameNasVideoAndCreateHtmlTests.cova() = Actress(name = "jana cova", shortcuts = listOf("janaco"))
-fun RenameNasVideoAndCreateHtmlTests.rhoades() = Actress(name = "lana rhoades", shortcuts = listOf("lanarh"))
-fun RenameNasVideoAndCreateHtmlTests.gee() = Actress(name = "bonni gee", shortcuts = listOf("bonnge"))
+fun createHTMLTest.morgan() = Actress(name = "marketa morgan", shortcuts = listOf("markmo"))
+fun createHTMLTest.cova() = Actress(name = "jana cova", shortcuts = listOf("janaco"))
+fun createHTMLTest.rhoades() = Actress(name = "lana rhoades", shortcuts = listOf("lanarh"))
+fun createHTMLTest.gee() = Actress(name = "bonni gee", shortcuts = listOf("bonnge"))
 
-fun RenameNasVideoAndCreateHtmlTests.trio() = Subject(name = "triolisme", shortcuts = listOf("trio", "three", "trios"))
-fun RenameNasVideoAndCreateHtmlTests.lesbos() = Subject(name = "lesbiennes", shortcuts = listOf("lesbos","sapho", "sappho", "lesbian", "lesbians"))
-fun RenameNasVideoAndCreateHtmlTests.bandeau() = Subject(name = "bandeau", shortcuts = listOf("bando"))
-fun RenameNasVideoAndCreateHtmlTests.black() = Subject(name = "black", shortcuts = listOf("black", "blacks"))
+fun createHTMLTest.trio() = Subject(name = "triolisme", shortcuts = listOf("trio", "three", "trios"))
+fun createHTMLTest.lesbos() = Subject(name = "lesbiennes", shortcuts = listOf("lesbos","sapho", "sappho", "lesbian", "lesbians"))
+fun createHTMLTest.bandeau() = Subject(name = "bandeau", shortcuts = listOf("bando"))
+fun createHTMLTest.black() = Subject(name = "black", shortcuts = listOf("black", "blacks"))
 
 
 class MainDispatcherRule(

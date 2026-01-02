@@ -5,14 +5,11 @@ import android.graphics.BitmapFactory
 import kotlinx.coroutines.*
 import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.support.littleClasses.toTauFileName
-import lorry.dossiertau.usecases.generateHTMLs.repos.DiskRepo
 import lorry.dossiertau.usecases.generateHTMLs.repos.IDiskRepo
 import lorry.dossiertau.usecases.generateHTMLs.repos.INasRepo
 import lorry.dossiertau.usecases.generateHTMLs.repos.IWebScrappingRepo
-import lorry.dossiertau.usecases.generateHTMLs.repos.NasRepo
 import lorry.dossiertau.usecases.generateHTMLs.support.MoviesApi
-import lorry.dossiertau.usecases.generateHTMLs.repos.WebScrappingRepo
-import lorry.dossiertau.usecases.generateHTMLs.support.Actress
+import lorry.dossiertau.usecases.generateHTMLs.support.Stuff
 import okhttp3.OkHttpClient
 import okhttp3.ResponseBody
 import retrofit2.HttpException
@@ -53,11 +50,20 @@ class Links(
             val movieActresses = webScrappingRepo.getMovieActresses(name = videoPath)
             val movieSubjects = webScrappingRepo.getMovieSubjects(name = videoPath)
 
-            renameFileWithActresses(
+            var toRename = renameFileWithStuff(
                 videoPath = videoPath,
-                localActresses = localActresses,
-                movieActresses = movieActresses
+                localStuffes = localActresses,
+                movieStuffes = movieActresses,
             )
+
+            toRename = renameFileWithStuff(
+                videoPath = toRename,
+                localStuffes = localSubjects,
+                movieStuffes = movieSubjects,
+            )
+
+            if (toRename != videoPath)
+                nasRepo.renameFile(videoPath, toRename)
         }
 
 //        scope.launch(Dispatchers.IO) {
@@ -65,39 +71,36 @@ class Links(
 //        }
     }
 
-    private suspend fun renameFileWithActresses(
+    private fun renameFileWithStuff(
         videoPath: TauItemName,
-        localActresses: List<Actress>,
-        movieActresses: List<Actress>
-    ) {
-        val videoShortcuts = videoPath.value.split(".")
+        localStuffes: List<Stuff>,
+        movieStuffes: List<Stuff>,
+    ): TauItemName {
 
-        val toRename = mutableMapOf<TauItemName, TauItemName>()
-        movieActresses.onEach { actress ->
+        var result: TauItemName = videoPath
+        movieStuffes.onEach { movieStuff ->
+
+            val videoShortcuts = result.value.split(".")
 
             //utilise [[égalité des Actress]]
-            if (actress in localActresses){
-                val shortcutsToUse = toRename[videoPath]?.value?.split(".") ?: videoShortcuts
-
+            if (movieStuff in localStuffes) {
                 //l'actrice n'est pas dans les shortcuts de la video
-                if (actress.shortcuts.none { shortcut ->
-                        shortcut in (shortcutsToUse)
-                    }){
+                if (movieStuff.shortcuts.none { shortcut ->
+                        shortcut in videoShortcuts }) {
+
                     //on prend en compte anciens renommage le cas échéant
-                    val newVideoPath = shortcutsToUse
+                    val newVideoPath = videoShortcuts
                         .dropLast(1)
-                        .plus(actress.shortcuts.first())
+                        .plus(movieStuff.shortcuts.first())
                         .plus(videoShortcuts.last())
                         .joinToString(".")
 
-                    toRename.put(videoPath, newVideoPath.toTauFileName())
+                    result = newVideoPath.toTauFileName()
                 }
             }
         }
 
-        toRename.onEach { fileToRename ->
-            nasRepo.renameFile(fileToRename.key, fileToRename.value)
-        }
+        return result
     }
 
     suspend fun fetchViaNordVPN() {

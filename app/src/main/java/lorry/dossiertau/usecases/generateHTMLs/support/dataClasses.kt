@@ -1,9 +1,16 @@
 package lorry.dossiertau.usecases.generateHTMLs.support
 
-data class Actress(
-    val name: String,
+interface Stuff{
+    val name: String
     val shortcuts: List<String>
-){
+}
+
+
+data class Actress(
+    override val name: String,
+    override val shortcuts: List<String>
+): Stuff{
+
     //#[[égalité des Actress]]
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -20,9 +27,10 @@ data class Actress(
 }
 
 data class Subject(
-    val name: String,
-    val shortcuts: List<String>
-){
+    override val name: String,
+    override val shortcuts: List<String>
+): Stuff{
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
