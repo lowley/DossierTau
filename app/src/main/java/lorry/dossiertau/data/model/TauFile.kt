@@ -2,15 +2,12 @@ package lorry.dossiertau.data.model
 
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
-import lorry.dossiertau.data.model.TauFolder.Data
 import lorry.dossiertau.data.planes.DbItem
 import lorry.dossiertau.support.littleClasses.TauDate
-import lorry.dossiertau.support.littleClasses.TauExtension
 import lorry.dossiertau.support.littleClasses.TauIdentifier
 import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
-import lorry.dossiertau.support.littleClasses.extension
 import lorry.dossiertau.support.littleClasses.path
 import kotlin.Long
 
@@ -48,7 +45,7 @@ sealed class TauFile private constructor() : TauItem {
     }
 
     companion object {
-        operator fun invoke(
+        fun of(
             id: TauIdentifier = TauIdentifier.random(),
             fullPath: TauPath,
             picture: TauPicture = TauPicture.NONE,
@@ -65,7 +62,7 @@ sealed class TauFile private constructor() : TauItem {
             fileId = fileId
         )
 
-        operator fun invoke(
+        fun of(
             id: TauIdentifier = TauIdentifier.random(),
             parentPath: TauPath,
             name: TauItemName,

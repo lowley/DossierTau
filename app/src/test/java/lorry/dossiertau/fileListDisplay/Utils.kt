@@ -127,7 +127,7 @@ fun FileListDisplayTests.setAsInjectors(
     }
 }
 
-fun FileListDisplayTests.FILE_TOTO(parentPath: TauPath) = TauFile(
+fun FileListDisplayTests.FILE_TOTO(parentPath: TauPath) = TauFile.of(
     parentPath = parentPath,
     name = TauItemName("toto.mp4"),
     modificationDate = TauDate.fromLong(825),

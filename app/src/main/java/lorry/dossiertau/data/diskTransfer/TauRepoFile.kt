@@ -25,7 +25,7 @@ data class TauRepoFile(
 }
 
 fun TauRepoFile.toTauFile(): TauFile{
-    return TauFile(
+    return TauFile.of(
         id = this.id,
         parentPath = this.parentPath,
         name = this.name,

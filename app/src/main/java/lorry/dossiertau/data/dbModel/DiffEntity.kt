@@ -106,7 +106,7 @@ fun DiffEntity.toTauItem(): TauItem {
         OpType.ModifyItem.text -> {
             when (this.item_type) {
                 ItemType.FILE.name ->
-                    TauFile(
+                    TauFile.of(
                         id = if (this.correlationId != null) this.correlationId.toTauIdentifier()
                         else Uuid.random().toTauIdentifier(),
                         fullPath = this.full_path.toTauPath(),
