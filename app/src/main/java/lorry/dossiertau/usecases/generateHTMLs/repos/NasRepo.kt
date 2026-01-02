@@ -1,18 +1,22 @@
 package lorry.dossiertau.usecases.generateHTMLs.repos
 
+import data.ftp.FtpDS
+import lorry.dossiertau.data.model.name
 import lorry.dossiertau.support.littleClasses.TauItemName
+import lorry.dossiertau.support.littleClasses.toTauPath
 
-class NasRepo: INasRepo {
+class NasRepo(
+    val ftpDS: FtpDS
+): INasRepo {
+
+    val rootPath = "".toTauPath()
 
     override suspend fun renameFile(from: TauItemName, to: TauItemName){
-
-
-
+        ftpDS.rename(from, to, rootPath)
     }
 
-    override fun getVideoPaths(): List<TauItemName> {
-        return emptyList()
+    override suspend fun getVideoNames(): List<TauItemName> {
+        val result = ftpDS.fetchVideoFiles(rootPath)?.map { it.name } ?: emptyList()
+        return result
     }
-
-
 }

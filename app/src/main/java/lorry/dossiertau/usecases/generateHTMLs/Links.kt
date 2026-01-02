@@ -38,32 +38,31 @@ class Links(
 
     suspend fun generateLinks() {
 
-        val fileFullPaths = nasRepo.getVideoPaths()
+        val fileNames = nasRepo.getVideoNames()
+        (1..fileNames.size).onEach {
 
-        (1..fileFullPaths.size).onEach {
-
-            val videoPath = fileFullPaths[it - 1]
+            val videoName = fileNames[it - 1]
 
             val localActresses = diskRepo.getLocalActresses()
             val localSubjects = diskRepo.getLocalSubjects()
 
-            val movieActresses = webScrappingRepo.getMovieActresses(name = videoPath)
-            val movieSubjects = webScrappingRepo.getMovieSubjects(name = videoPath)
+            val movieActresses = webScrappingRepo.getMovieActresses(name = videoName)
+            val movieSubjects = webScrappingRepo.getMovieSubjects(name = videoName)
 
-            var toRename = renameFileWithStuff(
-                videoPath = videoPath,
+            var newName = renameFileWithStuff(
+                videoPath = videoName,
                 localStuffes = localActresses,
                 movieStuffes = movieActresses,
             )
 
-            toRename = renameFileWithStuff(
-                videoPath = toRename,
+            newName = renameFileWithStuff(
+                videoPath = newName,
                 localStuffes = localSubjects,
                 movieStuffes = movieSubjects,
             )
 
-            if (toRename != videoPath)
-                nasRepo.renameFile(videoPath, toRename)
+            if (newName != videoName)
+                nasRepo.renameFile(videoName, newName)
         }
 
 //        scope.launch(Dispatchers.IO) {

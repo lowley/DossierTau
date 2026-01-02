@@ -47,7 +47,7 @@ open class FtpDS constructor() : IFtpDS {
                 throw Exception("FTP server refused connection.")
             }
 
-            val connected = ftp.login("admin", "37-2lematin")
+            val connected = ftp.login("olivier", "37-2lematin")
             if (!connected) {
                 println("Login failed")
                 throw Exception("Login failed")
@@ -85,7 +85,8 @@ open class FtpDS constructor() : IFtpDS {
                         Log.d("TEST", "TEST: parent=$parent")
                         Log.d("TEST", "TEST: ftp=$ftp")
 
-                        result = ftp.listFiles(parent.path)
+                        val result1 = ftp.listFiles()
+                        result = result1
                             ?.filter { file -> file.name.endsWith(".mp4") }
                             ?.map { videoFile ->
                                 val date = try {
@@ -94,12 +95,12 @@ open class FtpDS constructor() : IFtpDS {
                                         videoFile.timestamp.time.month,
                                         videoFile.timestamp.time.date
                                     )
-                                }
-                                catch(ex: Exception){
+                                } catch (ex: Exception) {
                                     null
                                 }
                                 TauFile.of(
-                                    fullPath = Paths.get(parent.path, videoFile.name).toString().toTauPath(),
+                                    fullPath = Paths.get(parent.path, videoFile.name).toString()
+                                        .toTauPath(),
                                     picture = TauPicture.NONE,
                                     modificationDate = videoFile.timestamp.timeInMillis.toTauDate(),
                                     size = videoFile.size,
@@ -113,7 +114,7 @@ open class FtpDS constructor() : IFtpDS {
                         println("Sigma: ${exception.message}")
                         result = listOf()
                     }
-                
+
                 Result.success(result)
             }
         }
@@ -205,9 +206,9 @@ open class FtpDS constructor() : IFtpDS {
 
                 // Se placer dans le dossier réel du fichier source
                 val srcParent = sourceName.value.substringAfterLast("/", pathOnNAS.path)
-                val srcBase   = sourceName.value.substringAfterLast("/")
+                val srcBase = sourceName.value.substringAfterLast("/")
                 val dstParent = destinationName.value.substringBeforeLast("/", srcParent)
-                val dstBase   = destinationName.value.substringAfterLast("/")
+                val dstBase = destinationName.value.substringAfterLast("/")
 
                 // Aller dans le dossier source (plus fiable que forcer "/videos")
                 val ok = withContext(Dispatchers.IO) { ftp.changeWorkingDirectory(srcParent) }

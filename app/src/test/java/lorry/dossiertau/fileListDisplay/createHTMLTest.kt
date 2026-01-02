@@ -68,7 +68,7 @@ class createHTMLTest : KoinTest {
             black()
         )
 
-        everySuspend { nasRepo.getVideoPaths() } returns listOf(originalVideoFileName)
+        everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
 
         everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf()
         everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf()
@@ -84,7 +84,7 @@ class createHTMLTest : KoinTest {
         links.generateLinks()
 
         //assert
-        verifySuspend(exactly(1)) { nasRepo.getVideoPaths() }
+        verifySuspend(exactly(1)) { nasRepo.getVideoNames() }
         verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
         verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
         verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName) }
@@ -133,7 +133,7 @@ class createHTMLTest : KoinTest {
             black()
         )
 
-        everySuspend { nasRepo.getVideoPaths() } returns listOf(originalVideoFileName)
+        everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
 
         everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf(
             morgan()
@@ -151,7 +151,7 @@ class createHTMLTest : KoinTest {
         links.generateLinks()
 
         //assert
-        verifySuspend(exactly(1)) { nasRepo.getVideoPaths() }
+        verifySuspend(exactly(1)) { nasRepo.getVideoNames() }
         verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
         verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
         verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName) }
@@ -201,7 +201,7 @@ class createHTMLTest : KoinTest {
             black()
         )
 
-        everySuspend { nasRepo.getVideoPaths() } returns listOf(originalVideoFileName)
+        everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
 
         everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf(
             cova(),
@@ -220,7 +220,7 @@ class createHTMLTest : KoinTest {
         links.generateLinks()
 
         //assert
-        verifySuspend(exactly(1)) { nasRepo.getVideoPaths() }
+        verifySuspend(exactly(1)) { nasRepo.getVideoNames() }
         verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
         verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
         verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName) }
@@ -270,7 +270,7 @@ class createHTMLTest : KoinTest {
             black()
         )
 
-        everySuspend { nasRepo.getVideoPaths() } returns listOf(originalVideoFileName)
+        everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
 
         everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf(
             morgan(),
@@ -289,7 +289,7 @@ class createHTMLTest : KoinTest {
         links.generateLinks()
 
         //assert
-        verifySuspend(exactly(1)) { nasRepo.getVideoPaths() }
+        verifySuspend(exactly(1)) { nasRepo.getVideoNames() }
         verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
         verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
         verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName) }
@@ -339,7 +339,7 @@ class createHTMLTest : KoinTest {
             black()
         )
 
-        everySuspend { nasRepo.getVideoPaths() } returns listOf(originalVideoFileName)
+        everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
 
         everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf()
         everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf(
@@ -357,7 +357,7 @@ class createHTMLTest : KoinTest {
         links.generateLinks()
 
         //assert
-        verifySuspend(exactly(1)) { nasRepo.getVideoPaths() }
+        verifySuspend(exactly(1)) { nasRepo.getVideoNames() }
         verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
         verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
         verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName) }
@@ -407,7 +407,7 @@ class createHTMLTest : KoinTest {
             black()
         )
 
-        everySuspend { nasRepo.getVideoPaths() } returns listOf(originalVideoFileName)
+        everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
 
         everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf()
         everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf(
@@ -425,7 +425,7 @@ class createHTMLTest : KoinTest {
         links.generateLinks()
 
         //assert
-        verifySuspend(exactly(1)) { nasRepo.getVideoPaths() }
+        verifySuspend(exactly(1)) { nasRepo.getVideoNames() }
         verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
         verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
         verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName) }
@@ -475,7 +475,7 @@ class createHTMLTest : KoinTest {
             black()
         )
 
-        everySuspend { nasRepo.getVideoPaths() } returns listOf(originalVideoFileName)
+        everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
 
         everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf(cova())
         everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf(black())
@@ -491,7 +491,7 @@ class createHTMLTest : KoinTest {
         links.generateLinks()
 
         //assert
-        verifySuspend(exactly(1)) { nasRepo.getVideoPaths() }
+        verifySuspend(exactly(1)) { nasRepo.getVideoNames() }
         verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
         verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
         verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName) }
