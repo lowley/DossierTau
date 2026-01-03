@@ -41,13 +41,22 @@ class Links(
         val fileNames = nasRepo.getVideoNames()
         (1..fileNames.size).onEach {
 
+            println("SCRAP *** FILM ***")
             val videoName = fileNames[it - 1]
+            println("SCRAP videoName=$videoName")
+
+            if (videoName.value.contains("Riding the Curves"))
+                println("ok")
 
             val localActresses = diskRepo.getLocalActresses()
             val localSubjects = diskRepo.getLocalSubjects()
 
             val movieActresses = webScrappingRepo.getMovieActresses(name = videoName)
             val movieSubjects = webScrappingRepo.getMovieSubjects(name = videoName)
+
+            println("SCRAP movieActresses=${movieActresses.joinToString(",")}")
+            println("SCRAP movieSubjects=${movieSubjects.joinToString(",")}")
+
 
             var newName = renameFileWithStuff(
                 videoPath = videoName,
@@ -73,24 +82,23 @@ class Links(
     private fun renameFileWithStuff(
         videoPath: TauItemName,
         localStuffes: List<Stuff>,
-        movieStuffes: List<Stuff>,
+        movieStuffes: List<String>,
     ): TauItemName {
 
         var result: TauItemName = videoPath
-        movieStuffes.onEach { movieStuff ->
+        movieStuffes.onEach { movieStuffName -> //ex: black, bandeau
 
             val videoShortcuts = result.value.split(".")
 
-            //utilise [[égalité des Actress]]
-            if (movieStuff in localStuffes) {
+            localStuffes.firstOrNull { it.name == movieStuffName }?.let { correctStuff ->
+//                require(correctStuff.shortcuts.isNotEmpty())
                 //l'actrice n'est pas dans les shortcuts de la video
-                if (movieStuff.shortcuts.none { shortcut ->
-                        shortcut in videoShortcuts }) {
+                if (videoShortcuts.none { it in correctStuff.shortcuts}) {
 
                     //on prend en compte anciens renommage le cas échéant
                     val newVideoPath = videoShortcuts
                         .dropLast(1)
-                        .plus(movieStuff.shortcuts.first())
+                        .plus(correctStuff.shortcuts.first())
                         .plus(videoShortcuts.last())
                         .joinToString(".")
 
@@ -155,38 +163,38 @@ class Links(
             api.fetchPage(title = "cheeky+and+welcoming")
         } catch (e: HttpException) {
             if (e.code() == 403) {
-                println("Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
+                println("SCRAP Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
                 ResponseBody.create(null, "")
             } else {
-                println("Erreur HTTP : ${e.code()}")
+                println("SCRAP Erreur HTTP : ${e.code()}")
                 ResponseBody.create(null, "")
             }
         } catch (e: Exception) {
-            println("Erreur réseau : ${e.message}")
+            println("SCRAP Erreur réseau : ${e.message}")
             ResponseBody.create(null, "")
         }
 
         val html = responseBody.string()
-        println("KTOR html=$html")
+        println("SCRAP KTOR html=$html")
 
         ///////////////////////////////////////////////////////////////////////////
         val responseBody2 = try {
             api.fetchPage2()
         } catch (e: HttpException) {
             if (e.code() == 403) {
-                println("Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
+                println("SCRAP Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
                 ResponseBody.create(null, "")
             } else {
-                println("Erreur HTTP : ${e.code()}")
+                println("SCRAP Erreur HTTP : ${e.code()}")
                 ResponseBody.create(null, "")
             }
         } catch (e: Exception) {
-            println("Erreur réseau : ${e.message}")
+            println("SCRAP Erreur réseau : ${e.message}")
             ResponseBody.create(null, "")
         }
 
         val html2 = responseBody2.string()
-        println("KTOR html=$html2")
+        println("SCRAP KTOR html=$html2")
 
 
 //        val textResp0 = client.get("https://ipinfo.io/json")  // Test IP d'abord

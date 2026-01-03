@@ -7,6 +7,7 @@ import dev.mokkery.matcher.any
 import dev.mokkery.mock
 import dev.mokkery.verify.VerifyMode.Companion.exactly
 import dev.mokkery.verifySuspend
+import io.mockk.core.ValueClassSupport.maybeUnboxValueForMethodReturn
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -136,7 +137,7 @@ class createHTMLTest : KoinTest {
         everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
 
         everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf(
-            morgan()
+            morgan().name
         )
         everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf()
 
@@ -204,8 +205,8 @@ class createHTMLTest : KoinTest {
         everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
 
         everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf(
-            cova(),
-            rhoades()
+            cova().name,
+            rhoades().name
         )
         everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf()
 
@@ -273,8 +274,8 @@ class createHTMLTest : KoinTest {
         everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
 
         everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf(
-            morgan(),
-            rhoades()
+            morgan().name,
+            rhoades().name
         )
         everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf()
 
@@ -343,7 +344,7 @@ class createHTMLTest : KoinTest {
 
         everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf()
         everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf(
-            bandeau()
+            bandeau().name
         )
 
         everySuspend {
@@ -411,7 +412,7 @@ class createHTMLTest : KoinTest {
 
         everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf()
         everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf(
-            bandeau(), black()
+            bandeau().name, black().name
         )
 
         everySuspend {
@@ -477,8 +478,8 @@ class createHTMLTest : KoinTest {
 
         everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
 
-        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf(cova())
-        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf(black())
+        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf(cova().name)
+        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf(black().name)
 
         everySuspend {
             nasRepo.renameFile(

@@ -2,6 +2,7 @@ package lorry.dossiertau.fileListDisplay
 
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import data.ftp.FtpDS
 import dev.mokkery.spy
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -315,7 +316,7 @@ class TestStuff : AutoCloseable {
                     spy = result.spy,
                     links = Links(
                         vm = VmLinks(),
-                        nasRepo = NasRepo(),
+                        nasRepo = NasRepo(FtpDS()),
                         diskRepo = DiskRepo(),
                         webScrappingRepo = WebScrappingRepo()
                     ),

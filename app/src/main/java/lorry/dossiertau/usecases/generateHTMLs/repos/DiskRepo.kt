@@ -12,7 +12,7 @@ class DiskRepo(): IDiskRepo {
             .filter { !it.isFile() }
             .map { it.name }
             .map { it.split(".") }
-            .map { Actress(it[0], it.drop(1)) }
+            .map { Actress(if (it.size >= 2) it[1] else it[0], it) }
 
         return actresses
     }
@@ -23,10 +23,8 @@ class DiskRepo(): IDiskRepo {
             .filter { !it.isFile() }
             .map { it.name }
             .map { it.split(".") }
-            .map { Subject(it[0], it.drop(1)) }
+            .map { Subject(if (it.size >= 2) it[1] else it[0], it) }
 
         return subjects
     }
-
-
 }

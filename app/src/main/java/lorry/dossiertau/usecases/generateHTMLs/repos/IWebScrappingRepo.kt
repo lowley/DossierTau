@@ -6,6 +6,6 @@ import lorry.dossiertau.usecases.generateHTMLs.support.Subject
 
 interface IWebScrappingRepo {
 
-    fun getMovieActresses(name: TauItemName): List<Actress>
-    fun getMovieSubjects(name: TauItemName): List<Subject>
+    suspend fun getMovieActresses(name: TauItemName): List<String>
+    suspend fun getMovieSubjects(name: TauItemName): List<String>
 }
