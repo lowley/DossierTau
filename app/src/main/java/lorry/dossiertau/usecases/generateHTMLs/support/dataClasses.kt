@@ -5,9 +5,10 @@ interface Stuff{
     val shortcuts: List<String>
 }
 
+typealias ActressName = String
 
 data class Actress(
-    override val name: String,
+    override val name: ActressName,
     override val shortcuts: List<String>
 ): Stuff{
 

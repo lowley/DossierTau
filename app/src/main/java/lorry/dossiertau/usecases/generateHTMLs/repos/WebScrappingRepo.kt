@@ -1,8 +1,13 @@
 package lorry.dossiertau.usecases.generateHTMLs.repos
 
+import arrow.core.None
+import arrow.core.Option
+import arrow.core.toOption
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import lorry.dossiertau.support.littleClasses.TauItemName
+import lorry.dossiertau.usecases.generateHTMLs.support.Actress
+import lorry.dossiertau.usecases.generateHTMLs.support.ActressName
 import lorry.dossiertau.usecases.generateHTMLs.support.MoviesApi
 import okhttp3.OkHttpClient
 import okhttp3.ResponseBody
@@ -14,29 +19,96 @@ import java.net.InetSocketAddress
 import java.net.PasswordAuthentication
 import java.net.Proxy
 import java.util.Locale
+import kotlin.collections.emptyList
 
-class WebScrappingRepo: IWebScrappingRepo {
+typealias MovieSuffix = String
+typealias MovieHtml = String
+
+
+class WebScrappingRepo : IWebScrappingRepo {
 
     val login = "Pvc7NXwy6y7r33YurTuDoZ89"
     val password = "gKVRhVNy7gfjejv6qbrTVX4R"
     val server = "se.socks.nordhold.net"
     val port = 1080
 
+
     var moviesApi: MoviesApi? = null
 
-    override suspend fun getMovieActresses(movieName: TauItemName): List<String>{
+    override suspend fun getMovieActresses(
+        movieName: TauItemName,
+        localActresses: List<Actress>
+    ): Pair<MovieHtml, List<ActressName>> {
 
-        val shortMovieName = movieName.value.substringBefore('(').removePunctuation().substringBefore(" by ").trim()
-        val searchMovieHtml = searchMoviesWithName(shortMovieName)
-        val movieSuffix = searchSuffix(shortMovieName, searchMovieHtml) ?: return emptyList()
-        val movieHtml = getMovieWithSuffix(movieSuffix)
-        val people: List<String> = searchPeople(movieHtml)
+        val shortMovieName =
+            movieName.value.substringBefore('(').removePunctuation().substringBefore(" by ").trim()
+        val allMoviesPageHtml = searchMoviesWithName(shortMovieName)
+        val movieSuffixes = searchTheGoodMovies(shortMovieName, allMoviesPageHtml)
+        val peopleAndHtmlForSameNameMovies = getInfosOfGoodMovies(movieSuffixes)
+
+        println("SCRAP Pour $shortMovieName on trouve ${peopleAndHtmlForSameNameMovies.size} films avec ce titre. Recherche avec les noms d'actrices ...")
+        val movieThings = findMovieAmongMovies(
+            peopleAndHtmlForSameNameMovies = peopleAndHtmlForSameNameMovies,
+            localActresses = localActresses,
+            movieName = movieName
+        )
+        println("SCRAP ... gagnant: ${movieThings.fold({"aucun: des noms d'actrices (dans le fichier) inconnus?"}, {"oui, un"})}")
+
+        val people = movieThings.fold(
+            ifEmpty = { ("" as MovieHtml) to emptyList<ActressName>() },
+            ifSome = { thing ->
+                thing.first to searchPeople(thing.first)
+            }
+        )
 
         return people
     }
 
+    private fun findMovieAmongMovies(
+        peopleAndHtmlForSameNameMovies: Map<MovieSuffix, Pair<MovieHtml, List<ActressName>>>,
+        localActresses: List<Actress>,
+        movieName: TauItemName
+    ): Option<Pair<MovieHtml, List<ActressName>>> {
+        val goodOnes = peopleAndHtmlForSameNameMovies.filter { (movieSuffix, movieThings) ->
+            val ama = mutableListOf<Actress>()
+            movieThings.second.forEach { actressName ->
+                localActresses.firstOrNull { it.name == actressName }?.let {
+                    ama.add(it)
+                }
+            }
+            val actualMovieActresses = ama
 
-    private fun searchPeople(movieHtml: String): List<String> {
+            val movieShortcutsPresentInTheMovie = movieName.value
+                .split(".")
+                .drop(1)
+
+            val actressesPresentInTheMovieName = localActresses
+                .filter { it.shortcuts.any { actressShortcut -> actressShortcut in movieShortcutsPresentInTheMovie } }
+
+            //actressesPresentInTheMovieName & actualMovieActresses
+            actualMovieActresses.containsAll(actressesPresentInTheMovieName)
+        }
+
+        return if (goodOnes.isNotEmpty())
+            goodOnes.values.first().toOption()
+        else
+            None
+    }
+
+    private suspend fun getInfosOfGoodMovies(movieSuffixes: List<MovieSuffix>): Map<MovieSuffix, Pair<MovieHtml, List<ActressName>>> {
+        val result = mutableMapOf<MovieSuffix, Pair<MovieHtml, List<ActressName>>>()
+
+        movieSuffixes.forEach { movieSuffix ->
+            val movieHtml = getMovieWithSuffix(movieSuffix)
+            val people: List<String> = searchPeople(movieHtml)
+            result[movieSuffix] = movieHtml to people
+        }
+
+        return result
+    }
+
+
+    private fun searchPeople(movieHtml: MovieHtml): List<ActressName> {
         val doc = Jsoup.parse(movieHtml)
         val metas = doc.select("meta")
         val people = metas.filter { it.attr("property") == "og:video:actor" }
@@ -44,15 +116,15 @@ class WebScrappingRepo: IWebScrappingRepo {
         return peopleNames
     }
 
-    private fun searchSuffix(
+    private fun searchTheGoodMovies(
         movieName: String,
-        searchMovieHtml: String
-    ): String? {
-        val doc = Jsoup.parse(searchMovieHtml)
+        searchMoviesHtml: String,
+    ): List<MovieSuffix> {
+        val doc = Jsoup.parse(searchMoviesHtml)
         val movieCandidates = doc.select(".item-preview-video")
         println("SCRAP jsoup: ${movieCandidates.size} movie candidates")
 
-        val goodOne = movieCandidates.firstOrNull { element ->
+        val goodOnes = movieCandidates.filter { element ->
             val searchName = element.attr("itemtitle")
                 .substringBefore('(')
                 .removePunctuation()
@@ -61,15 +133,19 @@ class WebScrappingRepo: IWebScrappingRepo {
             searchName == movieName
         }
 
-        val suffix = goodOne?.selectFirst("a")?.attr("href") ?: null
-        return suffix
+        val suffixes = goodOnes.mapNotNull { it.selectFirst("a")?.attr("href") }
+        return suffixes
     }
 
-    override suspend fun getMovieSubjects(movieName: TauItemName): List<String>{
-        val shortMovieName = movieName.value.substringBefore('(').removePunctuation().substringBefore(" by ").trim()
-        val searchMovieHtml = searchMoviesWithName(shortMovieName)
-        val movieSuffix = searchSuffix(shortMovieName, searchMovieHtml) ?: return emptyList()
-        val movieHtml = getMovieWithSuffix(movieSuffix)
+    override suspend fun getMovieSubjects(movieName: TauItemName, movieHtml: MovieHtml): List<String> {
+//        val shortMovieName =
+//            movieName.value.substringBefore('(').removePunctuation().substringBefore(" by ")
+//                .trim()
+//        val searchMovieHtml = searchMoviesWithName(shortMovieName)
+//        val movieSuffixes = searchTheGoodMovies(shortMovieName, searchMovieHtml)
+//        val peopleAndHtmlForSameNameMovies = getInfosOfGoodMovies(movieSuffixes)
+
+//        val movieHtml = getMovieWithSuffix(movieSuffix)
         val subjects: List<String> = searchSubjects(movieHtml)
 
         return subjects
@@ -83,51 +159,53 @@ class WebScrappingRepo: IWebScrappingRepo {
         return subjectNames
     }
 
-    private suspend fun searchMoviesWithName(name: String): String = withContext(Dispatchers.IO) {
+    private suspend fun searchMoviesWithName(name: String): String =
+        withContext(Dispatchers.IO) {
 
-        moviesApi = moviesApi ?: generateApi() ?: return@withContext ""
-        val responseBody = try {
-            moviesApi!!.fetchPage(title = name)
-        } catch (e: HttpException) {
-            if (e.code() == 403) {
-                println("SCRAP Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
-                ResponseBody.create(null, "")
-            } else {
-                println("SCRAP Erreur HTTP : ${e.code()}")
-                ResponseBody.create(null, "")
-            }
-        } catch (e: Exception) {
-            println("SCRAP Erreur réseau : ${e.message}")
-            ResponseBody.create(null, "")
-        }
-
-        val html = responseBody.string()
-        return@withContext html
-    }
-
-    private suspend fun getMovieWithSuffix(suffix: String): String = withContext(Dispatchers.IO) {
-
-        moviesApi = moviesApi ?: generateApi() ?: return@withContext ""
-        val responseBody = try {
-            moviesApi!!.fetchPageWithSuffix(suffix = suffix)
-        } catch (e: HttpException) {
-            if (e.code() == 403) {
-                println("SCRAP Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
-                ResponseBody.create(null, "")
-            } else {
-                println("SCRAP Erreur HTTP : ${e.code()}")
+            moviesApi = moviesApi ?: generateApi()
+            val responseBody = try {
+                moviesApi!!.fetchPage(title = name)
+            } catch (e: HttpException) {
+                if (e.code() == 403) {
+                    println("SCRAP Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
+                    ResponseBody.create(null, "")
+                } else {
+                    println("SCRAP Erreur HTTP : ${e.code()}")
+                    ResponseBody.create(null, "")
+                }
+            } catch (e: Exception) {
+                println("SCRAP Erreur réseau : ${e.message}")
                 ResponseBody.create(null, "")
             }
-        } catch (e: Exception) {
-            println("SCRAP Erreur réseau : ${e.message}")
-            ResponseBody.create(null, "")
+
+            val html = responseBody.string()
+            return@withContext html
         }
 
-        val html = responseBody.string()
-        return@withContext html
-    }
+    private suspend fun getMovieWithSuffix(suffix: String): String =
+        withContext(Dispatchers.IO) {
 
-    private suspend fun generateApi(): MoviesApi = withContext(Dispatchers.IO){
+            moviesApi = moviesApi ?: generateApi() ?: return@withContext ""
+            val responseBody = try {
+                moviesApi!!.fetchPageWithSuffix(suffix = suffix)
+            } catch (e: HttpException) {
+                if (e.code() == 403) {
+                    println("SCRAP Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
+                    ResponseBody.create(null, "")
+                } else {
+                    println("SCRAP Erreur HTTP : ${e.code()}")
+                    ResponseBody.create(null, "")
+                }
+            } catch (e: Exception) {
+                println("SCRAP Erreur réseau : ${e.message}")
+                ResponseBody.create(null, "")
+            }
+
+            val html = responseBody.string()
+            return@withContext html
+        }
+
+    private suspend fun generateApi(): MoviesApi = withContext(Dispatchers.IO) {
         Authenticator.setDefault(object : Authenticator() {
             override fun getPasswordAuthentication(): PasswordAuthentication {
                 return PasswordAuthentication(login, password.toCharArray())

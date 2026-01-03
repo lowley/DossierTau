@@ -41,27 +41,33 @@ class Links(
         val fileNames = nasRepo.getVideoNames()
         (1..fileNames.size).onEach {
 
-            println("SCRAP *** FILM ***")
+            println("SCRAP")
             val videoName = fileNames[it - 1]
-            println("SCRAP videoName=$videoName")
-
-            if (videoName.value.contains("Riding the Curves"))
-                println("ok")
+            println("SCRAP *** FILM *** ${videoName.value}")
 
             val localActresses = diskRepo.getLocalActresses()
             val localSubjects = diskRepo.getLocalSubjects()
 
-            val movieActresses = webScrappingRepo.getMovieActresses(name = videoName)
-            val movieSubjects = webScrappingRepo.getMovieSubjects(name = videoName)
+            val movieActresses = webScrappingRepo.getMovieActresses(
+                name = videoName,
+                localActresses = localActresses
+            )
 
-            println("SCRAP movieActresses=${movieActresses.joinToString(",")}")
+            val movieSubjects = if (!movieActresses.first.isEmpty())
+                webScrappingRepo.getMovieSubjects(
+                    name = videoName,
+                    movieHtml = movieActresses.first
+                )
+            else emptyList()
+
+            println("SCRAP movieActresses=${movieActresses.second.joinToString(",")}")
             println("SCRAP movieSubjects=${movieSubjects.joinToString(",")}")
 
 
             var newName = renameFileWithStuff(
                 videoPath = videoName,
                 localStuffes = localActresses,
-                movieStuffes = movieActresses,
+                movieStuffes = movieActresses.second,
             )
 
             newName = renameFileWithStuff(
@@ -70,13 +76,13 @@ class Links(
                 movieStuffes = movieSubjects,
             )
 
+            newName = newName.value.replace(" - HotMovies", "").toTauFileName()
+
             if (newName != videoName)
                 nasRepo.renameFile(videoName, newName)
         }
 
-//        scope.launch(Dispatchers.IO) {
-//            fetchViaNordVPN()
-//        }
+        println("SCRAP That's all folks!")
     }
 
     private fun renameFileWithStuff(
@@ -93,7 +99,7 @@ class Links(
             localStuffes.firstOrNull { it.name == movieStuffName }?.let { correctStuff ->
 //                require(correctStuff.shortcuts.isNotEmpty())
                 //l'actrice n'est pas dans les shortcuts de la video
-                if (videoShortcuts.none { it in correctStuff.shortcuts}) {
+                if (videoShortcuts.none { it in correctStuff.shortcuts }) {
 
                     //on prend en compte anciens renommage le cas échéant
                     val newVideoPath = videoShortcuts

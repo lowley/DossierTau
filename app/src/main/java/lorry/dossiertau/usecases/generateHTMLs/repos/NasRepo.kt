@@ -12,8 +12,7 @@ class NasRepo(
     val rootPath = "".toTauPath()
 
     override suspend fun renameFile(from: TauItemName, to: TauItemName){
-        println("SCRAP *** renommage pour de faux ***")
-        println("SCRAP ${from.value} ▶ ${to.value}")
+        println("SCRAP \uD83D\uDE91 ${from.value} ▶ ${to.value}")
         ftpDS.rename(from, to, rootPath)
     }
 
