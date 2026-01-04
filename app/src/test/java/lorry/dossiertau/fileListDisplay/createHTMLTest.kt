@@ -54,23 +54,30 @@ class createHTMLTest : KoinTest {
             webScrappingRepo = webScrappingRepo
         )
 
-        //arrange
-        everySuspend { diskRepo.getLocalActresses() } returns listOf(
+        val localActresses = listOf(
             morgan(),
             cova(),
             rhoades(),
             gee()
         )
-        everySuspend { diskRepo.getLocalSubjects() } returns listOf(
+
+        val localSubjects = listOf(
             trio(),
             lesbos(),
             bandeau(),
             black()
         )
 
+        //arrange
+        everySuspend { diskRepo.getLocalActresses() } returns localActresses
+        everySuspend { diskRepo.getLocalSubjects() } returns localSubjects
+
         everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
 
-        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName,) } returns listOf()
+        everySuspend { webScrappingRepo.getMovieActresses(
+            name = originalVideoFileName,
+            localActresses = localActresses
+        ) } returns listOf()
         everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName,) } returns listOf()
 
         everySuspend {

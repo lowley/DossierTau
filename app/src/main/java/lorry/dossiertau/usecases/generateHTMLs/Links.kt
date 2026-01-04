@@ -2,22 +2,34 @@ package lorry.dossiertau.usecases.generateHTMLs
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import arrow.core.None
+import arrow.core.Option
+import arrow.core.toOption
+import com.squareup.moshi.Json
+import com.squareup.moshi.JsonClass
+import com.squareup.moshi.Moshi
 import kotlinx.coroutines.*
 import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.support.littleClasses.toTauFileName
 import lorry.dossiertau.usecases.generateHTMLs.repos.IDiskRepo
 import lorry.dossiertau.usecases.generateHTMLs.repos.INasRepo
 import lorry.dossiertau.usecases.generateHTMLs.repos.IWebScrappingRepo
+import lorry.dossiertau.usecases.generateHTMLs.repos.MovieHtml
 import lorry.dossiertau.usecases.generateHTMLs.support.MoviesApi
 import lorry.dossiertau.usecases.generateHTMLs.support.Stuff
 import okhttp3.OkHttpClient
 import okhttp3.ResponseBody
+import org.jsoup.Jsoup
 import retrofit2.HttpException
 import retrofit2.Retrofit
 import java.io.ByteArrayOutputStream
 import java.net.*
 import kotlin.collections.joinToString
 import kotlin.collections.plus
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+
+typealias PictureUrl = String
+typealias MovieDescription = String
 
 class Links(
     val vm: VmLinks,
@@ -34,10 +46,83 @@ class Links(
     //    val server = "nl.socks.nordhold.net"
     val port = 1080
 
+    val htmls = mutableMapOf<TauItemName, MovieHtml>()
+
     val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     suspend fun generateLinks() {
 
+        val htmls = renameFiles()
+
+        htmls.forEach {
+            val videoName = it.key
+            val html = it.value
+
+            val picture = extractPictureFrom(html)
+            val description = extractDescriptionFrom(html)
+
+
+        }
+
+
+        println("SCRAP That's all folks!")
+    }
+
+    private fun extractDescriptionFrom(movieHtml: MovieHtml): Option<MovieDescription> {
+        val doc = Jsoup.parse(movieHtml)
+
+        val scripts = doc.select("script")
+        val pictureNodes = scripts.filter { it.attr("type") == "application/ld+json" }
+        if (pictureNodes.isEmpty())
+            return None
+        val jsons = pictureNodes.map {
+            it.childNodes().first().toString()
+        }
+        val description = getDescriptionFromJson(jsons)
+        return description
+
+//        return description.map {
+//            val doc = Jsoup.parse(it)
+////            println(doc.text())  // "After Hours"
+//            doc.html()  // "<p><i>After Hours</i></p>"
+//        }
+    }
+
+    private fun getDescriptionFromJson(jsons: List<String>): Option<String> {
+
+        val moshi = Moshi.Builder()
+            .add(KotlinJsonAdapterFactory())
+            .build()
+
+        val adapter = moshi.adapter(JsonPart::class.java)
+            .lenient()
+            .nullSafe()
+
+        val parsedResult = jsons
+            .map { adapter.fromJson(it) }
+            .firstOrNull { it?.type == "VideoObject" }
+
+        val description = parsedResult?.description.toOption()
+        return description
+    }
+
+    private fun extractPictureFrom(movieHtml: MovieHtml): Option<PictureUrl> {
+
+        val doc = Jsoup.parse(movieHtml)
+
+        val links = doc.select("link")
+        val pictureNode = links.filter { it.attr("name") == "thumbnail" }.firstOrNull()
+        //autre image possible
+//        val metas = doc.select("meta")
+//        val pictureNode = metas.filter { it.attr("property") == "og:image" }
+
+        val pictureUrl = pictureNode?.attr("content")
+        return pictureUrl.toOption()
+    }
+
+    private suspend fun renameFiles(): MutableMap<TauItemName, MovieHtml> {
+
+        val result = mutableMapOf<TauItemName, MovieHtml>()
         val fileNames = nasRepo.getVideoNames()
         (1..fileNames.size).onEach {
 
@@ -77,12 +162,13 @@ class Links(
             )
 
             newName = newName.value.replace(" - HotMovies", "").toTauFileName()
+            result[newName] = movieActresses.first
 
             if (newName != videoName)
                 nasRepo.renameFile(videoName, newName)
         }
 
-        println("SCRAP That's all folks!")
+        return result
     }
 
     private fun renameFileWithStuff(
@@ -96,7 +182,7 @@ class Links(
 
             val videoShortcuts = result.value.split(".")
 
-            localStuffes.firstOrNull { it.name == movieStuffName }?.let { correctStuff ->
+            localStuffes.firstOrNull { movieStuffName in it.shortcuts }?.let { correctStuff ->
 //                require(correctStuff.shortcuts.isNotEmpty())
                 //l'actrice n'est pas dans les shortcuts de la video
                 if (videoShortcuts.none { it in correctStuff.shortcuts }) {
@@ -232,3 +318,9 @@ fun Bitmap.toByteArray(): ByteArray {
 fun ByteArray.toBitmap(): Bitmap {
     return BitmapFactory.decodeByteArray(this, 0, this.size)
 }
+
+@JsonClass(generateAdapter = true)
+data class JsonPart(
+    @Json(name = "@type") val type: String,
+    val description: String?
+)
