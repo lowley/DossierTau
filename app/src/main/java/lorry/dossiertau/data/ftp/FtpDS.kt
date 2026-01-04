@@ -1,7 +1,6 @@
 package data.ftp
 
 import android.util.Log
-import androidx.coordinatorlayout.widget.CoordinatorLayout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
@@ -14,6 +13,8 @@ import lorry.dossiertau.support.littleClasses.TauPicture
 import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauDate
 import lorry.dossiertau.support.littleClasses.toTauPath
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.apache.commons.net.ftp.FTP
 import org.apache.commons.net.ftp.FTPClient
 import org.apache.commons.net.ftp.FTPClientConfig
@@ -21,6 +22,7 @@ import org.apache.commons.net.ftp.FTPReply
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.IOException
+import java.io.InputStream
 import java.nio.file.Paths
 import java.time.LocalDate
 
@@ -387,7 +389,7 @@ open class FtpDS constructor() : IFtpDS {
         } == true
     }
 
-    override suspend fun createFileInAnnexes(
+    override suspend fun createDescriptionFileInAnnexes(
         fileName: TauItemName,
         textContent: String
     ): Boolean {
@@ -419,6 +421,50 @@ open class FtpDS constructor() : IFtpDS {
                         }
 
                     inputStream.close()
+                    ftp.logout()
+                    ftp.disconnect()
+
+                    if (success)
+                        Result.success(true)
+                    else
+                        Result.failure(Exception())
+
+                } catch (ex: Exception) {
+                    Result.failure(ex)
+                }
+            } == true
+        }
+    }
+
+    override suspend fun createPictureFileInAnnexes(
+        fileName: TauItemName,
+        imageUrl: String
+    ): Boolean {
+        return withContext(Dispatchers.IO) {
+            doWithNASAccess<Boolean>(parent = "/annexes") { ftp ->
+                try {
+                    ftp.enterLocalPassiveMode()  // Firewall OK
+                    ftp.setFileType(FTP.BINARY_FILE_TYPE)
+                    ftp.changeWorkingDirectory("/annexes")
+                    ftp.setControlEncoding("UTF-8")
+
+                    withContext(Dispatchers.IO) {
+                        if (ftp.listDirectories()
+                                .map { it.name }
+                                .none { it == fileName.value })
+                            ftp.makeDirectory(fileName.value)
+                        ftp.changeWorkingDirectory(fileName.value)
+                    }
+
+                    val client = OkHttpClient()
+                    val request = Request.Builder().url(imageUrl).build()
+                    val httpResponse = client.newCall(request).execute()
+                    if (!httpResponse.isSuccessful) return@doWithNASAccess Result.success(false)
+                    val imageStream: InputStream = httpResponse.body!!.byteStream()
+
+                    val success = ftp.storeFile("image.jpg", imageStream)
+
+                    imageStream.close()
                     ftp.logout()
                     ftp.disconnect()
 

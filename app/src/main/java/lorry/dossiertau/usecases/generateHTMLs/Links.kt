@@ -56,16 +56,36 @@ class Links(
 
         val htmls = renameFiles()
 
+        println("SCRAP enregistrement des métadonnées dans 'annexes'")
         htmls.forEach {
+            println("SCRAP")
+            println("SCRAP ⯈⯈⯈ ${it.key.value} ...")
             val videoName = it.key
             val html = it.value
 
-            val picture = extractPictureFrom(html)
+            /////////////////
+            // description //
+            /////////////////
             val description = extractDescriptionFrom(html)
+            println("SCRAP ◔ description: ${description.getOrNull()?.length ?: 0} caractères")
 
-            description.fold(ifSome = {
-                ftpDS.createFileInAnnexes(videoName, it)
-            }, ifEmpty = {})
+            val descriptionOk = description.fold(ifSome = {
+                ftpDS.createDescriptionFileInAnnexes(videoName, it)
+            }, ifEmpty = { false })
+            println("SCRAP ◑ enregistrement description: ${if (descriptionOk) "ok" else "problème"}")
+
+            ///////////
+            // image //
+            ///////////
+            val picture = extractPictureFrom(html)
+            println("SCRAP ◕ image: ${if (picture.isSome()) "présente" else "absente"}")
+
+            val pictureOk = picture.fold(ifSome = {
+                ftpDS.createPictureFileInAnnexes(videoName, it as String)
+            }, ifEmpty = { false })
+            println("SCRAP ⏺ enregistrement image: ${if (pictureOk) "ok" else "problème"}")
+
+            println("SCRAP ⯈ ... done")
         }
 
         println("SCRAP That's all folks!")

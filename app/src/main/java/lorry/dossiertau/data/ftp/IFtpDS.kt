@@ -26,8 +26,10 @@ interface IFtpDS {
         progressCallback: (Int) -> Unit
     ): Boolean
 
-    suspend fun createFileInAnnexes(
+    suspend fun createDescriptionFileInAnnexes(
         fileName: TauItemName,
         textContent: String
     ): Boolean
+
+    suspend fun createPictureFileInAnnexes(fileName: TauItemName, url: String): Boolean
 }
