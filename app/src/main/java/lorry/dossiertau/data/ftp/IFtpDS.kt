@@ -6,7 +6,6 @@ import lorry.dossiertau.support.littleClasses.TauPath
 import java.io.File
 
 interface IFtpDS {
-
     suspend fun fetchVideoFiles(parent: TauPath): List<TauFile>?
     suspend fun fetchMP4File(parent: TauPath): List<TauFile>?
     suspend fun copy(file: TauFile, pathOnNAS: TauPath,
@@ -25,5 +24,10 @@ interface IFtpDS {
         sourceFullPath: TauPath,
         localTargetFile: File,
         progressCallback: (Int) -> Unit
+    ): Boolean
+
+    suspend fun createFileInAnnexes(
+        fileName: TauItemName,
+        textContent: String
     ): Boolean
 }

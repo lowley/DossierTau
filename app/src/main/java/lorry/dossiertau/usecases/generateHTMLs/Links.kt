@@ -27,6 +27,7 @@ import java.net.*
 import kotlin.collections.joinToString
 import kotlin.collections.plus
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import data.ftp.IFtpDS
 
 typealias PictureUrl = String
 typealias MovieDescription = String
@@ -35,7 +36,8 @@ class Links(
     val vm: VmLinks,
     val nasRepo: INasRepo,
     val diskRepo: IDiskRepo,
-    val webScrappingRepo: IWebScrappingRepo
+    val webScrappingRepo: IWebScrappingRepo,
+    val ftpDS: IFtpDS
 ) {
     val login = "Pvc7NXwy6y7r33YurTuDoZ89"
     val password = "gKVRhVNy7gfjejv6qbrTVX4R"
@@ -61,9 +63,10 @@ class Links(
             val picture = extractPictureFrom(html)
             val description = extractDescriptionFrom(html)
 
-
+            description.fold(ifSome = {
+                ftpDS.createFileInAnnexes(videoName, it)
+            }, ifEmpty = {})
         }
-
 
         println("SCRAP That's all folks!")
     }
@@ -79,13 +82,14 @@ class Links(
             it.childNodes().first().toString()
         }
         val description = getDescriptionFromJson(jsons)
-        return description
 
-//        return description.map {
-//            val doc = Jsoup.parse(it)
-////            println(doc.text())  // "After Hours"
+        return description.map {
+            val doc = Jsoup.parse(it)
+            doc.text()  // "After Hours"
 //            doc.html()  // "<p><i>After Hours</i></p>"
-//        }
+        }
+
+        return description
     }
 
     private fun getDescriptionFromJson(jsons: List<String>): Option<String> {

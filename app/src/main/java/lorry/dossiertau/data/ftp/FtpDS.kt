@@ -1,6 +1,7 @@
 package data.ftp
 
 import android.util.Log
+import androidx.coordinatorlayout.widget.CoordinatorLayout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
@@ -13,9 +14,11 @@ import lorry.dossiertau.support.littleClasses.TauPicture
 import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauDate
 import lorry.dossiertau.support.littleClasses.toTauPath
+import org.apache.commons.net.ftp.FTP
 import org.apache.commons.net.ftp.FTPClient
 import org.apache.commons.net.ftp.FTPClientConfig
 import org.apache.commons.net.ftp.FTPReply
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.IOException
 import java.nio.file.Paths
@@ -58,7 +61,8 @@ open class FtpDS constructor() : IFtpDS {
                 answer = result.getOrNull()
             else answer = null
 
-            ftp.logout()
+            if (ftp.isConnected)
+                ftp.logout()
         } catch (ex: Exception) {
             println("erreur: ${ex.message}")
         } finally {
@@ -85,6 +89,7 @@ open class FtpDS constructor() : IFtpDS {
                         Log.d("TEST", "TEST: parent=$parent")
                         Log.d("TEST", "TEST: ftp=$ftp")
 
+                        ftp.changeWorkingDirectory(parent.path)
                         val result1 = ftp.listFiles()
                         result = result1
                             ?.filter { file -> file.name.endsWith(".mp4") }
@@ -199,36 +204,39 @@ open class FtpDS constructor() : IFtpDS {
         destinationName: TauItemName,
         pathOnNAS: TauPath
     ): Boolean {
-        return doWithNASAccess(parent = pathOnNAS.path) { ftp ->
-            try {
-                ftp.enterLocalPassiveMode()
-                ftp.setFileType(FTPClient.BINARY_FILE_TYPE)
+        return withContext(Dispatchers.IO) {
+            doWithNASAccess(parent = pathOnNAS.path) { ftp ->
+                try {
+                    ftp.enterLocalPassiveMode()
+                    ftp.setFileType(FTPClient.BINARY_FILE_TYPE)
+                    ftp.changeWorkingDirectory(pathOnNAS.path)
 
-                // Se placer dans le dossier réel du fichier source
-                val srcParent = sourceName.value.substringAfterLast("/", pathOnNAS.path)
-                val srcBase = sourceName.value.substringAfterLast("/")
-                val dstParent = destinationName.value.substringBeforeLast("/", srcParent)
-                val dstBase = destinationName.value.substringAfterLast("/")
+                    // Se placer dans le dossier réel du fichier source
+                    val srcParent = sourceName.value.substringAfterLast("/", pathOnNAS.path)
+                    val srcBase = sourceName.value.substringAfterLast("/")
+                    val dstParent = destinationName.value.substringBeforeLast("/", srcParent)
+                    val dstBase = destinationName.value.substringAfterLast("/")
 
-                // Aller dans le dossier source (plus fiable que forcer "/videos")
-                val ok = withContext(Dispatchers.IO) { ftp.changeWorkingDirectory(srcParent) }
-                if (!ok) return@doWithNASAccess Result.failure<Boolean>(IOException("Répertoire introuvable: $srcParent"))
+                    // Aller dans le dossier source (plus fiable que forcer "/videos")
+                    val ok = withContext(Dispatchers.IO) { ftp.changeWorkingDirectory(srcParent) }
+                    if (!ok) return@doWithNASAccess Result.failure<Boolean>(IOException("Répertoire introuvable: $srcParent"))
 
-                // Si on reste dans le même dossier, utiliser juste les noms
-                val renameOk =
-                    if (srcParent == dstParent) {
-                        ftp.rename(srcBase, dstBase)
-                    } else {
-                        // Déplacement + renommage en un coup (chemin absolu côté destination)
-                        ftp.rename(srcBase, (destinationName.value))
-                    }
+                    // Si on reste dans le même dossier, utiliser juste les noms
+                    val renameOk =
+                        if (srcParent == dstParent) {
+                            ftp.rename(srcBase, dstBase)
+                        } else {
+                            // Déplacement + renommage en un coup (chemin absolu côté destination)
+                            ftp.rename(srcBase, (destinationName.value))
+                        }
 
-                if (renameOk) Result.success(true)
-                else Result.failure<Boolean>(IOException("Échec du renommage $sourceName -> $destinationName"))
-            } catch (ex: IOException) {
-                Result.failure(ex)
-            }
-        } == true
+                    if (renameOk) Result.success(true)
+                    else Result.failure<Boolean>(IOException("Échec du renommage $sourceName -> $destinationName"))
+                } catch (ex: IOException) {
+                    Result.failure(ex)
+                }
+            } == true
+        }
     }
 
     override suspend fun copy(
@@ -338,7 +346,6 @@ open class FtpDS constructor() : IFtpDS {
         localTargetFile: File,
         progressCallback: (Int) -> Unit
     ): Boolean {
-
         return doWithNASAccess<Boolean>(parent = sourceFullPath.path) { ftp ->
             try {
                 ftp.setFileType(FTPClient.BINARY_FILE_TYPE)
@@ -378,5 +385,52 @@ open class FtpDS constructor() : IFtpDS {
                 Result.failure(ex)
             }
         } == true
+    }
+
+    override suspend fun createFileInAnnexes(
+        fileName: TauItemName,
+        textContent: String
+    ): Boolean {
+        return withContext(Dispatchers.IO) {
+
+            doWithNASAccess<Boolean>(parent = "/annexes") { ftp ->
+                try {
+                    ftp.enterLocalPassiveMode()  // Firewall OK
+                    ftp.setFileType(FTP.ASCII_FILE_TYPE)  // Texte !
+                    ftp.changeWorkingDirectory("/annexes")
+                    ftp.setControlEncoding("UTF-8")
+
+                    withContext(Dispatchers.IO) {
+                        if (ftp.listDirectories()
+                                .map { it.name }
+                                .none { it == fileName.value })
+                            ftp.makeDirectory(fileName.value)
+                        ftp.changeWorkingDirectory(fileName.value)
+                    }
+
+                    val inputStream =
+                        ByteArrayInputStream(textContent.toByteArray(Charsets.UTF_8))
+                    val success =
+                        withContext(Dispatchers.IO) {
+                            ftp.storeFile(
+                                "description.txt",
+                                inputStream
+                            )
+                        }
+
+                    inputStream.close()
+                    ftp.logout()
+                    ftp.disconnect()
+
+                    if (success)
+                        Result.success(true)
+                    else
+                        Result.failure(Exception())
+
+                } catch (ex: Exception) {
+                    Result.failure(ex)
+                }
+            } == true
+        }
     }
 }

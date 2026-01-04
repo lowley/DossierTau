@@ -122,7 +122,6 @@ class WebScrappingRepo : IWebScrappingRepo {
     ): List<MovieSuffix> {
         val doc = Jsoup.parse(searchMoviesHtml)
         val movieCandidates = doc.select(".item-preview-video")
-        println("SCRAP jsoup: ${movieCandidates.size} movie candidates")
 
         val goodOnes = movieCandidates.filter { element ->
             val searchName = element.attr("itemtitle")

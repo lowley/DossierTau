@@ -9,7 +9,7 @@ class NasRepo(
     val ftpDS: FtpDS
 ): INasRepo {
 
-    val rootPath = "".toTauPath()
+    val rootPath = "/videos".toTauPath()
 
     override suspend fun renameFile(from: TauItemName, to: TauItemName){
         println("SCRAP \uD83D\uDE91 ${from.value} ▶ ${to.value}")

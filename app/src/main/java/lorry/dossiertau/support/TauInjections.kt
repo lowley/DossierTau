@@ -2,6 +2,7 @@ package lorry.basics
 
 import androidx.room.Room
 import data.ftp.FtpDS
+import data.ftp.IFtpDS
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -72,10 +73,11 @@ val TauInjections = module {
     single<IFolderCompo> { get(named("real")) }
 
     single { VmLinks() }
+    single<IFtpDS> { FtpDS() }
     single<INasRepo> { NasRepo(FtpDS()) }
     single<IDiskRepo> { DiskRepo() }
     single<IWebScrappingRepo> { WebScrappingRepo() }
-    single { Links(get(), get(), get(), get()) }
+    single { Links(get(), get(), get(), get(), get()) }
 
     single<TauViewModel>(named("real")) { TauViewModel(get(), get(), get()) }
     single<TauViewModel> { get(named("real")) }
