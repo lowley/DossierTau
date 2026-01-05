@@ -29,6 +29,7 @@ import kotlin.collections.plus
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import data.ftp.IFtpDS
 import lorry.dossiertau.support.littleClasses.toTauPath
+import lorry.dossiertau.usecases.generateHTMLs.support.ActressName
 
 typealias PictureUrl = String
 typealias MovieDescription = String
@@ -68,13 +69,13 @@ class Links(
             /////////////////
             // description //
             /////////////////
-            saveDescription(html = html, videoName = videoName)
+            saveDescription(html = html.html, videoName = videoName)
             println("SCRAP description enregistrée")
 
             ///////////
             // image //
             ///////////
-            savePicture(html = html, videoName = videoName)
+            savePicture(html = html.html, videoName = videoName)
             println("SCRAP image enregistrée")
         }
 
@@ -97,13 +98,8 @@ class Links(
             println("SCRAP ⯈ création des htmls de ${it.key.value}")
             createFillesHtmls(
                 annexesNasPath = "/annexes",
-                itemName = it.key,
+                videoFile = it,
             )
-
-
-
-
-
 
             println("SCRAP ... fichier traité")
         }
@@ -111,22 +107,119 @@ class Links(
         println("SCRAP That's all folks!")
     }
 
-    private suspend fun createFillesHtmls(annexesNasPath: String, itemName: TauItemName) {
+    private suspend fun createFillesHtmls(
+        annexesNasPath: String,
+        videoFile: Map.Entry<TauItemName, GrabbedFromPhase1>
+    ) {
 
-        val picture64 = ftpDS.readJpgFromFtpAsBase64(itemName)
-        val description = ftpDS.readDescriptionFromFtpAsBase64(itemName)
+        val picture64 = ftpDS.readJpgFromFtpAsBase64(videoFile.key)
+        val description = ftpDS.readDescriptionFromFtpAsBase64(videoFile.key)
 
         println("SCRAP ... contenu image récupéré pour création HTML: $picture64")
         println("SCRAP ... contenu description récupéré pour création HTML: $description")
 
+        val actressPaths: Map<ActressName, TauItemName> = getLocalActresses()
 
+        val htmlContent = createHtmlContent(
+            annexes = annexesNasPath,
+            videoName = videoFile.key,
+            picture64 = picture64,
+            description = description
+        )
 
+        //les actrices de "Filles"
+        actressPaths.onEach { actressAndMovieInFilles ->
+            //les actrices du film
+            videoFile.value.actresses.onEach { actressNameInVideo ->
+                if (actressNameInVideo == actressAndMovieInFilles.key){
+                    //la fille dans "Filles" actressAndMovieInFilles.key
+                    //correspond à une des actrices du film
 
-
-
+                    createFillesHtmlFile(
+                        htmlContent = htmlContent,
+                        folder = actressAndMovieInFilles.value,
+                        videoName = videoFile.key
+                    )
+                }
+            }
+        }
 
 
     }
+
+    private fun createFillesHtmlFile(
+        htmlContent: MovieHtml,
+        folder: TauItemName,
+        videoName: TauItemName
+    ) {
+        val fullPath = "/storage/emulated/0/Movies/sexe/filles/${folder.value}/${videoName.value}"
+            .substringBeforeLast(".") + ".html"
+        fullPath.toTauPath().toFile().getOrNull()?.let{
+            it.createNewFile()
+            it.writeText(htmlContent, Charsets.UTF_8)
+        }
+    }
+
+    private fun createHtmlContent(
+        annexes: String,
+        videoName: TauItemName,
+        picture64: String?,
+        description: String?
+    ): MovieHtml {
+        var nas = "smb://olivier:37-2lematin@192.168.1.20/videos/${videoName.value}?player=vlc"
+
+        val imageSection = picture64?.let {
+            """<img src="data:image/jpeg;base64,$it" alt="cover" style="max-width:100%;height:auto;"/><br>"""
+        } ?: ""
+
+        val text = """<!DOCTYPE html>
+                                 <html lang="fr">
+                                 <head>
+                                     <meta charset="UTF-8">
+                                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                                     <title>Redirection automatique</title>
+                                 </head>
+                                 <body>
+                                $imageSection
+                                 <a id="autoClickLink" href="myapp://playvideo/kiwi?video=$nas">Lien automatique</a>
+
+                                 <script>
+                                     window.onload = function() {
+                                         // Récupère le lien par son identifiant et déclenche le clic
+                                         document.getElementById("autoClickLink").click();
+                                     };
+                                 </script>
+
+                                 </body>
+                                 </html>"""
+
+        return text
+
+    }
+
+    private suspend fun getLocalActresses(): Map<ActressName, TauItemName> {
+
+        val fillesPaths = "/storage/emulated/0/Movies/sexe/filles".toTauPath().toFile()
+            .getOrNull()
+            ?.listFiles()?.filter { it.isDirectory }
+
+        val result = mutableMapOf<ActressName, TauItemName>()
+
+        fillesPaths?.onEach { file ->
+            val name = file.name
+                .split("-")
+                .let { items ->
+                    if (items.size == 1)
+                        items.first()
+                    else items.get(1)
+                }
+
+            result[name as ActressName] = TauItemName(file.name)
+        }
+
+        return result
+    }
+
 
     private suspend fun savePicture(
         html: MovieHtml,
@@ -204,9 +297,9 @@ class Links(
         return pictureUrl.toOption()
     }
 
-    private suspend fun renameFiles(): MutableMap<TauItemName, MovieHtml> {
+    private suspend fun renameFiles(): MutableMap<TauItemName, GrabbedFromPhase1> {
 
-        val result = mutableMapOf<TauItemName, MovieHtml>()
+        val result = mutableMapOf<TauItemName, GrabbedFromPhase1>()
         val fileNames = nasRepo.getVideoNames()
 
         println("SCRAP PREMIERE PHASE: renommage de tous les fichiers")
@@ -249,7 +342,11 @@ class Links(
             )
 
             newName = newName.value.replace(" - HotMovies", "").toTauFileName()
-            result[newName] = movieActresses.first
+            result[newName] = GrabbedFromPhase1(
+                html = movieActresses.first,
+                actresses = movieActresses.second,
+                subjects = movieSubjects
+            )
 
             if (newName != videoName)
                 nasRepo.renameFile(videoName, newName)
@@ -410,4 +507,12 @@ fun ByteArray.toBitmap(): Bitmap {
 data class JsonPart(
     @Json(name = "@type") val type: String,
     val description: String?
+)
+
+typealias SubjectName = String
+
+data class GrabbedFromPhase1(
+    val html: MovieHtml,
+    val actresses: List<ActressName>,
+    val subjects: List<SubjectName>
 )
