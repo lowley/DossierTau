@@ -1,5 +1,8 @@
 package lorry.dossiertau.usecases.generateHTMLs.repos
 
+import lorry.dossiertau.support.littleClasses.TauPath
+import lorry.dossiertau.support.littleClasses.path
+import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.usecases.generateHTMLs.support.Actress
 import lorry.dossiertau.usecases.generateHTMLs.support.Subject
 import java.io.File
@@ -26,6 +29,18 @@ class DiskRepo(): IDiskRepo {
             .map { Subject(if (it.size >= 2) it[1] else it[0], it) }
 
         return subjects
+    }
+
+    override suspend fun deleteAllHtmlsIn(root: TauPath) {
+
+        val rootFile = root.toFile().getOrNull() ?: return
+        val htmls = rootFile.listFiles {
+            it.isFile && it.name.endsWith("html") && !it.name.startsWith(".")}
+
+        htmls.onEach { html -> html.delete() }
+
+        val subFolders = rootFile.listFiles() { it.isDirectory() }
+        subFolders.onEach { subFolder -> deleteAllHtmlsIn(subFolder.path.toTauPath()) }
     }
 }
 

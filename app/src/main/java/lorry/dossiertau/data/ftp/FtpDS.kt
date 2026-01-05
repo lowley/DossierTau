@@ -20,11 +20,13 @@ import org.apache.commons.net.ftp.FTPClient
 import org.apache.commons.net.ftp.FTPClientConfig
 import org.apache.commons.net.ftp.FTPReply
 import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.nio.file.Paths
 import java.time.LocalDate
+import java.util.Base64
 
 open class FtpDS constructor() : IFtpDS {
 
@@ -405,7 +407,8 @@ open class FtpDS constructor() : IFtpDS {
                     withContext(Dispatchers.IO) {
                         if (ftp.listDirectories()
                                 .map { it.name }
-                                .none { it == fileName.value })
+                                .none { it == fileName.value }
+                        )
                             ftp.makeDirectory(fileName.value)
                         ftp.changeWorkingDirectory(fileName.value)
                     }
@@ -451,7 +454,8 @@ open class FtpDS constructor() : IFtpDS {
                     withContext(Dispatchers.IO) {
                         if (ftp.listDirectories()
                                 .map { it.name }
-                                .none { it == fileName.value })
+                                .none { it == fileName.value }
+                        )
                             ftp.makeDirectory(fileName.value)
                         ftp.changeWorkingDirectory(fileName.value)
                     }
@@ -477,6 +481,103 @@ open class FtpDS constructor() : IFtpDS {
                     Result.failure(ex)
                 }
             } == true
+        }
+    }
+
+    override suspend fun readJpgFromFtpAsBase64(
+        fileName: TauItemName  // ex: "/images/photo.jpg"
+    ): String? {
+        return withContext(Dispatchers.IO) {
+            doWithNASAccess<String?>(parent = "/annexes") { ftp ->
+                var result: String? = null
+                try {
+                    ftp.enterLocalPassiveMode()  // Firewall OK
+                    ftp.setFileType(FTP.BINARY_FILE_TYPE)
+                    ftp.changeWorkingDirectory("/annexes")
+                    ftp.setControlEncoding("UTF-8")
+
+                    withContext(Dispatchers.IO) {
+                        ftp.changeWorkingDirectory(fileName.value)
+                    }
+
+                    // 2. Lire le fichier dans un ByteArray
+                    val output = ByteArrayOutputStream()
+                    val ok = ftp.retrieveFile("image.jpg", output)
+                    if (!ok) {
+                        ftp.logout()
+                        ftp.disconnect()
+                        Result.failure<String?>(Exception("Fichier introuvable: $fileName"))
+                    }
+
+                    val bytes = output.toByteArray()
+                    output.close()
+
+                    ftp.logout()
+                    ftp.disconnect()
+
+                    // 3. Encoder en Base64
+                    result = Base64.getEncoder().encodeToString(bytes)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    Result.failure<String?>(Exception("Erreur de lecture d'image: $fileName"))
+                    try {
+                        if (ftp.isConnected) {
+                            ftp.logout()
+                            ftp.disconnect()
+                        }
+                    } catch (ex: Exception) {
+                        Result.failure<String?>(Exception("Problème de déconnexion"))
+                    }
+                }
+
+                Result.success(result)
+            }
+        }
+    }
+
+    override suspend fun readDescriptionFromFtpAsBase64(
+        fileName: TauItemName  // ex: "/images/photo.jpg"
+    ): String? {
+        return withContext(Dispatchers.IO) {
+            doWithNASAccess<String?>(parent = "/annexes") { ftp ->
+                var result: String? = null
+                try {
+                    ftp.enterLocalPassiveMode()  // Firewall OK
+                    ftp.setFileType(FTP.ASCII_FILE_TYPE)
+                    ftp.changeWorkingDirectory("/annexes")
+                    ftp.setControlEncoding("UTF-8")
+
+                    withContext(Dispatchers.IO) {
+                        ftp.changeWorkingDirectory(fileName.value)
+                    }
+
+                    val output = ByteArrayOutputStream()
+                    val success = ftp.retrieveFile("description.txt", output)
+
+                    if (!success) {
+                        ftp.logout()
+                        ftp.disconnect()
+                        return@doWithNASAccess Result.failure<String?>(Exception("Fichier introuvable: $fileName"))
+                    }
+
+                    result = output.toString(Charsets.UTF_8.toString())
+                    output.close()
+                }
+                catch (e: Exception) {
+                    e.printStackTrace()
+                    Result.failure<String?>(Exception("Erreur de lecture de la description: $fileName"))
+                    try {
+                        if (ftp.isConnected) {
+                            ftp.logout()
+                            ftp.disconnect()
+                        }
+                    } catch (ex: Exception) {
+                        Result.failure<String?>(Exception("Problème de déconnexion"))
+                    }
+                }
+
+                Result.success(result)
+            }
         }
     }
 }

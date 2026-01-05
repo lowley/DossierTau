@@ -46,7 +46,7 @@ class WebScrappingRepo : IWebScrappingRepo {
         val movieSuffixes = searchTheGoodMovies(shortMovieName, allMoviesPageHtml)
         val peopleAndHtmlForSameNameMovies = getInfosOfGoodMovies(movieSuffixes)
 
-        println("SCRAP Pour $shortMovieName on trouve ${peopleAndHtmlForSameNameMovies.size} films avec ce titre. Recherche avec les noms d'actrices ...")
+        println("SCRAP trouvés ${peopleAndHtmlForSameNameMovies.size} films avec ce titre. Recherche avec les noms d'actrices ...")
         val movieThings = findMovieAmongMovies(
             peopleAndHtmlForSameNameMovies = peopleAndHtmlForSameNameMovies,
             localActresses = localActresses,

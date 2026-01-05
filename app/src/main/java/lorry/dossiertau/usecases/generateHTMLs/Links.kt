@@ -28,6 +28,7 @@ import kotlin.collections.joinToString
 import kotlin.collections.plus
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import data.ftp.IFtpDS
+import lorry.dossiertau.support.littleClasses.toTauPath
 
 typealias PictureUrl = String
 typealias MovieDescription = String
@@ -56,7 +57,8 @@ class Links(
 
         val htmls = renameFiles()
 
-        println("SCRAP enregistrement des métadonnées dans 'annexes'")
+        println("SCRAP DEUXIEME PHASE: enregistrements metatdatas")
+
         htmls.forEach {
             println("SCRAP")
             println("SCRAP ⯈⯈⯈ ${it.key.value} ...")
@@ -66,29 +68,87 @@ class Links(
             /////////////////
             // description //
             /////////////////
-            val description = extractDescriptionFrom(html)
-            println("SCRAP ◔ description: ${description.getOrNull()?.length ?: 0} caractères")
-
-            val descriptionOk = description.fold(ifSome = {
-                ftpDS.createDescriptionFileInAnnexes(videoName, it)
-            }, ifEmpty = { false })
-            println("SCRAP ◑ enregistrement description: ${if (descriptionOk) "ok" else "problème"}")
+            saveDescription(html = html, videoName = videoName)
+            println("SCRAP description enregistrée")
 
             ///////////
             // image //
             ///////////
-            val picture = extractPictureFrom(html)
-            println("SCRAP ◕ image: ${if (picture.isSome()) "présente" else "absente"}")
+            savePicture(html = html, videoName = videoName)
+            println("SCRAP image enregistrée")
+        }
 
-            val pictureOk = picture.fold(ifSome = {
-                ftpDS.createPictureFileInAnnexes(videoName, it as String)
-            }, ifEmpty = { false })
-            println("SCRAP ⏺ enregistrement image: ${if (pictureOk) "ok" else "problème"}")
+        //////////////////////////////////
+        // suppression de tous les html //
+        //////////////////////////////////
+        println("SCRAP")
+        println("SCRAP TROISIEME PHASE: suppression des htmls ...")
+        diskRepo.deleteAllHtmlsIn("/storage/emulated/0/Movies/sexe/filles".toTauPath())
+        println("SCRAP suppression effectués")
 
-            println("SCRAP ⯈ ... done")
+        println("SCRAP")
+        println("SCRAP QUATRIEME PHASE: création des Htmls")
+        println("SCRAP")
+        htmls.forEach {
+
+            ////////////////////////////////
+            // création des nouveaux html //
+            ////////////////////////////////
+            println("SCRAP ⯈ création des htmls de ${it.key.value}")
+            createFillesHtmls(
+                annexesNasPath = "/annexes",
+                itemName = it.key,
+            )
+
+
+
+
+
+
+            println("SCRAP ... fichier traité")
         }
 
         println("SCRAP That's all folks!")
+    }
+
+    private suspend fun createFillesHtmls(annexesNasPath: String, itemName: TauItemName) {
+
+        val picture64 = ftpDS.readJpgFromFtpAsBase64(itemName)
+        val description = ftpDS.readDescriptionFromFtpAsBase64(itemName)
+
+        println("SCRAP ... contenu image récupéré pour création HTML: $picture64")
+        println("SCRAP ... contenu description récupéré pour création HTML: $description")
+
+
+
+
+
+
+
+
+    }
+
+    private suspend fun savePicture(
+        html: MovieHtml,
+        videoName: TauItemName
+    ) {
+        val picture = extractPictureFrom(html)
+        println("SCRAP ◕ image: ${if (picture.isSome()) "présente" else "absente"}")
+
+        val pictureOk = picture.fold(ifSome = {
+            ftpDS.createPictureFileInAnnexes(videoName, it as String)
+        }, ifEmpty = { false })
+        println("SCRAP ⏺ enregistrement image: ${if (pictureOk) "ok" else "problème"}")
+    }
+
+    private suspend fun saveDescription(html: MovieHtml, videoName: TauItemName) {
+        val description = extractDescriptionFrom(html)
+        println("SCRAP ◔ description: ${description.getOrNull()?.length ?: 0} caractères")
+
+        val descriptionOk = description.fold(ifSome = {
+            ftpDS.createDescriptionFileInAnnexes(videoName, it)
+        }, ifEmpty = { false })
+        println("SCRAP ◑ enregistrement description: ${if (descriptionOk) "ok" else "problème"}")
     }
 
     private fun extractDescriptionFrom(movieHtml: MovieHtml): Option<MovieDescription> {
@@ -148,11 +208,14 @@ class Links(
 
         val result = mutableMapOf<TauItemName, MovieHtml>()
         val fileNames = nasRepo.getVideoNames()
+
+        println("SCRAP PREMIERE PHASE: renommage de tous les fichiers")
+
         (1..fileNames.size).onEach {
 
             println("SCRAP")
             val videoName = fileNames[it - 1]
-            println("SCRAP *** FILM *** ${videoName.value}")
+            println("SCRAP ⯈⯈⯈ ${videoName.value}")
 
             val localActresses = diskRepo.getLocalActresses()
             val localSubjects = diskRepo.getLocalSubjects()
@@ -169,8 +232,8 @@ class Links(
                 )
             else emptyList()
 
-            println("SCRAP movieActresses=${movieActresses.second.joinToString(",")}")
-            println("SCRAP movieSubjects=${movieSubjects.joinToString(",")}")
+            println("SCRAP ⯈ ${movieActresses.second.joinToString(",")}")
+            println("SCRAP ⯈ ${movieSubjects.joinToString(",")}")
 
 
             var newName = renameFileWithStuff(

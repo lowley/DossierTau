@@ -32,4 +32,6 @@ interface IFtpDS {
     ): Boolean
 
     suspend fun createPictureFileInAnnexes(fileName: TauItemName, url: String): Boolean
+    suspend fun readJpgFromFtpAsBase64(fileName: TauItemName): String?
+    suspend fun readDescriptionFromFtpAsBase64(fileName: TauItemName): String?
 }
