@@ -28,7 +28,9 @@ import kotlin.collections.joinToString
 import kotlin.collections.plus
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import data.ftp.IFtpDS
+import lorry.dossiertau.ShortcutMakingEndMessage
 import lorry.dossiertau.support.littleClasses.toTauPath
+import lorry.dossiertau.ui.AppBus
 import lorry.dossiertau.usecases.generateHTMLs.support.ActressName
 
 typealias PictureUrl = String
@@ -51,18 +53,21 @@ class Links(
     val port = 1080
 
     val htmls = mutableMapOf<TauItemName, MovieHtml>()
-
     val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     suspend fun generateLinks() {
 
         val htmls = renameFiles()
 
-        println("SCRAP DEUXIEME PHASE: enregistrements metatdatas")
+        println("SCRAP DEUXIEME PHASE: enregistrements metadatas")
+        AppBus.lines.tryEmit("SCRAP DEUXIEME PHASE: enregistrements metadatas")
 
-        htmls.forEach {
+        htmls.onEachIndexed { index, it ->
             println("SCRAP")
+            AppBus.lines.tryEmit("SCRAP")
             println("SCRAP ⯈⯈⯈ ${it.key.value} ...")
+            AppBus.summary.tryEmit("II$index/${htmls.size}\uD83D\uDCBE")
+            AppBus.lines.tryEmit("SCRAP ⯈⯈⯈ ${it.key.value} ...")
             val videoName = it.key
             val html = it.value
 
@@ -71,52 +76,109 @@ class Links(
             /////////////////
             saveDescription(html = html.html, videoName = videoName)
             println("SCRAP description enregistrée")
+            AppBus.lines.tryEmit("SCRAP description enregistrée")
 
             ///////////
             // image //
             ///////////
             savePicture(html = html.html, videoName = videoName)
             println("SCRAP image enregistrée")
+            AppBus.lines.tryEmit("SCRAP image enregistrée")
         }
 
         //////////////////////////////////
         // suppression de tous les html //
         //////////////////////////////////
         println("SCRAP")
+        AppBus.lines.tryEmit("SCRAP")
         println("SCRAP TROISIEME PHASE: suppression des htmls ...")
+        AppBus.lines.tryEmit("SCRAP TROISIEME PHASE: suppression des htmls ...")
+        AppBus.summary.tryEmit("III\uD83D\uDDF4\uD83D\uDDF4\uD83D\uDDF4\uD83D\uDD71")
         diskRepo.deleteAllHtmlsIn("/storage/emulated/0/Movies/sexe/filles".toTauPath())
+        diskRepo.deleteAllHtmlsIn("/storage/emulated/0/Movies/sexe/fantasmes".toTauPath())
         println("SCRAP suppression effectués")
+        AppBus.lines.tryEmit("SCRAP suppression effectués")
 
         println("SCRAP")
+        AppBus.lines.tryEmit("SCRAP")
         println("SCRAP QUATRIEME PHASE: création des Htmls")
+        AppBus.lines.tryEmit("SCRAP QUATRIEME PHASE: création des Htmls")
         println("SCRAP")
-        htmls.forEach {
+        AppBus.lines.tryEmit("SCRAP")
+        htmls.onEachIndexed { index, it ->
 
             ////////////////////////////////
             // création des nouveaux html //
             ////////////////////////////////
             println("SCRAP ⯈ création des htmls de ${it.key.value}")
+            AppBus.lines.tryEmit("SCRAP ⯈ création des htmls de ${it.key.value}")
+            AppBus.summary.tryEmit("IV$index/${htmls.size}\uD83D\uDC27")
+
             createFillesHtmls(
                 annexesNasPath = "/annexes",
                 videoFile = it,
             )
 
+            createSubjectsHtmls(
+                annexesNasPath = "/annexes",
+                videoFile = it,
+            )
+
             println("SCRAP ... fichier traité")
+            AppBus.lines.tryEmit("SCRAP ... fichier traité")
         }
 
         println("SCRAP That's all folks!")
+        AppBus.lines.tryEmit("SCRAP That's all folks!")
+        AppBus.lines.tryEmit(ShortcutMakingEndMessage)
+    }
+
+    private suspend fun createSubjectsHtmls(
+        annexesNasPath: String,
+        videoFile: Map.Entry<TauItemName, GrabbedFromPhase1>
+    ) {
+        val picture64 = ftpDS.readJpgFromFtpAsBase64(videoFile.key)
+
+        println("SCRAP ... contenu image récupéré pour création HTML: ${picture64?.take(8)}")
+        AppBus.lines.tryEmit("SCRAP ... contenu image récupéré pour création HTML: ${picture64?.take(8)}")
+
+        val subjectPaths: Map<SubjectName, TauItemName> = getLocalSubjects()
+
+        val htmlContent = createHtmlContent(
+            annexes = annexesNasPath,
+            videoName = videoFile.key,
+            picture64 = picture64,
+        )
+
+        //les fantasmes de "Fantasmes"
+        subjectPaths.onEach { subjectInSubjectsFolder ->
+            //les sujets du film
+            videoFile.value.subjects.onEach { subjectNameInVideo ->
+                if (subjectNameInVideo == subjectInSubjectsFolder.key){
+                    //le sujet dans "Fantasmes" subjectInSubjectsFolder.key
+                    //correspond à un des sujets du film
+
+                    createSubjectHtmlFile(
+                        htmlContent = htmlContent,
+                        folder = subjectInSubjectsFolder.value,
+                        videoName = videoFile.key
+                    )
+                }
+            }
+        }
     }
 
     private suspend fun createFillesHtmls(
         annexesNasPath: String,
         videoFile: Map.Entry<TauItemName, GrabbedFromPhase1>
     ) {
-
         val picture64 = ftpDS.readJpgFromFtpAsBase64(videoFile.key)
         val description = ftpDS.readDescriptionFromFtpAsBase64(videoFile.key)
 
-        println("SCRAP ... contenu image récupéré pour création HTML: $picture64")
+        println("SCRAP ... contenu image récupéré pour création HTML: ${picture64?.take(8)}")
+        AppBus.lines.tryEmit("SCRAP ... contenu image récupéré pour création HTML: ${picture64?.take(8)}")
         println("SCRAP ... contenu description récupéré pour création HTML: $description")
+        AppBus.lines.tryEmit("SCRAP ... contenu description récupéré pour création HTML: $description")
 
         val actressPaths: Map<ActressName, TauItemName> = getLocalActresses()
 
@@ -143,8 +205,6 @@ class Links(
                 }
             }
         }
-
-
     }
 
     private fun createFillesHtmlFile(
@@ -160,11 +220,24 @@ class Links(
         }
     }
 
+    private fun createSubjectHtmlFile(
+        htmlContent: MovieHtml,
+        folder: TauItemName,
+        videoName: TauItemName
+    ) {
+        val fullPath = "/storage/emulated/0/Movies/sexe/fantasmes/${folder.value}/${videoName.value}"
+            .substringBeforeLast(".") + ".html"
+        fullPath.toTauPath().toFile().getOrNull()?.let{
+            it.createNewFile()
+            it.writeText(htmlContent, Charsets.UTF_8)
+        }
+    }
+
     private fun createHtmlContent(
         annexes: String,
         videoName: TauItemName,
-        picture64: String?,
-        description: String?
+        picture64: String? = null,
+        description: String? = null
     ): MovieHtml {
         var nas = "smb://olivier:37-2lematin@192.168.1.20/videos/${videoName.value}?player=vlc"
 
@@ -220,6 +293,28 @@ class Links(
         return result
     }
 
+    private suspend fun getLocalSubjects(): Map<SubjectName, TauItemName> {
+
+        val subjectsPaths = "/storage/emulated/0/Movies/sexe/fantasmes".toTauPath().toFile()
+            .getOrNull()
+            ?.listFiles()?.filter { it.isDirectory }
+
+        val result = mutableMapOf<SubjectName, TauItemName>()
+
+        subjectsPaths?.onEach { file ->
+            val name = file.name
+                .split("-")
+                .let { items ->
+                    if (items.size == 1)
+                        items.first()
+                    else items.get(1)
+                }
+
+            result[name as SubjectName] = TauItemName(file.name)
+        }
+
+        return result
+    }
 
     private suspend fun savePicture(
         html: MovieHtml,
@@ -227,21 +322,25 @@ class Links(
     ) {
         val picture = extractPictureFrom(html)
         println("SCRAP ◕ image: ${if (picture.isSome()) "présente" else "absente"}")
+        AppBus.lines.tryEmit("SCRAP ◕ image: ${if (picture.isSome()) "présente" else "absente"}")
 
         val pictureOk = picture.fold(ifSome = {
             ftpDS.createPictureFileInAnnexes(videoName, it as String)
         }, ifEmpty = { false })
         println("SCRAP ⏺ enregistrement image: ${if (pictureOk) "ok" else "problème"}")
+        AppBus.lines.tryEmit("SCRAP ⏺ enregistrement image: ${if (pictureOk) "ok" else "problème"}")
     }
 
     private suspend fun saveDescription(html: MovieHtml, videoName: TauItemName) {
         val description = extractDescriptionFrom(html)
         println("SCRAP ◔ description: ${description.getOrNull()?.length ?: 0} caractères")
+        AppBus.lines.tryEmit("SCRAP ◔ description: ${description.getOrNull()?.length ?: 0} caractères")
 
         val descriptionOk = description.fold(ifSome = {
             ftpDS.createDescriptionFileInAnnexes(videoName, it)
         }, ifEmpty = { false })
         println("SCRAP ◑ enregistrement description: ${if (descriptionOk) "ok" else "problème"}")
+        AppBus.lines.tryEmit("SCRAP ◑ enregistrement description: ${if (descriptionOk) "ok" else "problème"}")
     }
 
     private fun extractDescriptionFrom(movieHtml: MovieHtml): Option<MovieDescription> {
@@ -287,11 +386,11 @@ class Links(
 
         val doc = Jsoup.parse(movieHtml)
 
-        val links = doc.select("link")
-        val pictureNode = links.filter { it.attr("name") == "thumbnail" }.firstOrNull()
+//        val links = doc.select("link")
+//        val pictureNode = links.filter { it.attr("name") == "thumbnail" }.firstOrNull()
         //autre image possible
-//        val metas = doc.select("meta")
-//        val pictureNode = metas.filter { it.attr("property") == "og:image" }
+        val metas = doc.select("meta")
+        val pictureNode = metas.filter { it.attr("property") == "og:image" }.firstOrNull()
 
         val pictureUrl = pictureNode?.attr("content")
         return pictureUrl.toOption()
@@ -303,12 +402,16 @@ class Links(
         val fileNames = nasRepo.getVideoNames()
 
         println("SCRAP PREMIERE PHASE: renommage de tous les fichiers")
+        AppBus.lines.tryEmit("SCRAP PREMIERE PHASE: renommage de tous les fichiers")
 
         (1..fileNames.size).onEach {
 
             println("SCRAP")
+            AppBus.lines.tryEmit("SCRAP")
+            AppBus.summary.tryEmit("I$it/${fileNames.size}\uD83D\uDCEA")
             val videoName = fileNames[it - 1]
             println("SCRAP ⯈⯈⯈ ${videoName.value}")
+            AppBus.lines.tryEmit("SCRAP ⯈⯈⯈ ${videoName.value}")
 
             val localActresses = diskRepo.getLocalActresses()
             val localSubjects = diskRepo.getLocalSubjects()
@@ -326,7 +429,10 @@ class Links(
             else emptyList()
 
             println("SCRAP ⯈ ${movieActresses.second.joinToString(",")}")
+            AppBus.lines.tryEmit("SCRAP ⯈ ${movieActresses.second.joinToString(",")}")
+
             println("SCRAP ⯈ ${movieSubjects.joinToString(",")}")
+            AppBus.lines.tryEmit("SCRAP ⯈ ${movieSubjects.joinToString(",")}")
 
 
             var newName = renameFileWithStuff(
@@ -440,18 +546,22 @@ class Links(
         } catch (e: HttpException) {
             if (e.code() == 403) {
                 println("SCRAP Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
+                AppBus.lines.tryEmit("SCRAP Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
                 ResponseBody.create(null, "")
             } else {
                 println("SCRAP Erreur HTTP : ${e.code()}")
+                AppBus.lines.tryEmit("SCRAP Erreur HTTP : ${e.code()}")
                 ResponseBody.create(null, "")
             }
         } catch (e: Exception) {
             println("SCRAP Erreur réseau : ${e.message}")
+            AppBus.lines.tryEmit("SCRAP Erreur réseau : ${e.message}")
             ResponseBody.create(null, "")
         }
 
         val html = responseBody.string()
         println("SCRAP KTOR html=$html")
+        AppBus.lines.tryEmit("SCRAP KTOR html=$html")
 
         ///////////////////////////////////////////////////////////////////////////
         val responseBody2 = try {
@@ -459,18 +569,22 @@ class Links(
         } catch (e: HttpException) {
             if (e.code() == 403) {
                 println("SCRAP Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
+                AppBus.lines.tryEmit("SCRAP Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
                 ResponseBody.create(null, "")
             } else {
                 println("SCRAP Erreur HTTP : ${e.code()}")
+                AppBus.lines.tryEmit("SCRAP Erreur HTTP : ${e.code()}")
                 ResponseBody.create(null, "")
             }
         } catch (e: Exception) {
             println("SCRAP Erreur réseau : ${e.message}")
+            AppBus.lines.tryEmit("SCRAP Erreur réseau : ${e.message}")
             ResponseBody.create(null, "")
         }
 
         val html2 = responseBody2.string()
         println("SCRAP KTOR html=$html2")
+        AppBus.lines.tryEmit("SCRAP KTOR html=$html2")
 
 
 //        val textResp0 = client.get("https://ipinfo.io/json")  // Test IP d'abord

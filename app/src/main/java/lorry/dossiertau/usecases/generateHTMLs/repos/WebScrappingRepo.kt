@@ -6,6 +6,7 @@ import arrow.core.toOption
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import lorry.dossiertau.support.littleClasses.TauItemName
+import lorry.dossiertau.ui.AppBus
 import lorry.dossiertau.usecases.generateHTMLs.support.Actress
 import lorry.dossiertau.usecases.generateHTMLs.support.ActressName
 import lorry.dossiertau.usecases.generateHTMLs.support.MoviesApi
@@ -32,7 +33,6 @@ class WebScrappingRepo : IWebScrappingRepo {
     val server = "se.socks.nordhold.net"
     val port = 1080
 
-
     var moviesApi: MoviesApi? = null
 
     override suspend fun getMovieActresses(
@@ -46,13 +46,36 @@ class WebScrappingRepo : IWebScrappingRepo {
         val movieSuffixes = searchTheGoodMovies(shortMovieName, allMoviesPageHtml)
         val peopleAndHtmlForSameNameMovies = getInfosOfGoodMovies(movieSuffixes)
 
-        println("SCRAP trouvés ${peopleAndHtmlForSameNameMovies.size} films avec ce titre. Recherche avec les noms d'actrices ...")
-        val movieThings = findMovieAmongMovies(
-            peopleAndHtmlForSameNameMovies = peopleAndHtmlForSameNameMovies,
-            localActresses = localActresses,
-            movieName = movieName
-        )
-        println("SCRAP ... gagnant: ${movieThings.fold({"aucun: des noms d'actrices (dans le fichier) inconnus?"}, {"oui, un"})}")
+        var movieThings: Option<Pair<MovieHtml, List<ActressName>>> = None
+        if (peopleAndHtmlForSameNameMovies.size > 1) {
+            println("SCRAP trouvés ${peopleAndHtmlForSameNameMovies.size} films avec ce titre. Recherche avec les noms d'actrices ...")
+            AppBus.lines.tryEmit("SCRAP trouvés ${peopleAndHtmlForSameNameMovies.size} films avec ce titre. Recherche avec les noms d'actrices ...")
+
+            movieThings = findMovieAmongMovies(
+                peopleAndHtmlForSameNameMovies = peopleAndHtmlForSameNameMovies,
+                localActresses = localActresses,
+                movieName = movieName
+            )
+
+            println("SCRAP ... gagnant: ${movieThings.fold({"aucun: des noms d'actrices (dans le fichier) inconnus?"}, {"oui, un"})}")
+            AppBus.lines.tryEmit("SCRAP ... gagnant: ${movieThings.fold({"aucun: des noms d'actrices (dans le fichier) inconnus?"}, {"oui, un"})}")
+
+            println("SCRAP actrices: ${peopleAndHtmlForSameNameMovies.values.first()
+                .second.joinToString(", ")}")
+            AppBus.lines.tryEmit("SCRAP actrices: ${peopleAndHtmlForSameNameMovies.values.first()
+                .second.joinToString(", ")}")
+        }
+        else if (peopleAndHtmlForSameNameMovies.size == 1){
+            println("SCRAP trouvés; 1 film avec ce titre. On le prend")
+            AppBus.lines.tryEmit("SCRAP trouvés; 1 film avec ce titre. On le prend")
+
+            println("SCRAP actrices: ${peopleAndHtmlForSameNameMovies.values.first()
+                .second.joinToString(", ")}")
+            AppBus.lines.tryEmit("SCRAP actrices: ${peopleAndHtmlForSameNameMovies.values.first()
+                .second.joinToString(", ")}")
+
+            movieThings = peopleAndHtmlForSameNameMovies.values.first().toOption()
+        }
 
         val people = movieThings.fold(
             ifEmpty = { ("" as MovieHtml) to emptyList<ActressName>() },
@@ -167,13 +190,16 @@ class WebScrappingRepo : IWebScrappingRepo {
             } catch (e: HttpException) {
                 if (e.code() == 403) {
                     println("SCRAP Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
+                    AppBus.lines.tryEmit("SCRAP Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
                     ResponseBody.create(null, "")
                 } else {
                     println("SCRAP Erreur HTTP : ${e.code()}")
+                    AppBus.lines.tryEmit("SCRAP Erreur HTTP : ${e.code()}")
                     ResponseBody.create(null, "")
                 }
             } catch (e: Exception) {
                 println("SCRAP Erreur réseau : ${e.message}")
+                AppBus.lines.tryEmit("SCRAP Erreur réseau : ${e.message}")
                 ResponseBody.create(null, "")
             }
 
@@ -190,13 +216,15 @@ class WebScrappingRepo : IWebScrappingRepo {
             } catch (e: HttpException) {
                 if (e.code() == 403) {
                     println("SCRAP Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
+                    AppBus.lines.tryEmit("SCRAP Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
                     ResponseBody.create(null, "")
                 } else {
                     println("SCRAP Erreur HTTP : ${e.code()}")
+                    AppBus.lines.tryEmit("SCRAP Erreur HTTP : ${e.code()}")
                     ResponseBody.create(null, "")
                 }
             } catch (e: Exception) {
-                println("SCRAP Erreur réseau : ${e.message}")
+                AppBus.lines.tryEmit("SCRAP Erreur réseau : ${e.message}")
                 ResponseBody.create(null, "")
             }
 

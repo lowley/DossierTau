@@ -4,6 +4,7 @@ import data.ftp.FtpDS
 import lorry.dossiertau.data.model.name
 import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.support.littleClasses.toTauPath
+import lorry.dossiertau.ui.AppBus
 
 class NasRepo(
     val ftpDS: FtpDS
@@ -13,6 +14,7 @@ class NasRepo(
 
     override suspend fun renameFile(from: TauItemName, to: TauItemName){
         println("SCRAP \uD83D\uDE91 ${from.value} ▶ ${to.value}")
+        AppBus.lines.tryEmit("SCRAP \uD83D\uDE91 ${from.value} ▶ ${to.value}")
         ftpDS.rename(from, to, rootPath)
     }
 
