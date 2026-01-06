@@ -24,7 +24,7 @@ import kotlin.collections.emptyList
 
 typealias MovieSuffix = String
 typealias MovieHtml = String
-
+typealias Invert = Boolean
 
 class WebScrappingRepo : IWebScrappingRepo {
 
@@ -34,6 +34,7 @@ class WebScrappingRepo : IWebScrappingRepo {
     val port = 1080
 
     var moviesApi: MoviesApi? = null
+    val SymbolOfInvertedActressAtTheEndOfShortcut = '-'
 
     override suspend fun getMovieActresses(
         movieName: TauItemName,
@@ -46,7 +47,7 @@ class WebScrappingRepo : IWebScrappingRepo {
         val movieSuffixes = searchTheGoodMovies(shortMovieName, allMoviesPageHtml)
         val peopleAndHtmlForSameNameMovies = getInfosOfGoodMovies(movieSuffixes)
 
-        var movieThings: Option<Pair<MovieHtml, List<ActressName>>> = None
+        var movieThings: Option<Pair<MovieHtml, List<Pair<ActressName, Invert>>>> = None
         if (peopleAndHtmlForSameNameMovies.size > 1) {
             println("SCRAP trouvés ${peopleAndHtmlForSameNameMovies.size} films avec ce titre. Recherche avec les noms d'actrices ...")
             AppBus.lines.tryEmit("SCRAP trouvés ${peopleAndHtmlForSameNameMovies.size} films avec ce titre. Recherche avec les noms d'actrices ...")
@@ -57,22 +58,49 @@ class WebScrappingRepo : IWebScrappingRepo {
                 movieName = movieName
             )
 
-            println("SCRAP ... gagnant: ${movieThings.fold({"aucun: des noms d'actrices (dans le fichier) inconnus?"}, {"oui, un"})}")
-            AppBus.lines.tryEmit("SCRAP ... gagnant: ${movieThings.fold({"aucun: des noms d'actrices (dans le fichier) inconnus?"}, {"oui, un"})}")
+            println(
+                "SCRAP ... gagnant: ${
+                    movieThings.fold(
+                        { "aucun: des noms d'actrices (dans le fichier) inconnus?" },
+                        { "oui, un" })
+                }"
+            )
+            AppBus.lines.tryEmit(
+                "SCRAP ... gagnant: ${
+                    movieThings.fold(
+                        { "aucun: des noms d'actrices (dans le fichier) inconnus?" },
+                        { "oui, un" })
+                }"
+            )
 
-            println("SCRAP actrices: ${peopleAndHtmlForSameNameMovies.values.first()
-                .second.joinToString(", ")}")
-            AppBus.lines.tryEmit("SCRAP actrices: ${peopleAndHtmlForSameNameMovies.values.first()
-                .second.joinToString(", ")}")
-        }
-        else if (peopleAndHtmlForSameNameMovies.size == 1){
+            println(
+                "SCRAP actrices: ${
+                    peopleAndHtmlForSameNameMovies.values.first()
+                        .second.joinToString(", ")
+                }"
+            )
+            AppBus.lines.tryEmit(
+                "SCRAP actrices: ${
+                    peopleAndHtmlForSameNameMovies.values.first()
+                        .second.joinToString(", ")
+                }"
+            )
+        } else if (peopleAndHtmlForSameNameMovies.size == 1) {
             println("SCRAP trouvés; 1 film avec ce titre. On le prend")
             AppBus.lines.tryEmit("SCRAP trouvés; 1 film avec ce titre. On le prend")
 
-            println("SCRAP actrices: ${peopleAndHtmlForSameNameMovies.values.first()
-                .second.joinToString(", ")}")
-            AppBus.lines.tryEmit("SCRAP actrices: ${peopleAndHtmlForSameNameMovies.values.first()
-                .second.joinToString(", ")}")
+            println(
+                "SCRAP actrices: ${
+                    peopleAndHtmlForSameNameMovies.values.first()
+                        .second.joinToString(", ")
+                }"
+            )
+            AppBus.lines.tryEmit(
+                "SCRAP actrices: ${
+                    peopleAndHtmlForSameNameMovies.values.first()
+                        .second.joinToString(", ")
+                }"
+            )
 
             movieThings = peopleAndHtmlForSameNameMovies.values.first().toOption()
         }
@@ -91,8 +119,16 @@ class WebScrappingRepo : IWebScrappingRepo {
         peopleAndHtmlForSameNameMovies: Map<MovieSuffix, Pair<MovieHtml, List<ActressName>>>,
         localActresses: List<Actress>,
         movieName: TauItemName
-    ): Option<Pair<MovieHtml, List<ActressName>>> {
-        val goodOnes = peopleAndHtmlForSameNameMovies.filter { (movieSuffix, movieThings) ->
+    ): Option<Pair<MovieHtml, List<Pair<ActressName, Invert>>>> {
+
+        //si l'actrice joue dans le film mais n'est pas référencée dans la distribution du net
+        //je suffixe son shortcut par "-"
+        //les candidats films sont filtrés par:
+        //** ils doivent contenir toutes les actrices + (normales) **
+        //** ils ne doivent contenir AUCUNE actrice - **
+        //le retour est la fusion: les +, les -, et le reste provenant de distrib du net
+
+        val goodOnes = peopleAndHtmlForSameNameMovies.mapNotNull { (movieSuffix, movieThings) ->
             val ama = mutableListOf<Actress>()
             movieThings.second.forEach { actressName ->
                 localActresses.firstOrNull { it.name == actressName }?.let {
@@ -104,16 +140,47 @@ class WebScrappingRepo : IWebScrappingRepo {
             val movieShortcutsPresentInTheMovie = movieName.value
                 .split(".")
                 .drop(1)
+                .map {
+                    var invert = false
+                    if (it.endsWith(SymbolOfInvertedActressAtTheEndOfShortcut))
+                        invert = true
+                    val final = if (it.endsWith(SymbolOfInvertedActressAtTheEndOfShortcut))
+                        it.dropLast(1) else it
+                    final to (invert as Invert)
+                }
 
             val actressesPresentInTheMovieName = localActresses
-                .filter { it.shortcuts.any { actressShortcut -> actressShortcut in movieShortcutsPresentInTheMovie } }
+                .filter {
+                    it.shortcuts.any { actressShortcut ->
+                        movieShortcutsPresentInTheMovie
+                            .map { it.first }
+                            .contains(actressShortcut)
+                    }
+                }.map { actress ->
+                    val invert = movieShortcutsPresentInTheMovie
+                        .firstOrNull { it.first == actress.name }?.second ?: false
+                    actress to invert
+                }
 
             //actressesPresentInTheMovieName & actualMovieActresses
-            actualMovieActresses.containsAll(actressesPresentInTheMovieName)
+            val PositiveActressesPresentInTheMovieName =
+                actressesPresentInTheMovieName.filter { it.second }
+            val NegativeActressesPresentInTheMovieName =
+                actressesPresentInTheMovieName.filter { !it.second }
+
+            if (PositiveActressesPresentInTheMovieName.all { it.first in actualMovieActresses } &&
+                NegativeActressesPresentInTheMovieName.none { it.first !in actualMovieActresses }) {
+                val allActresses = actressesPresentInTheMovieName.plus(
+                    actualMovieActresses.map { it to false }
+                )
+                movieThings.first to allActresses.map { it.first.name to it.second }
+            } else null
+
+//            actualMovieActresses.containsAll(actressesPresentInTheMovieName)
         }
 
         return if (goodOnes.isNotEmpty())
-            goodOnes.values.first().toOption()
+            goodOnes.first().toOption()
         else
             None
     }
@@ -159,7 +226,10 @@ class WebScrappingRepo : IWebScrappingRepo {
         return suffixes
     }
 
-    override suspend fun getMovieSubjects(movieName: TauItemName, movieHtml: MovieHtml): List<String> {
+    override suspend fun getMovieSubjects(
+        movieName: TauItemName,
+        movieHtml: MovieHtml
+    ): List<String> {
 //        val shortMovieName =
 //            movieName.value.substringBefore('(').removePunctuation().substringBefore(" by ")
 //                .trim()
