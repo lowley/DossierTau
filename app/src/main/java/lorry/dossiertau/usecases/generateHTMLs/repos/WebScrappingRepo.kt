@@ -89,6 +89,12 @@ class WebScrappingRepo : IWebScrappingRepo {
             println("SCRAP trouvés; 1 film avec ce titre. On le prend")
             AppBus.lines.tryEmit("SCRAP trouvés; 1 film avec ce titre. On le prend")
 
+            movieThings = findMovieAmongMovies(
+                peopleAndHtmlForSameNameMovies = peopleAndHtmlForSameNameMovies,
+                localActresses = localActresses,
+                movieName = movieName
+            )
+
             println(
                 "SCRAP actrices: ${
                     peopleAndHtmlForSameNameMovies.values.first()
@@ -102,13 +108,13 @@ class WebScrappingRepo : IWebScrappingRepo {
                 }"
             )
 
-            movieThings = peopleAndHtmlForSameNameMovies.values.first().toOption()
+//            movieThings = peopleAndHtmlForSameNameMovies.values.first().toOption()
         }
 
         val people = movieThings.fold(
             ifEmpty = { ("" as MovieHtml) to emptyList<ActressName>() },
             ifSome = { thing ->
-                thing.first to searchPeople(thing.first)
+                thing.first to thing.second.map { it.first }
             }
         )
 
