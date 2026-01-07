@@ -13,8 +13,8 @@ class DiskRepo(): IDiskRepo {
         val root = File("/storage/emulated/0/Movies/sexe/filles")
         val actresses = root.listFiles()
             .filter { !it.isFile() }
-            .map { it.name }
-            .map { it.split("-") }
+            .map { it.name.lowercase() }
+            .map { it.split(",") }
             .map { Actress(if (it.size >= 2) it[1] else it[0], it) }
 
         return actresses
@@ -24,9 +24,9 @@ class DiskRepo(): IDiskRepo {
         val root = File("/storage/emulated/0/Movies/sexe/fantasmes")
         val subjects = root.listFiles()
             .filter { !it.isFile() }
-            .map { it.name }
-            .map { it.split("-") }
-            .map { Subject(if (it.size >= 2) it[1] else it[0], it) }
+            .map { it.name.lowercase() }
+            .map { it.split(",") }
+            .map { Subject(it[0], it) }
 
         return subjects
     }

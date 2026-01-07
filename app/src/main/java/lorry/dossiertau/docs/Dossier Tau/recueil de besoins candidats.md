@@ -1,0 +1,1 @@
+- [ ] savoir l'avancement des dl de hotmovies dans 1DM+. via notification ? vibration ? comment détecter ? via fin de travail de foldersync qui devrait tourner en permanence ? 

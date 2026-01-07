@@ -31,7 +31,9 @@ import data.ftp.IFtpDS
 import lorry.dossiertau.ShortcutMakingEndMessage
 import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.ui.AppBus
+import lorry.dossiertau.usecases.generateHTMLs.support.Actress
 import lorry.dossiertau.usecases.generateHTMLs.support.ActressName
+import lorry.dossiertau.usecases.generateHTMLs.support.Subject
 
 typealias PictureUrl = String
 typealias MovieDescription = String
@@ -137,12 +139,15 @@ class Links(
         annexesNasPath: String,
         videoFile: Map.Entry<TauItemName, GrabbedFromPhase1>
     ) {
+        if (videoFile.key.value.lowercase().contains("gang bang vol"))
+            println("ok")
+
         val picture64 = ftpDS.readJpgFromFtpAsBase64(videoFile.key)
 
         println("SCRAP ... contenu image récupéré pour création HTML: ${picture64?.take(8)}")
         AppBus.lines.tryEmit("SCRAP ... contenu image récupéré pour création HTML: ${picture64?.take(8)}")
 
-        val subjectPaths: Map<SubjectName, TauItemName> = getLocalSubjects()
+        val subjectPaths: Map<Subject, TauItemName> = getLocalSubjects()
 
         val htmlContent = createHtmlContent(
             annexes = annexesNasPath,
@@ -180,7 +185,7 @@ class Links(
         println("SCRAP ... contenu description récupéré pour création HTML: $description")
         AppBus.lines.tryEmit("SCRAP ... contenu description récupéré pour création HTML: $description")
 
-        val actressPaths: Map<ActressName, TauItemName> = getLocalActresses()
+        val actressPaths: Map<Actress, TauItemName> = getLocalActresses()
 
         val htmlContent = createHtmlContent(
             annexes = annexesNasPath,
@@ -193,7 +198,7 @@ class Links(
         actressPaths.onEach { actressAndMovieInFilles ->
             //les actrices du film
             videoFile.value.actresses.onEach { actressNameInVideo ->
-                if (actressNameInVideo == actressAndMovieInFilles.key){
+                if (actressNameInVideo.lowercase() in actressAndMovieInFilles.key.shortcuts){
                     //la fille dans "Filles" actressAndMovieInFilles.key
                     //correspond à une des actrices du film
 
@@ -270,47 +275,63 @@ class Links(
 
     }
 
-    private suspend fun getLocalActresses(): Map<ActressName, TauItemName> {
+    private suspend fun getLocalActresses(): Map<Actress, TauItemName> {
 
-        val fillesPaths = "/storage/emulated/0/Movies/sexe/filles".toTauPath().toFile()
+        val fillesPaths = withContext(Dispatchers.IO) {"/storage/emulated/0/Movies/sexe/filles".toTauPath().toFile()
             .getOrNull()
             ?.listFiles()?.filter { it.isDirectory }
+        }
 
-        val result = mutableMapOf<ActressName, TauItemName>()
+        val result = mutableMapOf<Actress, TauItemName>()
 
         fillesPaths?.onEach { file ->
-            val name = file.name
-                .split("-")
+            val actress = file.name
+                .split(",")
                 .let { items ->
                     if (items.size == 1)
-                        items.first()
-                    else items.get(1)
+                        Actress(
+                            name = items.first(),
+                            shortcuts = listOf(items.first())
+                        )
+                    else
+                        Actress(
+                            name = items[1],
+                            shortcuts = items
+                        )
                 }
 
-            result[name as ActressName] = TauItemName(file.name)
+            result[actress] = TauItemName(file.name)
         }
 
         return result
     }
 
-    private suspend fun getLocalSubjects(): Map<SubjectName, TauItemName> {
+    private suspend fun getLocalSubjects(): Map<Subject, TauItemName> {
 
-        val subjectsPaths = "/storage/emulated/0/Movies/sexe/fantasmes".toTauPath().toFile()
-            .getOrNull()
-            ?.listFiles()?.filter { it.isDirectory }
+        val subjectsPaths = withContext(Dispatchers.IO) {
+            "/storage/emulated/0/Movies/sexe/fantasmes".toTauPath().toFile()
+                .getOrNull()
+                ?.listFiles()?.filter { it.isDirectory }
+        }
 
-        val result = mutableMapOf<SubjectName, TauItemName>()
+        val result = mutableMapOf<Subject, TauItemName>()
 
         subjectsPaths?.onEach { file ->
-            val name = file.name
-                .split("-")
+            val subject = file.name
+                .split(",")
                 .let { items ->
                     if (items.size == 1)
-                        items.first()
-                    else items.get(1)
+                        Subject(
+                            name = items.first(),
+                            shortcuts = listOf(items.first())
+                        )
+                    else Subject(
+                        name = items.first(),
+                        shortcuts = items
+                    )
                 }
 
-            result[name as SubjectName] = TauItemName(file.name)
+            result[subject] = TauItemName(file.name)
         }
 
         return result
@@ -413,6 +434,9 @@ class Links(
             println("SCRAP ⯈⯈⯈ ${videoName.value}")
             AppBus.lines.tryEmit("SCRAP ⯈⯈⯈ ${videoName.value}")
 
+            if (videoName.value.lowercase().contains("gang bang vol"))
+                println("ok")
+
             val localActresses = diskRepo.getLocalActresses()
             val localSubjects = diskRepo.getLocalSubjects()
 
@@ -424,7 +448,8 @@ class Links(
             val movieSubjects = if (!movieActresses.first.isEmpty())
                 webScrappingRepo.getMovieSubjects(
                     name = videoName,
-                    movieHtml = movieActresses.first
+                    movieHtml = movieActresses.first,
+                    localSubjects = localSubjects
                 )
             else emptyList()
 
@@ -444,7 +469,7 @@ class Links(
             newName = renameFileWithStuff(
                 videoPath = newName,
                 localStuffes = localSubjects,
-                movieStuffes = movieSubjects,
+                movieStuffes = movieSubjects.map{ it.name },
             )
 
             newName = newName.value.replace(" - HotMovies", "").toTauFileName()
@@ -628,5 +653,5 @@ typealias SubjectName = String
 data class GrabbedFromPhase1(
     val html: MovieHtml,
     val actresses: List<ActressName>,
-    val subjects: List<SubjectName>
+    val subjects: List<Subject>
 )

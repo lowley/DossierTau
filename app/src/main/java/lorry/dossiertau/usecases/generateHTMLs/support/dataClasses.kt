@@ -38,10 +38,14 @@ data class Subject(
 
         other as Subject
 
-        return name == other.name
+        return name.equals(other.name, ignoreCase = true)
     }
 
     override fun hashCode(): Int {
         return name.hashCode()
+    }
+
+    override fun toString(): String {
+        return "Subject($name)"
     }
 }

@@ -118,9 +118,37 @@
               "icon": "lucide-file",
               "title": "politique de complete scans épistémiques"
             }
+          },
+          {
+            "id": "f597b20d2ee44b30",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "liste des catégories Hot Movies.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "liste des catégories Hot Movies"
+            }
+          },
+          {
+            "id": "ba564cd792605f15",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "des choses qui m'ont servi.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "des choses qui m'ont servi"
+            }
           }
         ],
-        "currentTab": 7
+        "currentTab": 9
       }
     ],
     "direction": "vertical"
@@ -294,10 +322,13 @@
       "mermaid-tools:Open Mermaid Toolbar": false
     }
   },
-  "active": "dc00d564e4eb7dda",
+  "active": "ba564cd792605f15",
   "lastOpenFiles": [
-    "FileObserver/politique de complete scans.md",
+    "liste des catégories Hot Movies.md",
+    "des choses qui m'ont servi.md",
     "FileObserver/politique de complete scans épistémiques.md",
+    "recueil de besoins candidats.md",
+    "FileObserver/politique de complete scans.md",
     "FileObserver/TODO.md",
     "FileObserver/Design de la base Room.md",
     "FileObserver/File observer.md",

@@ -1,5 +1,6 @@
 package lorry.dossiertau.usecases.generateHTMLs.repos
 
+import androidx.compose.ui.util.fastDistinctBy
 import arrow.core.None
 import arrow.core.Option
 import arrow.core.toOption
@@ -10,6 +11,7 @@ import lorry.dossiertau.ui.AppBus
 import lorry.dossiertau.usecases.generateHTMLs.support.Actress
 import lorry.dossiertau.usecases.generateHTMLs.support.ActressName
 import lorry.dossiertau.usecases.generateHTMLs.support.MoviesApi
+import lorry.dossiertau.usecases.generateHTMLs.support.Subject
 import okhttp3.OkHttpClient
 import okhttp3.ResponseBody
 import org.jsoup.Jsoup
@@ -72,19 +74,6 @@ class WebScrappingRepo : IWebScrappingRepo {
                         { "oui, un" })
                 }"
             )
-
-            println(
-                "SCRAP actrices: ${
-                    peopleAndHtmlForSameNameMovies.values.first()
-                        .second.joinToString(", ")
-                }"
-            )
-            AppBus.lines.tryEmit(
-                "SCRAP actrices: ${
-                    peopleAndHtmlForSameNameMovies.values.first()
-                        .second.joinToString(", ")
-                }"
-            )
         } else if (peopleAndHtmlForSameNameMovies.size == 1) {
             println("SCRAP trouvés; 1 film avec ce titre. On le prend")
             AppBus.lines.tryEmit("SCRAP trouvés; 1 film avec ce titre. On le prend")
@@ -94,21 +83,6 @@ class WebScrappingRepo : IWebScrappingRepo {
                 localActresses = localActresses,
                 movieName = movieName
             )
-
-            println(
-                "SCRAP actrices: ${
-                    peopleAndHtmlForSameNameMovies.values.first()
-                        .second.joinToString(", ")
-                }"
-            )
-            AppBus.lines.tryEmit(
-                "SCRAP actrices: ${
-                    peopleAndHtmlForSameNameMovies.values.first()
-                        .second.joinToString(", ")
-                }"
-            )
-
-//            movieThings = peopleAndHtmlForSameNameMovies.values.first().toOption()
         }
 
         val people = movieThings.fold(
@@ -116,6 +90,17 @@ class WebScrappingRepo : IWebScrappingRepo {
             ifSome = { thing ->
                 thing.first to thing.second.map { it.first }
             }
+        )
+
+        println(
+            "SCRAP actrices: ${
+                people.second.joinToString(", ")
+            }"
+        )
+        AppBus.lines.tryEmit(
+            "SCRAP actrices: ${
+                people.second.joinToString(", ")
+            }"
         )
 
         return people
@@ -133,6 +118,9 @@ class WebScrappingRepo : IWebScrappingRepo {
         //** ils doivent contenir toutes les actrices + (normales) **
         //** ils ne doivent contenir AUCUNE actrice - **
         //le retour est la fusion: les +, les -, et le reste provenant de distrib du net
+
+        if (movieName.value.lowercase().contains("semes"))
+            println("ok")
 
         val goodOnes = peopleAndHtmlForSameNameMovies.mapNotNull { (movieSuffix, movieThings) ->
             val ama = mutableListOf<Actress>()
@@ -164,21 +152,23 @@ class WebScrappingRepo : IWebScrappingRepo {
                     }
                 }.map { actress ->
                     val invert = movieShortcutsPresentInTheMovie
-                        .firstOrNull { it.first == actress.name }?.second ?: false
+                        .firstOrNull { it.first in actress.shortcuts }?.second ?: false
                     actress to invert
                 }
 
             //actressesPresentInTheMovieName & actualMovieActresses
             val PositiveActressesPresentInTheMovieName =
-                actressesPresentInTheMovieName.filter { it.second }
-            val NegativeActressesPresentInTheMovieName =
                 actressesPresentInTheMovieName.filter { !it.second }
+            val NegativeActressesPresentInTheMovieName =
+                actressesPresentInTheMovieName.filter { it.second }
 
             if (PositiveActressesPresentInTheMovieName.all { it.first in actualMovieActresses } &&
-                NegativeActressesPresentInTheMovieName.none { it.first !in actualMovieActresses }) {
-                val allActresses = actressesPresentInTheMovieName.plus(
+                (actualMovieActresses.isEmpty() ||
+                        NegativeActressesPresentInTheMovieName.none { it.first !in actualMovieActresses })) {
+                val allActresses = actressesPresentInTheMovieName.toMap().plus(
                     actualMovieActresses.map { it to false }
-                )
+                ).toList()
+
                 movieThings.first to allActresses.map { it.first.name to it.second }
             } else null
 
@@ -234,8 +224,9 @@ class WebScrappingRepo : IWebScrappingRepo {
 
     override suspend fun getMovieSubjects(
         movieName: TauItemName,
-        movieHtml: MovieHtml
-    ): List<String> {
+        movieHtml: MovieHtml,
+        localSubjects: List<Subject>
+    ): List<Subject> {
 //        val shortMovieName =
 //            movieName.value.substringBefore('(').removePunctuation().substringBefore(" by ")
 //                .trim()
@@ -244,9 +235,21 @@ class WebScrappingRepo : IWebScrappingRepo {
 //        val peopleAndHtmlForSameNameMovies = getInfosOfGoodMovies(movieSuffixes)
 
 //        val movieHtml = getMovieWithSuffix(movieSuffix)
-        val subjects: List<String> = searchSubjects(movieHtml)
 
-        return subjects
+        val internetMovieSubjects = searchSubjects(movieHtml)
+            .mapNotNull{ internetSubject ->
+                localSubjects.firstOrNull { localSubject -> internetSubject.lowercase() in localSubject.shortcuts }
+            }
+
+        val actualMovieSubjects = movieName.value
+            .substringAfter(".").substringBeforeLast(".")
+            .split(".")
+            .mapNotNull{ actualSubject ->
+                localSubjects.firstOrNull { localSubject -> actualSubject in localSubject.shortcuts }
+            }
+
+        val total = internetMovieSubjects.plus(actualMovieSubjects).distinct()
+        return total
     }
 
     private fun searchSubjects(movieHtml: String): List<String> {

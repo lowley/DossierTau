@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
@@ -202,10 +203,11 @@ class MainActivity : ComponentActivity() {
         LazyColumn {
             items(lines.value.size) { index ->
                 val line = lines.value[index]
+                val notoFont = FontFamily(Font(R.font.segoe_regular))
 
                 Text(
                     text = line,
-                    fontFamily = FontFamily.SansSerif,
+                    fontFamily = notoFont,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 8.dp))
