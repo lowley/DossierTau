@@ -1,6 +1,6 @@
 package lorry.dossiertau.usecases.generateHTMLs.support
 
-interface Stuff{
+interface Stuff {
     val name: String
     val shortcuts: List<String>
 }
@@ -10,7 +10,7 @@ typealias ActressName = String
 data class Actress(
     override val name: ActressName,
     override val shortcuts: List<String>
-): Stuff{
+) : Stuff {
 
     //#[[égalité des Actress]]
     override fun equals(other: Any?): Boolean {
@@ -30,7 +30,7 @@ data class Actress(
 data class Subject(
     override val name: String,
     override val shortcuts: List<String>
-): Stuff{
+) : Stuff {
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -49,3 +49,10 @@ data class Subject(
         return "Subject($name)"
     }
 }
+
+infix fun String.toSubject(shortcuts: List<String>): Subject =
+    Subject(name = this, shortcuts = shortcuts)
+
+infix fun String.toActress(shortcuts: List<String>): Actress =
+    Actress(name = this, shortcuts = shortcuts)
+

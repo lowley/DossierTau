@@ -7,11 +7,13 @@ import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.usecases.generateHTMLs.support.Actress
 import lorry.dossiertau.usecases.generateHTMLs.support.Subject
+import lorry.dossiertau.usecases.generateHTMLs.support.toActress
+import lorry.dossiertau.usecases.generateHTMLs.support.toSubject
 import java.io.File
 
-class DiskRepo(): IDiskRepo {
+class DiskRepo() : IDiskRepo {
 
-    override suspend fun getLocalActresses(): List<Actress>{
+    override suspend fun getLocalActresses(): List<Actress> {
         val root = File("/storage/emulated/0/Movies/sexe/filles")
         val actresses = root.listFiles()
             .filter { !it.isFile() }
@@ -22,7 +24,7 @@ class DiskRepo(): IDiskRepo {
         return actresses
     }
 
-    override suspend fun getLocalSubjects(): List<Subject>{
+    override suspend fun getLocalSubjects(): List<Subject> {
         val root = File("/storage/emulated/0/Movies/sexe/fantasmes")
         val subjects = root.listFiles()
             .filter { !it.isFile() }
@@ -35,9 +37,10 @@ class DiskRepo(): IDiskRepo {
 
     suspend fun getLocalActressesAndFileNames(): List<Pair<Actress, TauItemName>> {
 
-        val fillesPaths = withContext(Dispatchers.IO) {"/storage/emulated/0/Movies/sexe/filles".toTauPath().toFile()
-            .getOrNull()
-            ?.listFiles()?.filter { it.isDirectory }
+        val fillesPaths = withContext(Dispatchers.IO) {
+            "/storage/emulated/0/Movies/sexe/filles".toTauPath().toFile()
+                .getOrNull()
+                ?.listFiles()?.filter { it.isDirectory }
         }
 
         val result = mutableMapOf<Actress, TauItemName>()
@@ -47,15 +50,9 @@ class DiskRepo(): IDiskRepo {
                 .split(",")
                 .let { items ->
                     if (items.size == 1)
-                        Actress(
-                            name = items.first(),
-                            shortcuts = listOf(items.first())
-                        )
+                        items.first() toActress listOf(items.first())
                     else
-                        Actress(
-                            name = items[1],
-                            shortcuts = items
-                        )
+                        items[1] toActress items
                 }
 
             result[actress] = TauItemName(file.name)
@@ -76,17 +73,13 @@ class DiskRepo(): IDiskRepo {
 
         subjectsPaths?.onEach { file ->
             val subject = file.name
-                .split(",")
+                .replace("%", "/")
+                .split(",").onEach { it.trim() }
                 .let { items ->
                     if (items.size == 1)
-                        Subject(
-                            name = items.first(),
-                            shortcuts = listOf(items.first())
-                        )
-                    else Subject(
-                        name = items.first(),
-                        shortcuts = items
-                    )
+                        items.first() toSubject  listOf(items.first())
+
+                    else items.first() toSubject items
                 }
 
             val existingOne = result[subject]
@@ -101,7 +94,8 @@ class DiskRepo(): IDiskRepo {
 
         val rootFile = root.toFile().getOrNull() ?: return
         val htmls = rootFile.listFiles {
-            it.isFile && it.name.endsWith("html") && !it.name.startsWith(".")}
+            it.isFile && it.name.endsWith("html") && !it.name.startsWith(".")
+        }
 
         htmls.onEach { html -> html.delete() }
 

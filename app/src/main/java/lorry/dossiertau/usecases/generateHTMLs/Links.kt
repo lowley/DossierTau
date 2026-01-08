@@ -28,13 +28,18 @@ import kotlin.collections.joinToString
 import kotlin.collections.plus
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import data.ftp.IFtpDS
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.takeWhile
 import lorry.dossiertau.ShortcutMakingEndMessage
 import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.ui.AppBus
@@ -57,33 +62,71 @@ typealias MovieDescription = String
  * val subjectsFlow: flow de List<Subject>
  * ```
  */
-object LocalActressesAndSubjects{
+object LocalActressesAndSubjects {
     private val diskRepo = DiskRepo()
-    private val scope = CoroutineScope(Dispatchers.IO +  SupervisorJob())
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val _actressFNFlow = MutableSharedFlow<List<Pair<Actress, TauItemName>>?>(replay = 1)
+    private val _subjectFNFlow = MutableSharedFlow<List<Pair<Subject, Set<TauItemName>>>?>(replay = 1)
 
-    private val _actressFNFlow = MutableStateFlow<List<Pair<Actress, TauItemName>>?>(null)
-    private val _subjectFNFlow = MutableStateFlow<List<Pair<Subject, Set<TauItemName>>>?>(null)
-    val getStuffFlow = combine(_actressFNFlow, _subjectFNFlow){a, s ->
+    val getStuffFlow = combine(_actressFNFlow, _subjectFNFlow) { a, s ->
         a to s
-    }.stateIn(
+    }.shareIn(
         scope = scope,
         started = SharingStarted.Eagerly,
-        initialValue = null
+        replay = 1
     )
 
-    val actressesAndItemNameFlow = getStuffFlow.map { it?.first ?: emptyList() }
-    val subjectAndItemNamesFlow = getStuffFlow.map { it?.second  ?: emptyList()}
+    val actressesAndItemNameFlow = getStuffFlow.map { it.first ?: emptyList() }
+        .shareIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            replay = 1
+        )
 
-    val actressesFlow = getStuffFlow.map { it?.first?.map { it.first } ?: emptyList() }
-    val subjectsFlow = getStuffFlow.map { it?.second?.map { it.first }  ?: emptyList()}
+    val subjectAndItemNamesFlow = getStuffFlow.map { it.second ?: emptyList() }
+        .shareIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            replay = 1
+        )
 
-    val readyFlow = getStuffFlow.map { it != null && it.first != null && it.second != null }
+    val actressesFlow = getStuffFlow.map { stuff ->
+        stuff.first?.map { actress ->
+            actress.first
+        } ?: emptyList()
+    }
+        .shareIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            replay = 1
+        )
 
-    init{
+
+    val subjectsFlow = getStuffFlow.map { stuff ->
+        stuff.second?.map { subject ->
+            subject.first
+        } ?: emptyList()
+    }
+        .shareIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            replay = 1
+        )
+
+    val readyFlow = getStuffFlow.map { stuff ->
+        stuff.first != null && stuff.second != null
+    }
+        .shareIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            replay = 1
+        )
+
+    init {
         resetStuff()
     }
 
-    fun resetStuff(){
+    fun resetStuff() {
         scope.launch {
             val localActressesFN = diskRepo.getLocalActressesAndFileNames()
             val localSubjectsFN = diskRepo.getLocalSubjectsAndFileNames()
@@ -115,9 +158,9 @@ class Links(
     suspend fun generateLinks() {
 
         LocalActressesAndSubjects.resetStuff()
-        LocalActressesAndSubjects.readyFlow.collect {
-            if (it) return@collect
-        }
+        LocalActressesAndSubjects.readyFlow
+            .takeWhile { !it }
+            .collect()
 
         val htmls = renameFiles()
 
@@ -205,9 +248,15 @@ class Links(
         val picture64 = ftpDS.readJpgFromFtpAsBase64(videoFile.key)
 
         println("SCRAP ... contenu image récupéré pour création HTML: ${picture64?.take(8)}")
-        AppBus.lines.tryEmit("SCRAP ... contenu image récupéré pour création HTML: ${picture64?.take(8)}")
+        AppBus.lines.tryEmit(
+            "SCRAP ... contenu image récupéré pour création HTML: ${
+                picture64?.take(
+                    8
+                )
+            }"
+        )
 
-        val subjectPaths = LocalActressesAndSubjects.subjectAndItemNamesFlow.last()
+        val subjectPaths = LocalActressesAndSubjects.subjectAndItemNamesFlow.first()
 
         val htmlContent = createHtmlContent(
             annexes = annexesNasPath,
@@ -219,7 +268,7 @@ class Links(
         subjectPaths.onEach { subjectInSubjectsFolder ->
             //les sujets du film
             videoFile.value.subjects.onEach { subjectNameInVideo ->
-                if (subjectNameInVideo == subjectInSubjectsFolder.first){
+                if (subjectNameInVideo == subjectInSubjectsFolder.first) {
                     //le sujet dans "Fantasmes" subjectInSubjectsFolder.key
                     //correspond à un des sujets du film
 
@@ -243,11 +292,17 @@ class Links(
         val description = ftpDS.readDescriptionFromFtpAsBase64(videoFile.key)
 
         println("SCRAP ... contenu image récupéré pour création HTML: ${picture64?.take(8)}")
-        AppBus.lines.tryEmit("SCRAP ... contenu image récupéré pour création HTML: ${picture64?.take(8)}")
+        AppBus.lines.tryEmit(
+            "SCRAP ... contenu image récupéré pour création HTML: ${
+                picture64?.take(
+                    8
+                )
+            }"
+        )
         println("SCRAP ... contenu description récupéré pour création HTML: $description")
         AppBus.lines.tryEmit("SCRAP ... contenu description récupéré pour création HTML: $description")
 
-        val actressPaths = LocalActressesAndSubjects.actressesAndItemNameFlow.last()
+        val actressPaths = LocalActressesAndSubjects.actressesAndItemNameFlow.first()
 
         val htmlContent = createHtmlContent(
             annexes = annexesNasPath,
@@ -260,7 +315,7 @@ class Links(
         actressPaths.onEach { actressAndMovieInFilles ->
             //les actrices du film
             videoFile.value.actresses.onEach { actressNameInVideo ->
-                if (actressNameInVideo.lowercase() in actressAndMovieInFilles.first.shortcuts){
+                if (actressNameInVideo.lowercase() in actressAndMovieInFilles.first.shortcuts) {
                     //la fille dans "Filles" actressAndMovieInFilles.key
                     //correspond à une des actrices du film
 
@@ -281,7 +336,7 @@ class Links(
     ) {
         val fullPath = "/storage/emulated/0/Movies/sexe/filles/${folder.value}/${videoName.value}"
             .substringBeforeLast(".") + ".html"
-        fullPath.toTauPath().toFile().getOrNull()?.let{
+        fullPath.toTauPath().toFile().getOrNull()?.let {
             it.createNewFile()
             it.writeText(htmlContent, Charsets.UTF_8)
         }
@@ -292,9 +347,10 @@ class Links(
         folder: TauItemName,
         videoName: TauItemName
     ) {
-        val fullPath = "/storage/emulated/0/Movies/sexe/fantasmes/${folder.value}/${videoName.value}"
-            .substringBeforeLast(".") + ".html"
-        fullPath.toTauPath().toFile().getOrNull()?.let{
+        val fullPath =
+            "/storage/emulated/0/Movies/sexe/fantasmes/${folder.value}/${videoName.value}"
+                .substringBeforeLast(".") + ".html"
+        fullPath.toTauPath().toFile().getOrNull()?.let {
             it.createNewFile()
             it.writeText(htmlContent, Charsets.UTF_8)
         }
@@ -438,14 +494,14 @@ class Links(
 
             val movieActresses = webScrappingRepo.getMovieActresses(
                 name = videoName,
-                localActresses = LocalActressesAndSubjects.actressesFlow.last()
+                localActresses = LocalActressesAndSubjects.actressesFlow.first()
             )
 
             val movieSubjects = if (!movieActresses.first.isEmpty())
                 webScrappingRepo.getMovieSubjects(
                     name = videoName,
                     movieHtml = movieActresses.first,
-                    localSubjects = LocalActressesAndSubjects.subjectsFlow.last()
+                    localSubjects = LocalActressesAndSubjects.subjectsFlow.first()
                 )
             else emptyList()
 
@@ -458,14 +514,14 @@ class Links(
 
             var newName = renameFileWithStuff(
                 videoPath = videoName,
-                localStuffes = LocalActressesAndSubjects.actressesFlow.last(),
+                localStuffes = LocalActressesAndSubjects.actressesFlow.first(),
                 movieStuffes = movieActresses.second,
             )
 
             newName = renameFileWithStuff(
                 videoPath = newName,
-                localStuffes = LocalActressesAndSubjects.subjectsFlow.last(),
-                movieStuffes = movieSubjects.map{ it.name },
+                localStuffes = LocalActressesAndSubjects.subjectsFlow.first(),
+                movieStuffes = movieSubjects.map { it.name },
             )
 
             newName = newName.value.replace(" - HotMovies", "").toTauFileName()

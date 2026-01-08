@@ -139,12 +139,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "des choses qui m'ont servi.md",
+                "file": "liste des catégories Hot Movies.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "des choses qui m'ont servi"
+              "title": "liste des catégories Hot Movies"
             }
           }
         ],
@@ -324,8 +324,8 @@
   },
   "active": "ba564cd792605f15",
   "lastOpenFiles": [
-    "liste des catégories Hot Movies.md",
     "des choses qui m'ont servi.md",
+    "liste des catégories Hot Movies.md",
     "FileObserver/politique de complete scans épistémiques.md",
     "recueil de besoins candidats.md",
     "FileObserver/politique de complete scans.md",
