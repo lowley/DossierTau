@@ -4,7 +4,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.support.littleClasses.TauPath
+import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauPath
+import lorry.dossiertau.usecases.generateHTMLs.log
+import lorry.dossiertau.usecases.generateHTMLs.logSummary
 import lorry.dossiertau.usecases.generateHTMLs.support.Actress
 import lorry.dossiertau.usecases.generateHTMLs.support.Subject
 import lorry.dossiertau.usecases.generateHTMLs.support.toActress
@@ -92,6 +95,7 @@ class DiskRepo() : IDiskRepo {
 
     override suspend fun deleteAllHtmlsIn(root: TauPath) {
 
+        log("suppression htmls: ${root.path}")
         val rootFile = root.toFile().getOrNull() ?: return
         val htmls = rootFile.listFiles {
             it.isFile && it.name.endsWith("html") && !it.name.startsWith(".")

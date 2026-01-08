@@ -8,45 +8,47 @@ import arrow.core.toOption
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
-import kotlinx.coroutines.*
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import data.ftp.IFtpDS
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.launch
+import lorry.dossiertau.ShortcutMakingEndMessage
 import lorry.dossiertau.support.littleClasses.TauItemName
+import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauFileName
+import lorry.dossiertau.support.littleClasses.toTauPath
+import lorry.dossiertau.ui.AppBus
+import lorry.dossiertau.usecases.generateHTMLs.repos.DiskRepo
 import lorry.dossiertau.usecases.generateHTMLs.repos.IDiskRepo
 import lorry.dossiertau.usecases.generateHTMLs.repos.INasRepo
 import lorry.dossiertau.usecases.generateHTMLs.repos.IWebScrappingRepo
 import lorry.dossiertau.usecases.generateHTMLs.repos.MovieHtml
+import lorry.dossiertau.usecases.generateHTMLs.support.Actress
+import lorry.dossiertau.usecases.generateHTMLs.support.ActressName
 import lorry.dossiertau.usecases.generateHTMLs.support.MoviesApi
 import lorry.dossiertau.usecases.generateHTMLs.support.Stuff
+import lorry.dossiertau.usecases.generateHTMLs.support.Subject
 import okhttp3.OkHttpClient
 import okhttp3.ResponseBody
 import org.jsoup.Jsoup
 import retrofit2.HttpException
 import retrofit2.Retrofit
 import java.io.ByteArrayOutputStream
-import java.net.*
-import kotlin.collections.joinToString
-import kotlin.collections.plus
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
-import data.ftp.IFtpDS
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.last
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.shareIn
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.takeWhile
-import lorry.dossiertau.ShortcutMakingEndMessage
-import lorry.dossiertau.support.littleClasses.toTauPath
-import lorry.dossiertau.ui.AppBus
-import lorry.dossiertau.usecases.generateHTMLs.repos.DiskRepo
-import lorry.dossiertau.usecases.generateHTMLs.support.Actress
-import lorry.dossiertau.usecases.generateHTMLs.support.ActressName
-import lorry.dossiertau.usecases.generateHTMLs.support.Subject
+import java.net.Authenticator
+import java.net.InetSocketAddress
+import java.net.PasswordAuthentication
+import java.net.Proxy
+import kotlin.collections.map
 
 typealias PictureUrl = String
 typealias MovieDescription = String
@@ -66,7 +68,8 @@ object LocalActressesAndSubjects {
     private val diskRepo = DiskRepo()
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val _actressFNFlow = MutableSharedFlow<List<Pair<Actress, TauItemName>>?>(replay = 1)
-    private val _subjectFNFlow = MutableSharedFlow<List<Pair<Subject, Set<TauItemName>>>?>(replay = 1)
+    private val _subjectFNFlow =
+        MutableSharedFlow<List<Pair<Subject, Set<TauItemName>>>?>(replay = 1)
 
     val getStuffFlow = combine(_actressFNFlow, _subjectFNFlow) { a, s ->
         a to s
@@ -162,90 +165,134 @@ class Links(
             .takeWhile { !it }
             .collect()
 
-        val htmls = renameFiles()
-
-        println("SCRAP DEUXIEME PHASE: enregistrements metadatas")
-        AppBus.lines.tryEmit("SCRAP DEUXIEME PHASE: enregistrements metadatas")
-
-        htmls.onEachIndexed { index, it ->
-            println("SCRAP")
-            AppBus.lines.tryEmit("SCRAP")
-            println("SCRAP ⯈⯈⯈ ${it.key.value} ...")
-            AppBus.summary.tryEmit("II$index/${htmls.size}\uD83D\uDCBE")
-            AppBus.lines.tryEmit("SCRAP ⯈⯈⯈ ${it.key.value} ...")
-            val videoName = it.key
-            val html = it.value
-
-            /////////////////
-            // description //
-            /////////////////
-            saveDescription(html = html.html, videoName = videoName)
-            println("SCRAP description enregistrée")
-            AppBus.lines.tryEmit("SCRAP description enregistrée")
-
-            ///////////
-            // image //
-            ///////////
-            savePicture(html = html.html, videoName = videoName)
-            println("SCRAP image enregistrée")
-            AppBus.lines.tryEmit("SCRAP image enregistrée")
-        }
-
         //////////////////////////////////
         // suppression de tous les html //
         //////////////////////////////////
-        println("SCRAP")
-        AppBus.lines.tryEmit("SCRAP")
-        println("SCRAP TROISIEME PHASE: suppression des htmls ...")
-        AppBus.lines.tryEmit("SCRAP TROISIEME PHASE: suppression des htmls ...")
-        AppBus.summary.tryEmit("III\uD83D\uDDF4\uD83D\uDDF4\uD83D\uDDF4\uD83D\uDD71")
-        diskRepo.deleteAllHtmlsIn("/storage/emulated/0/Movies/sexe/filles".toTauPath())
-        diskRepo.deleteAllHtmlsIn("/storage/emulated/0/Movies/sexe/fantasmes".toTauPath())
-        println("SCRAP suppression effectués")
-        AppBus.lines.tryEmit("SCRAP suppression effectués")
+        diskRepo.deleteAllHtmlsIn(FOLDER_FILLES)
+        diskRepo.deleteAllHtmlsIn(FOLDER_SUBJECTS)
 
-        println("SCRAP")
-        AppBus.lines.tryEmit("SCRAP")
-        println("SCRAP QUATRIEME PHASE: création des Htmls")
-        AppBus.lines.tryEmit("SCRAP QUATRIEME PHASE: création des Htmls")
-        println("SCRAP")
-        AppBus.lines.tryEmit("SCRAP")
-        htmls.onEachIndexed { index, it ->
+        ///////////////////////
+        // boucle principale //
+        ///////////////////////
+        val _htmls: Set<HtmlPacket> = getHtmlPackets()
+        log("${_htmls.size} htmls à traiter")
+        _htmls.onEachIndexed { index, packet ->
 
-            ////////////////////////////////
-            // création des nouveaux html //
-            ////////////////////////////////
-            println("SCRAP ⯈ création des htmls de ${it.key.value}")
-            AppBus.lines.tryEmit("SCRAP ⯈ création des htmls de ${it.key.value}")
-            AppBus.summary.tryEmit("IV$index/${htmls.size}\uD83D\uDC27")
+            log("")
+            log("${index + 1}/${_htmls.size} (${packet.videoName.value}) en cours")
+            logSummary("${index + 1}/${_htmls.size}")
+            val videoName = packet.videoName
+            val movieActresses = packet.actresses
+            val movieSubjects = packet.subjects
+            val html = packet.html
 
+            ///////////////
+            // renommage //
+            ///////////////
+            log("renommage ...")
+            val newName = computeNewName(videoName, movieActresses, movieSubjects)
+            renameFile(videoName, newName)
+
+            /////////////////////////////////
+            // écriture du méta sur le NAS //
+            /////////////////////////////////
+            //description
+            log("stockage description ...")
+            saveDescription(html = html, videoName = videoName)
+            //image
+            log("stockage image ...")
+            savePicture(html = html, videoName = videoName)
+
+            //////////////////////////////////
+            // création des raccourcis html //
+            //////////////////////////////////
+            log("création des HTML (filles) ...")
             createFillesHtmls(
                 annexesNasPath = "/annexes",
-                videoFile = it,
+                videoName = videoName,
+                actresses = movieActresses
             )
 
+            log("création des HTML (fantasmes) ...")
             createSubjectsHtmls(
                 annexesNasPath = "/annexes",
-                videoFile = it,
+                videoName = videoName,
+                subjects = movieSubjects
             )
-
-            println("SCRAP ... fichier traité")
-            AppBus.lines.tryEmit("SCRAP ... fichier traité")
         }
 
-        println("SCRAP That's all folks!")
-        AppBus.lines.tryEmit("SCRAP That's all folks!")
-        AppBus.lines.tryEmit(ShortcutMakingEndMessage)
+        log(ShortcutMakingEndMessage)
+    }
+
+    private suspend fun renameFile(videoName: TauItemName, newName: TauItemName) {
+        if (newName != videoName)
+            nasRepo.renameFile(videoName, newName)
+    }
+
+    private suspend fun computeNewName(
+        videoName: TauItemName,
+        movieActresses: List<ActressName>,
+        movieSubjects: List<Subject>
+    ): TauItemName {
+
+        var newName = renameFileWithStuff(
+            videoPath = videoName,
+            localStuffes = LocalActressesAndSubjects.actressesFlow.first(),
+            movieStuffes = movieActresses,
+        )
+
+        newName = renameFileWithStuff(
+            videoPath = newName,
+            localStuffes = LocalActressesAndSubjects.subjectsFlow.first(),
+            movieStuffes = movieSubjects.map { it.name },
+        )
+
+        newName = newName.value.replace(" - HotMovies", "").toTauFileName()
+        return newName
+    }
+
+    suspend fun  getHtmlPackets(): Set<HtmlPacket> {
+
+        val fileNames = nasRepo.getVideoNames()
+        val result = mutableSetOf<HtmlPacket>()
+
+        fileNames.onEachIndexed { index, videoName ->
+
+            val movieActresses = webScrappingRepo.getMovieActresses(
+                name = videoName,
+                localActresses = LocalActressesAndSubjects.actressesFlow.first()
+            )
+
+            val movieSubjects = if (!movieActresses.first.isEmpty())
+                webScrappingRepo.getMovieSubjects(
+                    name = videoName,
+                    movieHtml = movieActresses.first,
+                    localSubjects = LocalActressesAndSubjects.subjectsFlow.first()
+                )
+            else emptyList()
+
+            result.add(
+                HtmlPacket(
+                    videoName = videoName,
+                    html = movieActresses.first,
+                    actresses = movieActresses.second,
+                    subjects = movieSubjects
+                )
+            )
+        }
+
+        return result
     }
 
     private suspend fun createSubjectsHtmls(
         annexesNasPath: String,
-        videoFile: Map.Entry<TauItemName, GrabbedFromPhase1>
+        videoName: TauItemName,
+        subjects: List<Subject>,
     ) {
-        if (videoFile.key.value.lowercase().contains("gang bang vol"))
+        if (videoName.value.lowercase().contains("gang bang vol"))
             println("ok")
 
-        val picture64 = ftpDS.readJpgFromFtpAsBase64(videoFile.key)
+        val picture64 = ftpDS.readJpgFromFtpAsBase64(videoName)
 
         println("SCRAP ... contenu image récupéré pour création HTML: ${picture64?.take(8)}")
         AppBus.lines.tryEmit(
@@ -260,14 +307,14 @@ class Links(
 
         val htmlContent = createHtmlContent(
             annexes = annexesNasPath,
-            videoName = videoFile.key,
+            videoName = videoName,
             picture64 = picture64,
         )
 
         //les fantasmes de "Fantasmes"
         subjectPaths.onEach { subjectInSubjectsFolder ->
             //les sujets du film
-            videoFile.value.subjects.onEach { subjectNameInVideo ->
+            subjects.onEach { subjectNameInVideo ->
                 if (subjectNameInVideo == subjectInSubjectsFolder.first) {
                     //le sujet dans "Fantasmes" subjectInSubjectsFolder.key
                     //correspond à un des sujets du film
@@ -276,7 +323,7 @@ class Links(
                         createSubjectHtmlFile(
                             htmlContent = htmlContent,
                             folder = it,
-                            videoName = videoFile.key
+                            videoName = videoName
                         )
                     }
                 }
@@ -286,10 +333,11 @@ class Links(
 
     private suspend fun createFillesHtmls(
         annexesNasPath: String,
-        videoFile: Map.Entry<TauItemName, GrabbedFromPhase1>
-    ) {
-        val picture64 = ftpDS.readJpgFromFtpAsBase64(videoFile.key)
-        val description = ftpDS.readDescriptionFromFtpAsBase64(videoFile.key)
+        videoName: TauItemName,
+        actresses: List<ActressName>,
+        ) {
+        val picture64 = ftpDS.readJpgFromFtpAsBase64(videoName)
+        val description = ftpDS.readDescriptionFromFtpAsBase64(videoName)
 
         println("SCRAP ... contenu image récupéré pour création HTML: ${picture64?.take(8)}")
         AppBus.lines.tryEmit(
@@ -306,7 +354,7 @@ class Links(
 
         val htmlContent = createHtmlContent(
             annexes = annexesNasPath,
-            videoName = videoFile.key,
+            videoName = videoName,
             picture64 = picture64,
             description = description
         )
@@ -314,7 +362,7 @@ class Links(
         //les actrices de "Filles"
         actressPaths.onEach { actressAndMovieInFilles ->
             //les actrices du film
-            videoFile.value.actresses.onEach { actressNameInVideo ->
+            actresses.onEach { actressNameInVideo ->
                 if (actressNameInVideo.lowercase() in actressAndMovieInFilles.first.shortcuts) {
                     //la fille dans "Filles" actressAndMovieInFilles.key
                     //correspond à une des actrices du film
@@ -322,7 +370,7 @@ class Links(
                     createFillesHtmlFile(
                         htmlContent = htmlContent,
                         folder = actressAndMovieInFilles.second,
-                        videoName = videoFile.key
+                        videoName = videoName
                     )
                 }
             }
@@ -472,72 +520,6 @@ class Links(
         return pictureUrl.toOption()
     }
 
-    private suspend fun renameFiles(): MutableMap<TauItemName, GrabbedFromPhase1> {
-
-        val result = mutableMapOf<TauItemName, GrabbedFromPhase1>()
-        val fileNames = nasRepo.getVideoNames()
-
-        println("SCRAP PREMIERE PHASE: renommage de tous les fichiers")
-        AppBus.lines.tryEmit("SCRAP PREMIERE PHASE: renommage de tous les fichiers")
-
-        (1..fileNames.size).onEach {
-
-            println("SCRAP")
-            AppBus.lines.tryEmit("SCRAP")
-            AppBus.summary.tryEmit("I$it/${fileNames.size}\uD83D\uDCEA")
-            val videoName = fileNames[it - 1]
-            println("SCRAP ⯈⯈⯈ ${videoName.value}")
-            AppBus.lines.tryEmit("SCRAP ⯈⯈⯈ ${videoName.value}")
-
-            if (videoName.value.lowercase().contains("gang bang vol"))
-                println("ok")
-
-            val movieActresses = webScrappingRepo.getMovieActresses(
-                name = videoName,
-                localActresses = LocalActressesAndSubjects.actressesFlow.first()
-            )
-
-            val movieSubjects = if (!movieActresses.first.isEmpty())
-                webScrappingRepo.getMovieSubjects(
-                    name = videoName,
-                    movieHtml = movieActresses.first,
-                    localSubjects = LocalActressesAndSubjects.subjectsFlow.first()
-                )
-            else emptyList()
-
-            println("SCRAP ⯈ ${movieActresses.second.joinToString(",")}")
-            AppBus.lines.tryEmit("SCRAP ⯈ ${movieActresses.second.joinToString(",")}")
-
-            println("SCRAP ⯈ ${movieSubjects.joinToString(",")}")
-            AppBus.lines.tryEmit("SCRAP ⯈ ${movieSubjects.joinToString(",")}")
-
-
-            var newName = renameFileWithStuff(
-                videoPath = videoName,
-                localStuffes = LocalActressesAndSubjects.actressesFlow.first(),
-                movieStuffes = movieActresses.second,
-            )
-
-            newName = renameFileWithStuff(
-                videoPath = newName,
-                localStuffes = LocalActressesAndSubjects.subjectsFlow.first(),
-                movieStuffes = movieSubjects.map { it.name },
-            )
-
-            newName = newName.value.replace(" - HotMovies", "").toTauFileName()
-            result[newName] = GrabbedFromPhase1(
-                html = movieActresses.first,
-                actresses = movieActresses.second,
-                subjects = movieSubjects
-            )
-
-            if (newName != videoName)
-                nasRepo.renameFile(videoName, newName)
-        }
-
-        return result
-    }
-
     private fun renameFileWithStuff(
         videoPath: TauItemName,
         localStuffes: List<Stuff>,
@@ -568,120 +550,15 @@ class Links(
 
         return result
     }
+}
 
-    suspend fun fetchViaNordVPN() {
-        Authenticator.setDefault(object : Authenticator() {
-            override fun getPasswordAuthentication(): PasswordAuthentication {
-                return PasswordAuthentication(login, password.toCharArray())
-            }
-        })
+suspend fun logSummary(text: String) {
+    AppBus.summary.emit(text)
+}
 
-//        val client = HttpClient(OkHttp) {
-//            engine {
-//                proxy = Proxy(Proxy.Type.SOCKS, InetSocketAddress(server, port))
-//                config { proxy(proxy) }
-//            }
-//        }
-        //        val retrofit = Retrofit.Builder()
-//            .baseUrl("https://www.hotmovies.com/") // ← ta nouvelle base (doit se terminer par '/')
-//            .build()
-//        val api = retrofit.create(MoviesApi::class.java)
-//        val responseBody = api.fetchPage(title = "cheeky+and+welcoming")
-
-        val proxy = Proxy(Proxy.Type.SOCKS, InetSocketAddress(server, port))
-        val client = OkHttpClient.Builder()
-            .proxy(proxy)
-            .addInterceptor { chain ->
-                val request = chain.request().newBuilder()
-                    .header(
-                        "User-Agent",
-                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                    )
-                    .header(
-                        "Accept",
-                        "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
-                    )
-                    .header("Accept-Language", "fr,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3")
-                    .header("Referer", "https://www.google.com/")
-                    .header("Cookie", "ageConfirmed=true")
-                    .build()
-                chain.proceed(request)
-            }
-            .build()
-
-//        val retrofit = Retrofit.Builder()
-//            .baseUrl("https://ipinfo.io/json/") // ← ta nouvelle base (doit se terminer par '/')
-//            .client(client)
-//            .build()
-        val retrofit = Retrofit.Builder()
-            .baseUrl("https://www.hotmovies.com/") // ← ta nouvelle base (doit se terminer par '/')
-            .client(client)
-            .build()
-        val api = retrofit.create(MoviesApi::class.java)
-        val responseBody = try {
-            api.fetchPage(title = "cheeky+and+welcoming")
-        } catch (e: HttpException) {
-            if (e.code() == 403) {
-                println("SCRAP Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
-                AppBus.lines.tryEmit("SCRAP Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
-                ResponseBody.create(null, "")
-            } else {
-                println("SCRAP Erreur HTTP : ${e.code()}")
-                AppBus.lines.tryEmit("SCRAP Erreur HTTP : ${e.code()}")
-                ResponseBody.create(null, "")
-            }
-        } catch (e: Exception) {
-            println("SCRAP Erreur réseau : ${e.message}")
-            AppBus.lines.tryEmit("SCRAP Erreur réseau : ${e.message}")
-            ResponseBody.create(null, "")
-        }
-
-        val html = responseBody.string()
-        println("SCRAP KTOR html=$html")
-        AppBus.lines.tryEmit("SCRAP KTOR html=$html")
-
-        ///////////////////////////////////////////////////////////////////////////
-        val responseBody2 = try {
-            api.fetchPage2()
-        } catch (e: HttpException) {
-            if (e.code() == 403) {
-                println("SCRAP Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
-                AppBus.lines.tryEmit("SCRAP Accès refusé : Le site bloque peut-être votre Proxy ou nécessite des headers plus complets.")
-                ResponseBody.create(null, "")
-            } else {
-                println("SCRAP Erreur HTTP : ${e.code()}")
-                AppBus.lines.tryEmit("SCRAP Erreur HTTP : ${e.code()}")
-                ResponseBody.create(null, "")
-            }
-        } catch (e: Exception) {
-            println("SCRAP Erreur réseau : ${e.message}")
-            AppBus.lines.tryEmit("SCRAP Erreur réseau : ${e.message}")
-            ResponseBody.create(null, "")
-        }
-
-        val html2 = responseBody2.string()
-        println("SCRAP KTOR html=$html2")
-        AppBus.lines.tryEmit("SCRAP KTOR html=$html2")
-
-
-//        val textResp0 = client.get("https://ipinfo.io/json")  // Test IP d'abord
-//        println("KTOR IP via Nord SOCKS5: ${textResp0.bodyAsText().replace("\n", "")}")
-//
-//        // Texte
-//        val textResp: HttpResponse = client.get("https://stackoverflow.com/questions/71980361/how-to-get-a-image-png-with-ktor-client-get-request")
-//        val text = textResp.bodyAsText()
-//        println("KTOR text: $text")
-//
-//        // Image (faible, bytes)
-//        val imageBytes: ByteArray =
-//            client.get("https://www.lacremedugaming.fr/wp-content/uploads/creme-gaming/2025/12/fallout-saison-2-date-et-heure-de-sortie-episode-4.jpg")
-//                .readBytes()
-//        val picture = imageBytes.toBitmap()
-//        println("KTOR image: ${imageBytes.toString()}")
-
-        //IMPORTANT
-//        client.close()
-    }
+suspend fun log(text: String) {
+    println(text)
+    AppBus.lines.emit(text)
 }
 
 fun Bitmap.toByteArray(): ByteArray {
@@ -702,8 +579,12 @@ data class JsonPart(
 
 typealias SubjectName = String
 
-data class GrabbedFromPhase1(
+data class HtmlPacket(
+    val videoName: TauItemName,
     val html: MovieHtml,
     val actresses: List<ActressName>,
     val subjects: List<Subject>
 )
+
+val FOLDER_FILLES = "/storage/emulated/0/Movies/sexe/filles".toTauPath()
+val FOLDER_SUBJECTS = "/storage/emulated/0/Movies/sexe/fantasmes".toTauPath()
