@@ -53,92 +53,6 @@ import kotlin.collections.map
 typealias PictureUrl = String
 typealias MovieDescription = String
 
-/**
- * USAGE
- * ```
- * fun resetStuff() à appeler au besoin
- * readyFlow<Boolean>
- * val actressesAndItemNameFlow: flow de List<Pair<Actress, TauItemName>>
- * val subjectsAndItemNamesFlow: flow de List<Pair<Subject, Set<TauItemName>>>
- * val actressesFlow: flow de List<Actress>
- * val subjectsFlow: flow de List<Subject>
- * ```
- */
-object LocalActressesAndSubjects {
-    private val diskRepo = DiskRepo()
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val _actressFNFlow = MutableSharedFlow<List<Pair<Actress, TauItemName>>?>(replay = 1)
-    private val _subjectFNFlow =
-        MutableSharedFlow<List<Pair<Subject, Set<TauItemName>>>?>(replay = 1)
-
-    val getStuffFlow = combine(_actressFNFlow, _subjectFNFlow) { a, s ->
-        a to s
-    }.shareIn(
-        scope = scope,
-        started = SharingStarted.Eagerly,
-        replay = 1
-    )
-
-    val actressesAndItemNameFlow = getStuffFlow.map { it.first ?: emptyList() }
-        .shareIn(
-            scope = scope,
-            started = SharingStarted.Eagerly,
-            replay = 1
-        )
-
-    val subjectAndItemNamesFlow = getStuffFlow.map { it.second ?: emptyList() }
-        .shareIn(
-            scope = scope,
-            started = SharingStarted.Eagerly,
-            replay = 1
-        )
-
-    val actressesFlow = getStuffFlow.map { stuff ->
-        stuff.first?.map { actress ->
-            actress.first
-        } ?: emptyList()
-    }
-        .shareIn(
-            scope = scope,
-            started = SharingStarted.Eagerly,
-            replay = 1
-        )
-
-
-    val subjectsFlow = getStuffFlow.map { stuff ->
-        stuff.second?.map { subject ->
-            subject.first
-        } ?: emptyList()
-    }
-        .shareIn(
-            scope = scope,
-            started = SharingStarted.Eagerly,
-            replay = 1
-        )
-
-    val readyFlow = getStuffFlow.map { stuff ->
-        stuff.first != null && stuff.second != null
-    }
-        .shareIn(
-            scope = scope,
-            started = SharingStarted.Eagerly,
-            replay = 1
-        )
-
-    init {
-        resetStuff()
-    }
-
-    fun resetStuff() {
-        scope.launch {
-            val localActressesFN = diskRepo.getLocalActressesAndFileNames()
-            val localSubjectsFN = diskRepo.getLocalSubjectsAndFileNames()
-            _actressFNFlow.tryEmit(localActressesFN)
-            _subjectFNFlow.tryEmit(localSubjectsFN)
-        }
-    }
-}
-
 class Links(
     val vm: VmLinks,
     val nasRepo: INasRepo,
@@ -146,16 +60,7 @@ class Links(
     val webScrappingRepo: IWebScrappingRepo,
     val ftpDS: IFtpDS
 ) {
-    val login = "Pvc7NXwy6y7r33YurTuDoZ89"
-    val password = "gKVRhVNy7gfjejv6qbrTVX4R"
-
-    //    val server = "brussels.be.socks.nordhold.net"
-    val server = "se.socks.nordhold.net"
-
-    //    val server = "nl.socks.nordhold.net"
-    val port = 1080
-
-    val htmls = mutableMapOf<TauItemName, MovieHtml>()
+    val htmls = mutableSetOf<HtmlPacket>()
     val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     suspend fun generateLinks() {
@@ -174,13 +79,13 @@ class Links(
         ///////////////////////
         // boucle principale //
         ///////////////////////
-        val _htmls: Set<HtmlPacket> = getHtmlPackets()
-        log("${_htmls.size} htmls à traiter")
-        _htmls.onEachIndexed { index, packet ->
+        htmls.addAll(getHtmlPackets())
+        log("${htmls.size} htmls à traiter")
+        htmls.onEachIndexed { index, packet ->
 
             log("")
-            log("${index + 1}/${_htmls.size} (${packet.videoName.value}) en cours")
-            logSummary("${index + 1}/${_htmls.size}")
+            log("${index + 1}/${htmls.size} (${packet.videoName.value}) en cours")
+            logSummary("${index + 1}/${htmls.size}")
             val videoName = packet.videoName
             val movieActresses = packet.actresses
             val movieSubjects = packet.subjects
@@ -588,3 +493,89 @@ data class HtmlPacket(
 
 val FOLDER_FILLES = "/storage/emulated/0/Movies/sexe/filles".toTauPath()
 val FOLDER_SUBJECTS = "/storage/emulated/0/Movies/sexe/fantasmes".toTauPath()
+
+/**
+ * USAGE
+ * ```
+ * fun resetStuff() à appeler au besoin
+ * readyFlow<Boolean>
+ * val actressesAndItemNameFlow: flow de List<Pair<Actress, TauItemName>>
+ * val subjectsAndItemNamesFlow: flow de List<Pair<Subject, Set<TauItemName>>>
+ * val actressesFlow: flow de List<Actress>
+ * val subjectsFlow: flow de List<Subject>
+ * ```
+ */
+object LocalActressesAndSubjects {
+    private val diskRepo = DiskRepo()
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val _actressFNFlow = MutableSharedFlow<List<Pair<Actress, TauItemName>>?>(replay = 1)
+    private val _subjectFNFlow =
+        MutableSharedFlow<List<Pair<Subject, Set<TauItemName>>>?>(replay = 1)
+
+    init {
+        resetStuff()
+    }
+
+    fun resetStuff() {
+        scope.launch {
+            val localActressesFN = diskRepo.getLocalActressesAndFileNames()
+            val localSubjectsFN = diskRepo.getLocalSubjectsAndFileNames()
+            _actressFNFlow.tryEmit(localActressesFN)
+            _subjectFNFlow.tryEmit(localSubjectsFN)
+        }
+    }
+
+    val getStuffFlow = combine(_actressFNFlow, _subjectFNFlow) { a, s ->
+        a to s
+    }.shareIn(
+        scope = scope,
+        started = SharingStarted.Eagerly,
+        replay = 1
+    )
+
+    val actressesAndItemNameFlow = getStuffFlow.map { it.first ?: emptyList() }
+        .shareIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            replay = 1
+        )
+
+    val subjectAndItemNamesFlow = getStuffFlow.map { it.second ?: emptyList() }
+        .shareIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            replay = 1
+        )
+
+    val actressesFlow = getStuffFlow.map { stuff ->
+        stuff.first?.map { actress ->
+            actress.first
+        } ?: emptyList()
+    }
+        .shareIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            replay = 1
+        )
+
+
+    val subjectsFlow = getStuffFlow.map { stuff ->
+        stuff.second?.map { subject ->
+            subject.first
+        } ?: emptyList()
+    }
+        .shareIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            replay = 1
+        )
+
+    val readyFlow = getStuffFlow.map { stuff ->
+        stuff.first != null && stuff.second != null
+    }
+        .shareIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            replay = 1
+        )
+}
