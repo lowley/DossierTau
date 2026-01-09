@@ -39,6 +39,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -63,6 +64,7 @@ import org.koin.android.ext.android.inject
 import lorry.dossiertau.SchortcutMakingState.*
 
 import lorry.dossiertau.data.model.TauFolder
+import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.ui.AppBus
 
 class MainActivity : ComponentActivity() {
@@ -233,22 +235,10 @@ class MainActivity : ComponentActivity() {
                     val item = currentFolder.getOrNull()!!.children
                         .sortedBy { it.isFile().toString() + it.name }[index]
 
-                    Box(
-                        modifier = Modifier
-                            .size(175.dp)
-                            .border(1.dp, Color.DarkGray, shape = RoundedCornerShape(8.dp))
-                            .clickable {
-                                if (item.isFolder())
-                                    setCurrentFolder(item.fullPath)
-                            }
-                    ) {
-                        Text(
-                            text = item.name.value,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.LightGray)
-                        )
-                    }
+                    DisplayedItem(
+                        item = item,
+                        setCurrentFolder = setCurrentFolder
+                    )
                 }
             }
         } else {
@@ -256,6 +246,30 @@ class MainActivity : ComponentActivity() {
                 modifier = Modifier
                     .align(Alignment.Center),
                 text = "Aucun dossier selectionné"
+            )
+        }
+    }
+
+    @Composable
+    fun DisplayedItem(
+        item: TauItem,
+        setCurrentFolder: (TauPath) -> Unit
+    ) {
+        Box(
+            modifier = Modifier
+                .size(175.dp)
+                .border(1.dp, Color.DarkGray, shape = RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(8.dp))
+                .clickable {
+                    if (item.isFolder())
+                        setCurrentFolder(item.fullPath)
+                }
+        ) {
+            Text(
+                text = item.name.value,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.LightGray)
             )
         }
     }
