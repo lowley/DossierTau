@@ -8,11 +8,12 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combineTransform
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
@@ -27,14 +28,21 @@ import lorry.dossiertau.data.dbModel.OpType
 import lorry.dossiertau.data.dbModel.toTauItem
 import lorry.dossiertau.data.model.computeParentFolderDate
 import lorry.dossiertau.data.diskTransfer.toTauItems
+import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
+import lorry.dossiertau.data.model.TauFile
 import lorry.dossiertau.data.model.TauFolder
+import lorry.dossiertau.data.model.TauItem
+import lorry.dossiertau.data.model.asDataCommon
 import lorry.dossiertau.data.model.fullPath
+import lorry.dossiertau.data.model.isFile
 import lorry.dossiertau.data.model.parentPath
+import lorry.dossiertau.support.littleClasses.TauIdentifier
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
 import lorry.dossiertau.support.littleClasses.name
 import lorry.dossiertau.support.littleClasses.parentPath
 import lorry.dossiertau.support.littleClasses.path
+import lorry.dossiertau.ui.support.capsule.CapsuleComponent
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 
 open class FolderCompo(
@@ -69,13 +77,58 @@ open class FolderCompo(
 
             val folderDate = compoItems.computeParentFolderDate()
 
-            val result = TauFolder(
+            val compoItemsWithPictures = compoItems.map { item ->
+                async<TauItem> {
+
+                    val path = item.fullPath
+                    val newCapsuleMgr = CapsuleComponent()
+                    val newCapsule = newCapsuleMgr.getCapsule(path)
+
+                    val i = item.asDataCommon ?: return@async TauFolder.EMPTY
+                    val newCropped = newCapsule?.getCroppedPicture()
+                    val newInitial = newCapsule?.getInitialPicture()
+                    var image = newCropped ?: newInitial
+
+                    val result = if (item.isFile()){
+                        //file
+//                        image = image ?: R.drawable.fichier
+
+                        TauFile.Data(
+                            id = i.id,
+                            parentPath = i.parentPath,
+                            name = i.name,
+                            picture = image?.let { TauPicture.fromBitmap(it) } ?: TauPicture.NONE,
+                            modificationDate = i.modificationDate,
+                            size = 0L,
+                            fileId = i.fileId
+                        ) as TauFile
+                    }
+                    else{
+                        //folder
+                        TauFolder.Data(
+                            id = i.id,
+                            parentPath = i.parentPath,
+                            name = i.name,
+                            picture = image?.let { TauPicture.fromBitmap(it) } ?: TauPicture.NONE,
+                            modificationDate = i.modificationDate,
+                            fileId = i.fileId,
+                            children = emptyList()
+                        ) as TauFolder
+                    }
+
+                    result
+                }
+            }.awaitAll()
+
+            val result = TauFolder.Data(
+                id = TauIdentifier.random(),
                 parentPath = folderFullPath.parentPath,
                 name = folderFullPath.name,
                 picture = TauPicture.NONE,
                 modificationDate = folderDate,
-                children = compoItems
-            )
+                fileId = FileId.EMPTY,
+                children = compoItemsWithPictures
+            ) as TauFolder
 
             println("DEBUG: setFolderFlow:${result.fullPath}")
             val res2 = result.toOption()

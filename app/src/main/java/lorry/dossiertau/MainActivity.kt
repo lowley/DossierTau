@@ -49,6 +49,7 @@ import androidx.constraintlayout.compose.Dimension
 import arrow.core.None
 import arrow.core.Option
 import arrow.core.Some
+import coil.compose.AsyncImage
 import lorry.dossiertau.data.intelligenceService.CIA
 import lorry.dossiertau.data.model.children
 import lorry.dossiertau.data.model.fullPath
@@ -65,6 +66,7 @@ import lorry.dossiertau.SchortcutMakingState.*
 
 import lorry.dossiertau.data.model.TauFolder
 import lorry.dossiertau.data.model.TauItem
+import lorry.dossiertau.data.model.picture
 import lorry.dossiertau.ui.AppBus
 
 class MainActivity : ComponentActivity() {
@@ -257,6 +259,7 @@ class MainActivity : ComponentActivity() {
     ) {
         Box(
             modifier = Modifier
+                .padding(5.dp)
                 .size(175.dp)
                 .border(1.dp, Color.DarkGray, shape = RoundedCornerShape(8.dp))
                 .clip(RoundedCornerShape(8.dp))
@@ -265,11 +268,19 @@ class MainActivity : ComponentActivity() {
                         setCurrentFolder(item.fullPath)
                 }
         ) {
-            Text(
-                text = item.name.value,
+            AsyncImage(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.LightGray)
+                    .size(175.dp)
+                    .align(Alignment.TopCenter),
+                model = item.picture.toBitmap(),
+                contentDescription = null,
+            )
+
+            Text(
+                modifier = Modifier
+                    .width(175.dp)
+                    .align(Alignment.BottomCenter),
+                text = item.name.value,
             )
         }
     }

@@ -31,6 +31,11 @@ import lorry.dossiertau.usecases.generateHTMLs.repos.INasRepo
 import lorry.dossiertau.usecases.generateHTMLs.repos.IWebScrappingRepo
 import lorry.dossiertau.usecases.generateHTMLs.repos.NasRepo
 import lorry.dossiertau.usecases.generateHTMLs.repos.WebScrappingRepo
+import lorry.dossiertau.ui.support.base64.Base64DataSource
+import lorry.dossiertau.ui.support.base64.IBase64DataSource
+import lorry.dossiertau.ui.support.capsule.CapsuleComponent
+import lorry.dossiertau.ui.support.capsule.ICapsuleComponent
+import lorry.dossiertau.ui.support.capsule.utilities.FileCapsuleIO
 import org.koin.core.qualifier.named
 
 val TauInjections = module {
@@ -57,6 +62,10 @@ val TauInjections = module {
     single { DiffRepository(get()) }
     single { SpyRepo() }
 
+    single { FileCapsuleIO() }
+    single<ICapsuleComponent> { CapsuleComponent() }
+    single<IBase64DataSource> { Base64DataSource() }
+
     single<IFolderRepo>(named("real")) { FolderRepo(get<SpyRepo>()) }
     single<IFolderRepo> { get(named("real")) }          // alias public
 
@@ -64,11 +73,12 @@ val TauInjections = module {
     single<ISpy> { Spy(get(), TauFileObserver.of(INACTIVE), get(), get()) }
     single { CIA() }
 
-
-    single<IFolderCompo>(named("real")) { FolderCompo(
-        folderRepo = get(),
-        fileDiffDAO = get()
-    )}
+    single<IFolderCompo>(named("real")) {
+        FolderCompo(
+            folderRepo = get(),
+            fileDiffDAO = get()
+        )
+    }
 
     single<IFolderCompo> { get(named("real")) }
 

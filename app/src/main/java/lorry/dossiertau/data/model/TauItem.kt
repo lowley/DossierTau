@@ -103,3 +103,6 @@ inline val TauItem.modificationDate: TauDate
 
 inline val TauItem.parentPath: TauPath?
     get() = asDataCommon?.parentPath
+
+val TauItem.picture: TauPicture
+    get() = asDataCommon?.picture ?: TauPicture.NONE
