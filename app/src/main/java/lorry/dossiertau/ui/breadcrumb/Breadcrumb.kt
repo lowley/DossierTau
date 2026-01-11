@@ -31,8 +31,13 @@ fun BreadcrumbComponent.UI(
         verticalAlignment = Alignment.CenterVertically
     ) {
         val stateData = state as BreadcrumbState.DATA
-
         val segs = stateData.currentPath?.split("/")
+
+        Text(
+            text = " ▶ ",
+            modifier = Modifier
+                .align(Alignment.CenterVertically)
+        )
 
         // éléments non animés
         segs?.dropLast(1)?.forEachIndexed { i, seg ->

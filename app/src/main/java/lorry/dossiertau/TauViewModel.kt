@@ -1,11 +1,13 @@
 package lorry.dossiertau
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.Translator
 import com.google.mlkit.nl.translate.TranslatorOptions
+import kotlinx.coroutines.launch
 import lorry.dossiertau.data.intelligenceService.ISpy
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.toTauPath
@@ -31,13 +33,13 @@ open class TauViewModel(
     fun onMakeHTML(
         displayBottomSheet: (text: String) -> Unit = {},
     ) {
-        translationExample(
-            displayBottomSheet = displayBottomSheet
-        )
+        viewModelScope.launch{
+            links.generateLinks()
+        }
 
-//        viewModelScope.launch{
-//            links.generateLinks()
-//        }
+//        translationExample(
+//            displayBottomSheet = displayBottomSheet
+//        )
     }
 
     private fun translationExample(displayBottomSheet: (String) -> Unit) {
@@ -52,7 +54,7 @@ open class TauViewModel(
 
     //#[[tauViewModelInit]]
     init{
-        val pathInit = "/storage/emulated/0/Movies/sexe/filles".toTauPath()
+        val pathInit = "/storage/emulated/0/Movies/sexe".toTauPath()
         println("TauViewModel: init{} appelle setTauFolder")
         setTauFolder(pathInit)
 

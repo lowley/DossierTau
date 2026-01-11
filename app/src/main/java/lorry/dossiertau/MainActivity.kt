@@ -76,6 +76,7 @@ import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.data.model.picture
 import lorry.dossiertau.ui.AppBus
 import lorry.dossiertau.ui.breadcrumb.BreadcrumbComponent
+import lorry.dossiertau.ui.displayedItem.DisplayedItem
 
 class MainActivity() : ComponentActivity() {
 
@@ -121,7 +122,7 @@ class MainActivity() : ComponentActivity() {
 
                         LeftPane(
                             Modifier
-                                .width(30.dp)
+                                .width(20.dp)
                                 .fillMaxHeight()
                                 .constrainAs(leftPanel) {
                                     start.linkTo(parent.start)
@@ -261,7 +262,7 @@ class MainActivity() : ComponentActivity() {
             LazyVerticalGrid(
                 modifier = Modifier,
                 state = state,
-                columns = GridCells.Adaptive(175.dp)
+                columns = GridCells.Adaptive(150.dp)
 //        userScrollEnabled = true,
             ) {
                 items(currentFolder.getOrNull()!!.children.size) { index ->
@@ -284,43 +285,6 @@ class MainActivity() : ComponentActivity() {
     }
 
     @Composable
-    fun DisplayedItem(
-        item: TauItem,
-        setCurrentFolder: (TauPath) -> Unit
-    ) {
-        Column(
-            modifier = Modifier
-                .width(175.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .clickable {
-                    if (item.isFolder())
-                        setCurrentFolder(item.fullPath)
-                }
-        ) {
-            AsyncImage(
-                modifier = Modifier
-                    .size(175.dp)
-                    .clip(shape = RoundedCornerShape(8.dp))
-                    .border(1.dp, Color.DarkGray, shape = RoundedCornerShape(8.dp))
-                    .align(Alignment.CenterHorizontally),
-                model = item.picture.toBitmap(),
-                contentDescription = null,
-            )
-
-            Text(
-                modifier = Modifier
-                    .width(175.dp)
-                    .align(Alignment.CenterHorizontally),
-                text = item.name.value,
-                fontSize = 10.sp,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                minLines = 2
-            )
-        }
-    }
-
-    @Composable
     private fun TopAppBar() {
         Row(
             modifier = Modifier
@@ -338,7 +302,7 @@ class MainActivity() : ComponentActivity() {
                 breadcrumbComponent.Breadcrumb(
                     modifier = Modifier
                         .align(Alignment.CenterVertically)
-                        .padding(horizontal = 10.dp),
+                        .padding(start = 20.dp),
                     path = currentFolderItems,
                     onClick = {
                         folderCompo.setFolderFlow(it)
