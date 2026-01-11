@@ -114,7 +114,7 @@ class FileCapsuleManager(
 
         val croppedWebpExists = croppedWebp.exists()
         val secondMeltCropped = if (croppedWebpExists) try {
-            var result: String? = null
+            var result: String?
             FileInputStream(croppedWebp).use{ inputStream ->
                 BufferedInputStream(inputStream).use{ bufferedInputStream ->
                     val bmp = BitmapFactory.decodeStream(bufferedInputStream)

@@ -15,10 +15,13 @@ import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauDate
 import lorry.dossiertau.support.littleClasses.toTauIdentifier
 import lorry.dossiertau.support.littleClasses.toTauPath
+import lorry.dossiertau.ui.support.capsule.utilities.FileCapsuleManager
+import lorry.dossiertau.ui.support.capsule.utilities.FolderCapsuleManager
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Base64
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -34,34 +37,36 @@ data class DiffEntity(
     val modifiedAtIso: Instant?,           // TauDate
     val item_type: String,
     val parentPath: String, // "FILE" / "DIR" (ItemType)
-    val fileId: FileId = FileId.EMPTY
+    val fileId: FileId = FileId.EMPTY,
+    val pictureData: ByteArray? = null
 ){
 
     fun display(): String{
-
-        return "⏵ $op_type ↈ $item_type ↈ $full_path ↈ $modifiedAtIso ⏴"
-
-
-
+        return "⏵ $op_type ↈ $item_type ↈ $full_path ↈ $modifiedAtIso ↈ \uD83D\uDDBD ${pictureData!= null} ⏴"
     }
-
-
-
 }
 
 @OptIn(ExperimentalUuidApi::class)
-fun DbCommand.toFileDiffEntity(correlationId: String? = null): DiffEntity {
+suspend fun DbCommand.toFileDiffEntity(correlationId: String? = null): DiffEntity {
 
     val result = when (this) {
-        is DbCommand.CreateItem -> DiffEntity(
-            correlationId = correlationId ?: item.id.value.toString(),
-            op_type = OpType.CreateItem.text,
-            full_path = item.fullPath.path,
-            modifiedAtIso = Instant.ofEpochMilli(item.modificationDate.value),
-            item_type = item.type.name,
-            parentPath = item.fullPath.parentPath.path,
-            fileId = item.fileId
-        )
+        is DbCommand.CreateItem -> suspend {
+            val capsule = if (item.type == ItemType.FILE) FileCapsuleManager(item.fullPath.path, useOld = false).getCapsule()
+            else FolderCapsuleManager(item.fullPath, useOld = false).getCapsule()
+
+            val pictureBytes = capsule?.croppedPicture?.let { base64ToByteArray(it) }
+
+            DiffEntity(
+                correlationId = correlationId ?: item.id.value.toString(),
+                op_type = OpType.CreateItem.text,
+                full_path = item.fullPath.path,
+                modifiedAtIso = Instant.ofEpochMilli(item.modificationDate.value),
+                item_type = item.type.name,
+                parentPath = item.fullPath.parentPath.path,
+                fileId = item.fileId,
+                pictureData = pictureBytes
+            )
+        }.invoke()
 
         is DbCommand.DeleteItem -> DiffEntity(
             correlationId = correlationId ?: item.id.value.toString(),
@@ -73,15 +78,24 @@ fun DbCommand.toFileDiffEntity(correlationId: String? = null): DiffEntity {
             fileId = item.fileId
         )
 
-        is DbCommand.ModifyItem -> DiffEntity(
-            correlationId = correlationId ?: item.id.value.toString(),
-            op_type = OpType.ModifyItem.text,
-            full_path = item.fullPath.path,
-            modifiedAtIso = Instant.ofEpochMilli(item.modificationDate.value),
-            item_type = item.type.name,
-            parentPath = item.fullPath.parentPath.path,
-            fileId = item.fileId
-        )
+        is DbCommand.ModifyItem -> suspend {
+
+            val capsule = if (item.type == ItemType.FILE) FileCapsuleManager(item.fullPath.path, useOld = false).getCapsule()
+                else FolderCapsuleManager(item.fullPath, useOld = false).getCapsule()
+
+            val pictureBytes = capsule?.croppedPicture?.let { base64ToByteArray(it) }
+
+            DiffEntity(
+                correlationId = correlationId ?: item.id.value.toString(),
+                op_type = OpType.ModifyItem.text,
+                full_path = item.fullPath.path,
+                modifiedAtIso = Instant.ofEpochMilli(item.modificationDate.value),
+                item_type = item.type.name,
+                parentPath = item.fullPath.parentPath.path,
+                fileId = item.fileId,
+                pictureData = pictureBytes
+            )
+        }.invoke()
 
         is DbCommand.GlobalRefresh -> DiffEntity(
             correlationId = correlationId,
@@ -156,4 +170,8 @@ fun String.dateTimetoEpochMillis(zone: ZoneId = ZoneId.systemDefault()): Long {
     val fmt = DateTimeFormatter.ofPattern(dateTimePattern)
     val ldt = LocalDateTime.parse(this, fmt)
     return ldt.atZone(zone).toInstant().toEpochMilli()
+}
+
+fun base64ToByteArray(base64String: String): ByteArray {
+    return Base64.getDecoder().decode(base64String)
 }

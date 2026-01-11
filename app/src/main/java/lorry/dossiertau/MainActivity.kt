@@ -5,11 +5,11 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -43,13 +43,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
 import arrow.core.None
 import arrow.core.Option
 import arrow.core.Some
 import coil.compose.AsyncImage
+import com.mutkuensert.basicbottomsheet.BasicBottomSheet
 import lorry.dossiertau.data.intelligenceService.CIA
 import lorry.dossiertau.data.model.children
 import lorry.dossiertau.data.model.fullPath
@@ -88,10 +91,16 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             DossierTauTheme {
+                val isSheetVisible = remember { mutableStateOf(false) }
+                val sheetText = remember { mutableStateOf("") }
+
                 Scaffold(
                     modifier = Modifier,
                     topBar = { TopAppBar() },
-                    bottomBar = { BottomAppBar() },
+                    bottomBar = { BottomAppBar(
+                        isSheetVisible = isSheetVisible,
+                        sheetText = sheetText
+                    ) },
 //                    floatingActionButton = { /* FAB */ }
                 ) { innerPadding ->
 
@@ -133,6 +142,18 @@ class MainActivity : ComponentActivity() {
                             setCurrentFolder = { newFolder: TauPath ->
                                 viewModel.setTauFolder(newFolder)
                             }
+                        )
+                    }
+
+                    BasicBottomSheet(
+                        visible = isSheetVisible.value,
+                        onCloseSheet = { isSheetVisible.value = false},
+                    ) {
+                        Text(
+                            modifier = Modifier.padding(16.dp)
+                                .padding(5.dp),
+                            text = sheetText.value,
+                            color = Color.Black,
                         )
                     }
                 }
@@ -257,11 +278,9 @@ class MainActivity : ComponentActivity() {
         item: TauItem,
         setCurrentFolder: (TauPath) -> Unit
     ) {
-        Box(
+        Column(
             modifier = Modifier
-                .padding(5.dp)
-                .size(175.dp)
-                .border(1.dp, Color.DarkGray, shape = RoundedCornerShape(8.dp))
+                .width(175.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .clickable {
                     if (item.isFolder())
@@ -271,7 +290,9 @@ class MainActivity : ComponentActivity() {
             AsyncImage(
                 modifier = Modifier
                     .size(175.dp)
-                    .align(Alignment.TopCenter),
+                    .clip(shape = RoundedCornerShape(8.dp))
+                    .border(1.dp, Color.DarkGray, shape = RoundedCornerShape(8.dp))
+                    .align(Alignment.CenterHorizontally),
                 model = item.picture.toBitmap(),
                 contentDescription = null,
             )
@@ -279,8 +300,12 @@ class MainActivity : ComponentActivity() {
             Text(
                 modifier = Modifier
                     .width(175.dp)
-                    .align(Alignment.BottomCenter),
+                    .align(Alignment.CenterHorizontally),
                 text = item.name.value,
+                fontSize = 10.sp,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                minLines = 2
             )
         }
     }
@@ -311,7 +336,7 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun BottomAppBar() {
+    private fun BottomAppBar(isSheetVisible: MutableState<Boolean>, sheetText: MutableState<String>) {
         Row(
             modifier = Modifier
                 .navigationBarsPadding()
@@ -337,7 +362,12 @@ class MainActivity : ComponentActivity() {
                 Button(
                     modifier = Modifier,
                     content = { Text(text = "make HTML") },
-                    onClick = { viewModel.onMakeHTML() },
+                    onClick = { viewModel.onMakeHTML(
+                        displayBottomSheet = { text ->
+                            sheetText.value = text
+                            isSheetVisible.value = true
+                        }
+                    ) },
                 )
             else {
                 val text = AppBus.summary.collectAsState("")

@@ -10,6 +10,9 @@ import java.nio.file.Paths
 import java.nio.file.attribute.FileTime
 import kotlin.math.min
 
+/**
+ * le nouveau, utilisé si pas useOld
+ */
 class FileMetadataManager() : ICapsuleIO {
 
     private val gson = Gson()

@@ -7,6 +7,9 @@ import java.io.File
 import java.io.RandomAccessFile
 import java.nio.charset.Charset
 
+/**
+ * le vieux, utilisé si useOld
+ */
 class FileCapsuleIO: ICapsuleIO {
 
     private val CHARSET = "UTF-8"

@@ -1,21 +1,25 @@
 package lorry.dossiertau
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
+import com.google.mlkit.common.model.DownloadConditions
+import com.google.mlkit.nl.translate.TranslateLanguage
+import com.google.mlkit.nl.translate.Translation
+import com.google.mlkit.nl.translate.Translator
+import com.google.mlkit.nl.translate.TranslatorOptions
 import lorry.dossiertau.data.intelligenceService.ISpy
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
 import lorry.dossiertau.usecases.generateHTMLs.Links
+import lorry.dossiertau.usecases.generateHTMLs.logSummary
 
 open class TauViewModel(
     val folderCompo: IFolderCompo,
     val spy: ISpy,
     val links: Links
 ): ViewModel() {
+
+    var translator: Translator? = null
 
     fun setTauFolder(folderPath: TauPath){
         folderCompo.setFolderFlow(folderPath)
@@ -24,10 +28,26 @@ open class TauViewModel(
             spy.startSurveillance()
     }
 
-    fun onMakeHTML() {
-        viewModelScope.launch{
-            links.generateLinks()
-        }
+    fun onMakeHTML(
+        displayBottomSheet: (text: String) -> Unit = {},
+    ) {
+        translationExample(
+            displayBottomSheet = displayBottomSheet
+        )
+
+//        viewModelScope.launch{
+//            links.generateLinks()
+//        }
+    }
+
+    private fun translationExample(displayBottomSheet: (String) -> Unit) {
+        val result = translator?.translate("<p>Come and have your way with Jamie LaMore, London Keys, Sadie West, Taylor Tilden, and Kiara Dinae. These five girls are tied up and helpless. They're just waiting to be teased and fucked beyond comprehension. Show them total domination, and they will return the favor with pure satisfaction. Their lustful natures are beyond measure, for these girls are bound for your pleasure.</p> <p><strong>Bonus Footage Included</strong></p>")
+            ?.addOnSuccessListener { result ->
+                displayBottomSheet(result ?: "erreur de traduction")
+            }
+            ?.addOnFailureListener { exception ->
+                displayBottomSheet(exception.toString())
+            }
     }
 
     //#[[tauViewModelInit]]
@@ -36,6 +56,22 @@ open class TauViewModel(
         println("TauViewModel: init{} appelle setTauFolder")
         setTauFolder(pathInit)
 
+        configureTranslation()
     }
 
+    private fun configureTranslation() {
+        // Créer le traducteur
+        val options = TranslatorOptions.Builder()
+            .setSourceLanguage(TranslateLanguage.ENGLISH)
+            .setTargetLanguage(TranslateLanguage.FRENCH)
+            .build()
+        translator = Translation.getClient(options)
+
+        val conditions = DownloadConditions.Builder()
+            .requireWifi()
+            .build()
+        translator?.downloadModelIfNeeded(conditions)
+            ?.addOnSuccessListener { logSummary("prêt à traduire") }
+            ?.addOnFailureListener { logSummary("erreur de téléchargement") }
+    }
 }

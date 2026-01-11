@@ -457,8 +457,8 @@ class Links(
     }
 }
 
-suspend fun logSummary(text: String) {
-    AppBus.summary.emit(text)
+fun logSummary(text: String) {
+    Logger.logSummary(text)
 }
 
 suspend fun log(text: String) {
@@ -578,4 +578,15 @@ object LocalActressesAndSubjects {
             started = SharingStarted.Eagerly,
             replay = 1
         )
+}
+
+object Logger{
+    val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    fun logSummary(text: String){
+        scope.launch {
+            AppBus.summary.emit(text)
+        }
+    }
+
 }

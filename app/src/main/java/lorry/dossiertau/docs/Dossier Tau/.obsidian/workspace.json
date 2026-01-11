@@ -139,12 +139,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "liste des catégories Hot Movies.md",
+                "file": "FileObserver/politique de complete scans.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "liste des catégories Hot Movies"
+              "title": "politique de complete scans"
             }
           }
         ],
@@ -324,13 +324,13 @@
   },
   "active": "ba564cd792605f15",
   "lastOpenFiles": [
-    "des choses qui m'ont servi.md",
+    "FileObserver/Design de la base Room.md",
     "liste des catégories Hot Movies.md",
+    "des choses qui m'ont servi.md",
     "FileObserver/politique de complete scans épistémiques.md",
     "recueil de besoins candidats.md",
     "FileObserver/politique de complete scans.md",
     "FileObserver/TODO.md",
-    "FileObserver/Design de la base Room.md",
     "FileObserver/File observer.md",
     "FileObserver/notes diverses.md",
     "FileObserver/truc.md",

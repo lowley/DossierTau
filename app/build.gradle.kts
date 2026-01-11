@@ -255,4 +255,13 @@ dependencies {
     implementation("com.google.code.gson:gson:2.10.1")
     implementation("org.jsoup:jsoup:1.17.2")
 
+    //////////////////////////////////////////
+    // traduction des descriptions de films //
+    //////////////////////////////////////////
+    implementation("com.google.mlkit:translate:17.0.3")
+    //basic bottomsheet
+    //https://github.com/mutkuensert/BasicBottomSheet
+    implementation("com.github.mutkuensert:BasicBottomSheet:1.0.1")
+
+
 }
