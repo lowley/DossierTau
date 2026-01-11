@@ -5,6 +5,7 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -34,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,11 +50,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
+import androidx.constraintlayout.compose.VerticalAlign
 import arrow.core.None
 import arrow.core.Option
 import arrow.core.Some
 import coil.compose.AsyncImage
 import com.mutkuensert.basicbottomsheet.BasicBottomSheet
+import kotlinx.coroutines.flow.map
 import lorry.dossiertau.data.intelligenceService.CIA
 import lorry.dossiertau.data.model.children
 import lorry.dossiertau.data.model.fullPath
@@ -71,11 +75,13 @@ import lorry.dossiertau.data.model.TauFolder
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.data.model.picture
 import lorry.dossiertau.ui.AppBus
+import lorry.dossiertau.ui.breadcrumb.BreadcrumbComponent
 
-class MainActivity : ComponentActivity() {
+class MainActivity() : ComponentActivity() {
 
     val viewModel: TauViewModel by inject()
     val links: Links by inject()
+    val breadcrumbComponent: BreadcrumbComponent by inject()
 
     val folderCompo = viewModel.folderCompo
 
@@ -97,10 +103,12 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     modifier = Modifier,
                     topBar = { TopAppBar() },
-                    bottomBar = { BottomAppBar(
-                        isSheetVisible = isSheetVisible,
-                        sheetText = sheetText
-                    ) },
+                    bottomBar = {
+                        BottomAppBar(
+                            isSheetVisible = isSheetVisible,
+                            sheetText = sheetText
+                        )
+                    },
 //                    floatingActionButton = { /* FAB */ }
                 ) { innerPadding ->
 
@@ -147,10 +155,11 @@ class MainActivity : ComponentActivity() {
 
                     BasicBottomSheet(
                         visible = isSheetVisible.value,
-                        onCloseSheet = { isSheetVisible.value = false},
+                        onCloseSheet = { isSheetVisible.value = false },
                     ) {
                         Text(
-                            modifier = Modifier.padding(16.dp)
+                            modifier = Modifier
+                                .padding(16.dp)
                                 .padding(5.dp),
                             text = sheetText.value,
                             color = Color.Black,
@@ -235,7 +244,8 @@ class MainActivity : ComponentActivity() {
                     fontFamily = notoFont,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp))
+                        .padding(horizontal = 8.dp)
+                )
             }
         }
     }
@@ -312,7 +322,7 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun TopAppBar() {
-        Box(
+        Row(
             modifier = Modifier
                 .statusBarsPadding()
                 .fillMaxWidth()
@@ -320,23 +330,38 @@ class MainActivity : ComponentActivity() {
         ) {
             //faire dans le ViewModel plusieurs State
             //chacun comportant plusieurs valeurs & fonctions fonctionnellement groupées
-            val currentFolderPath by folderCompo.folderPathFlow.collectAsState()
-            println("DEBUG: currentFolderPath = ${currentFolderPath.getOrNull()?.path}")
+            val currentFolderItems by folderCompo.folderPathFlow
+                .map { it.getOrNull()?.path?.split("/")?.filter { it.isNotEmpty() } ?: emptyList() }
+                .collectAsState(emptyList())
 
-            currentFolderPathText(
-                modifier = Modifier
-                    .fillMaxSize(),
-                optionCurrentFolder = currentFolderPath,
-                setCurrentFolder = { newFolder: TauPath ->
-                    folderCompo.setFolderFlow(newFolder)
-                }
-            )
+            if (currentFolderItems.isNotEmpty())
+                breadcrumbComponent.Breadcrumb(
+                    modifier = Modifier
+                        .align(Alignment.CenterVertically)
+                        .padding(horizontal = 10.dp),
+                    path = currentFolderItems,
+                    onClick = {
+                        folderCompo.setFolderFlow(it)
+                    }
+                )
+
+//            currentFolderPathText(
+//                modifier = Modifier
+//                    .fillMaxSize(),
+//                optionCurrentFolder = currentFolderPath,
+//                setCurrentFolder = { newFolder: TauPath ->
+//                    folderCompo.setFolderFlow(newFolder)
+//                }
+//            )
         }
 
     }
 
     @Composable
-    private fun BottomAppBar(isSheetVisible: MutableState<Boolean>, sheetText: MutableState<String>) {
+    private fun BottomAppBar(
+        isSheetVisible: MutableState<Boolean>,
+        sheetText: MutableState<String>
+    ) {
         Row(
             modifier = Modifier
                 .navigationBarsPadding()
@@ -362,12 +387,14 @@ class MainActivity : ComponentActivity() {
                 Button(
                     modifier = Modifier,
                     content = { Text(text = "make HTML") },
-                    onClick = { viewModel.onMakeHTML(
-                        displayBottomSheet = { text ->
-                            sheetText.value = text
-                            isSheetVisible.value = true
-                        }
-                    ) },
+                    onClick = {
+                        viewModel.onMakeHTML(
+                            displayBottomSheet = { text ->
+                                sheetText.value = text
+                                isSheetVisible.value = true
+                            }
+                        )
+                    },
                 )
             else {
                 val text = AppBus.summary.collectAsState("")

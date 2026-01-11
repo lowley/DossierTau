@@ -19,6 +19,7 @@ import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside.INACTIVE
 import lorry.dossiertau.data.intelligenceService.utils2.repo.SpyRepo
+import lorry.dossiertau.ui.breadcrumb.BreadcrumbComponent
 import lorry.dossiertau.usecases.folderContent.FolderCompo
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
 import lorry.dossiertau.usecases.folderContent.support.FolderRepo
@@ -61,6 +62,8 @@ val TauInjections = module {
     single { Dispatchers.IO }
     single { DiffRepository(get()) }
     single { SpyRepo() }
+
+    single<BreadcrumbComponent> { BreadcrumbComponent() }
 
     single { FileCapsuleIO() }
     single<ICapsuleComponent> { CapsuleComponent() }
