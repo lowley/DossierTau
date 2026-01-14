@@ -32,6 +32,55 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".usecases.playing.support.DeepLinkActivity"
+            android:exported="true">
+
+            <!-- Intent filter pour les deep links / intents externes -->
+            <intent-filter>
+                <!-- Action la plus courante pour ouvrir un contenu -->
+                <action android:name="android.intent.action.VIEW" />
+
+                <!-- Catégories requises pour les deep links -->
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <!-- Vos contraintes de données -->
+                <data
+                    android:scheme="myapp"
+                    android:host="playvideo"
+                    android:pathPrefix="/kiwi" />
+                <!--
+                  Exemples valides d’URI correspondant :
+                  YOUR_SCHEME://YOUR_HOST/YOUR_PATH_PREFIX
+                  YOUR_SCHEME://YOUR_HOST/YOUR_PATH_PREFIX/xyz
+                -->
+            </intent-filter>
+
+            <!-- (Facultatif) Variante HTTPS si vous supportez aussi https -->
+            <!--
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="YOUR_HOST"
+                    android:pathPrefix="/YOUR_PATH_PREFIX" />
+            </intent-filter>
+            -->
+        </activity>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <service
             android:name=".data.intelligenceService.CIA"
             android:enabled="true"

@@ -37,6 +37,8 @@ import lorry.dossiertau.ui.support.base64.IBase64DataSource
 import lorry.dossiertau.ui.support.capsule.CapsuleComponent
 import lorry.dossiertau.ui.support.capsule.ICapsuleComponent
 import lorry.dossiertau.ui.support.capsule.utilities.FileCapsuleIO
+import lorry.folder.items.dossiersigma.external.playing.IPlayingDataSource
+import lorry.folder.items.dossiersigma.external.playing.PlayingDataSource
 import org.koin.core.qualifier.named
 
 val TauInjections = module {
@@ -76,6 +78,8 @@ val TauInjections = module {
     single<ISpy> { Spy(get(), TauFileObserver.of(INACTIVE), get(), get()) }
     single { CIA() }
 
+    single<IPlayingDataSource> { PlayingDataSource(get()) }
+
     single<IFolderCompo>(named("real")) {
         FolderCompo(
             folderRepo = get(),
@@ -92,7 +96,7 @@ val TauInjections = module {
     single<IWebScrappingRepo> { WebScrappingRepo() }
     single { Links(get(), get(), get(), get(), get()) }
 
-    single<TauViewModel>(named("real")) { TauViewModel(get(), get(), get()) }
+    single<TauViewModel>(named("real")) { TauViewModel(get(), get(), get(), get()) }
     single<TauViewModel> { get(named("real")) }
 
 

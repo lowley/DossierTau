@@ -37,6 +37,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -51,12 +52,15 @@ import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
 import androidx.constraintlayout.compose.VerticalAlign
+import androidx.lifecycle.viewModelScope
 import arrow.core.None
 import arrow.core.Option
 import arrow.core.Some
 import coil.compose.AsyncImage
 import com.mutkuensert.basicbottomsheet.BasicBottomSheet
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import lorry.dossiertau.data.intelligenceService.CIA
 import lorry.dossiertau.data.model.children
 import lorry.dossiertau.data.model.fullPath
@@ -269,10 +273,28 @@ class MainActivity() : ComponentActivity() {
                     val item = currentFolder.getOrNull()!!.children
                         .sortedBy { it.isFile().toString() + it.name }[index]
 
-                    DisplayedItem(
-                        item = item,
-                        setCurrentFolder = setCurrentFolder
-                    )
+                    key(item.fullPath) {
+                        DisplayedItem(
+                            item = item,
+                            setCurrentFolder = setCurrentFolder,
+                            onClick = { filePath ->
+                                viewModel.viewModelScope.launch(Dispatchers.IO) {
+                                    if (filePath.path.endsWith("html"))
+                                        viewModel.playingFile.playFile(
+                                            filePath,
+                                            "text/html",
+                                            this@MainActivity
+                                        )
+                                    else
+                                        viewModel.playingFile.playFile(
+                                            filePath,
+                                            "video/mp4",
+                                            this@MainActivity
+                                        )
+                                }
+                            }
+                        )
+                    }
                 }
             }
         } else {
@@ -308,15 +330,6 @@ class MainActivity() : ComponentActivity() {
                         folderCompo.setFolderFlow(it)
                     }
                 )
-
-//            currentFolderPathText(
-//                modifier = Modifier
-//                    .fillMaxSize(),
-//                optionCurrentFolder = currentFolderPath,
-//                setCurrentFolder = { newFolder: TauPath ->
-//                    folderCompo.setFolderFlow(newFolder)
-//                }
-//            )
         }
 
     }

@@ -1,9 +1,12 @@
 package lorry.dossiertau.support.littleClasses
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 @JvmInline
 value class TauItemName(val value: String) {
 
-    override fun toString(): String = "τFileName($value)"
+    override fun toString(): String = value
 
     fun equalsTo(other: TauItemName) = this.value == other.value
 
@@ -13,6 +16,8 @@ value class TauItemName(val value: String) {
     companion object{
         val EMPTY = TauItemName("")
     }
+
+    fun display() = value
 }
 
 fun String.toTauFileName() = TauItemName(this)

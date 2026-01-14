@@ -1,5 +1,8 @@
 package lorry.dossiertau.usecases.folderContent.support
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.util.Base64
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -13,6 +16,7 @@ import lorry.dossiertau.data.intelligenceService.utils2.repo.ISpyRepo
 import lorry.dossiertau.data.intelligenceService.utils2.repo.SpyRepo
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauPath
+import lorry.dossiertau.support.littleClasses.TauPicture
 import lorry.dossiertau.support.littleClasses.toTauFileName
 import lorry.dossiertau.support.littleClasses.toTauPath
 import java.io.File
@@ -85,6 +89,35 @@ open class FolderRepo(
             entriesByName = content
         )
     }
+
+    override suspend fun extractImageFromHtml(html: TauPath): Bitmap? {
+
+        val htmlFile = html.toFile().getOrNull() ?: return null
+        if (!withContext(Dispatchers.IO) { htmlFile.exists() }) return null
+
+        val htmlContent = withContext(Dispatchers.IO) { htmlFile.readText() }
+
+        // Regex pour trouver le contenu de src="data:image/...;base64,..."
+        val regex = Regex("""<img\s+[^>]*src\s*=\s*"data:image/[^;]+;base64,([^"]+)"""")
+        val match = regex.find(htmlContent) ?: return null
+
+        val base64Image = match.groupValues[1]
+        return try {
+            withContext(Dispatchers.Default) {
+                val imageBytes = Base64.decode(base64Image, Base64.DEFAULT)
+                val result = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                result
+            }
+
+        } catch (e: Exception) {
+            println("Erreur lors du décodage de l'image : ${e.message}")
+            null
+        }
+    }
+
+
+
+
 }
 
 

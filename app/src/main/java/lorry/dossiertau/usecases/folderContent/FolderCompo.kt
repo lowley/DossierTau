@@ -35,6 +35,8 @@ import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.data.model.asDataCommon
 import lorry.dossiertau.data.model.fullPath
 import lorry.dossiertau.data.model.isFile
+import lorry.dossiertau.data.model.isFolder
+import lorry.dossiertau.data.model.name
 import lorry.dossiertau.data.model.parentPath
 import lorry.dossiertau.support.littleClasses.TauIdentifier
 import lorry.dossiertau.support.littleClasses.TauPath
@@ -74,6 +76,10 @@ open class FolderCompo(
         scope.launch(dispatcher) {
             val repoItems = folderRepo.getItemsInFullPath(folderFullPath)
             val compoItems = repoItems.toTauItems()
+                .filter { !it.name.value.startsWith('.') }
+                .sortedBy { it.isFile().toString() + it.name.value }
+
+            //TODO tester si children contient déjà item
 
             val folderDate = compoItems.computeParentFolderDate()
 
@@ -81,15 +87,31 @@ open class FolderCompo(
                 async<TauItem> {
 
                     val path = item.fullPath
-                    val newCapsuleMgr = CapsuleComponent()
-                    val newCapsule = newCapsuleMgr.getCapsule(path)
-
                     val i = item.asDataCommon ?: return@async TauFolder.EMPTY
-                    val newCropped = newCapsule?.getCroppedPicture()
-                    val newInitial = newCapsule?.getInitialPicture()
-                    var image = newCropped ?: newInitial
 
-                    val result = if (item.isFile()){
+                    val image = if (path.path.endsWith(".html")) {
+                        val bitmap = folderRepo.extractImageFromHtml(path)
+                        bitmap
+
+                    } else if (
+                        path.path.endsWith(".mp4") ||
+                        path.path.endsWith(".mpg") ||
+                        path.path.endsWith(".mkv") ||
+                        path.path.endsWith(".ts") ||
+                        path.path.endsWith(".avi") ||
+                        item.isFolder()
+                    ) {
+                        val newCapsuleMgr = CapsuleComponent()
+                        val newCapsule = newCapsuleMgr.getCapsule(path)
+
+                        val newCropped = newCapsule?.getCroppedPicture()
+                        val newInitial = newCapsule?.getInitialPicture()
+                        var image = newCropped ?: newInitial
+                        image
+                    }
+                    else null
+
+                    val result = if (item.isFile()) {
                         //file
 //                        image = image ?: R.drawable.fichier
 
@@ -102,8 +124,7 @@ open class FolderCompo(
                             size = 0L,
                             fileId = i.fileId
                         ) as TauFile
-                    }
-                    else{
+                    } else {
                         //folder
                         TauFolder.Data(
                             id = i.id,
@@ -158,7 +179,10 @@ open class FolderCompo(
     }
 
     private suspend fun collectDiffs() {
-        merge(fileDiffDAO.diffFlow().drop(1).filterNotNull(), folderPathFlow).transform { diffOrPath ->
+        merge(
+            fileDiffDAO.diffFlow().drop(1).filterNotNull(),
+            folderPathFlow
+        ).transform { diffOrPath ->
             println("COLLECTDIFFS: reçu path: $diffOrPath")
             when (diffOrPath) {
                 is TauPath -> {
@@ -168,7 +192,7 @@ open class FolderCompo(
 
                 is DiffEntity -> {
                     val diff = diffOrPath as DiffEntity
-                    val path = folderFlow.value.getOrElse{TauFolder.EMPTY}.fullPath
+                    val path = folderFlow.value.getOrElse { TauFolder.EMPTY }.fullPath
 
                     when (diffOrPath.op_type) {
                         OpType.FolderRefresh.text -> {

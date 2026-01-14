@@ -14,11 +14,13 @@ import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
 import lorry.dossiertau.usecases.generateHTMLs.Links
 import lorry.dossiertau.usecases.generateHTMLs.logSummary
+import lorry.folder.items.dossiersigma.external.playing.IPlayingDataSource
 
 open class TauViewModel(
     val folderCompo: IFolderCompo,
     val spy: ISpy,
-    val links: Links
+    val links: Links,
+    val playingFile: IPlayingDataSource
 ): ViewModel() {
 
     var translator: Translator? = null

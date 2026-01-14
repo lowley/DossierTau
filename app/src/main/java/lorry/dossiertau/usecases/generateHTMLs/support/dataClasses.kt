@@ -1,5 +1,7 @@
 package lorry.dossiertau.usecases.generateHTMLs.support
 
+import kotlinx.serialization.Serializable
+
 interface Stuff {
     val name: String
     val shortcuts: List<String>
@@ -27,6 +29,7 @@ data class Actress(
     }
 }
 
+@Serializable
 data class Subject(
     override val name: String,
     override val shortcuts: List<String>

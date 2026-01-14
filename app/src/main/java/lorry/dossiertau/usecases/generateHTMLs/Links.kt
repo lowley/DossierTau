@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import arrow.core.None
 import arrow.core.Option
 import arrow.core.toOption
+import com.google.gson.Gson
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
@@ -22,9 +23,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import lorry.dossiertau.ShortcutMakingEndMessage
 import lorry.dossiertau.support.littleClasses.TauItemName
-import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauFileName
 import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.ui.AppBus
@@ -35,23 +36,15 @@ import lorry.dossiertau.usecases.generateHTMLs.repos.IWebScrappingRepo
 import lorry.dossiertau.usecases.generateHTMLs.repos.MovieHtml
 import lorry.dossiertau.usecases.generateHTMLs.support.Actress
 import lorry.dossiertau.usecases.generateHTMLs.support.ActressName
-import lorry.dossiertau.usecases.generateHTMLs.support.MoviesApi
 import lorry.dossiertau.usecases.generateHTMLs.support.Stuff
 import lorry.dossiertau.usecases.generateHTMLs.support.Subject
-import okhttp3.OkHttpClient
-import okhttp3.ResponseBody
 import org.jsoup.Jsoup
-import retrofit2.HttpException
-import retrofit2.Retrofit
 import java.io.ByteArrayOutputStream
-import java.net.Authenticator
-import java.net.InetSocketAddress
-import java.net.PasswordAuthentication
-import java.net.Proxy
 import kotlin.collections.map
 
 typealias PictureUrl = String
 typealias MovieDescription = String
+typealias IsNewPacket = Boolean
 
 class Links(
     val vm: VmLinks,
@@ -60,7 +53,7 @@ class Links(
     val webScrappingRepo: IWebScrappingRepo,
     val ftpDS: IFtpDS
 ) {
-    val htmls = mutableSetOf<HtmlPacket>()
+    val htmls = mutableSetOf<Pair<HtmlPacket, IsNewPacket>>()
     val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     suspend fun generateLinks() {
@@ -70,18 +63,17 @@ class Links(
             .takeWhile { !it }
             .collect()
 
-        //////////////////////////////////
-        // suppression de tous les html //
-        //////////////////////////////////
-        diskRepo.deleteAllHtmlsIn(FOLDER_FILLES)
-        diskRepo.deleteAllHtmlsIn(FOLDER_SUBJECTS)
+        var htmlsAlreadyDeleted = false
 
         ///////////////////////
         // boucle principale //
         ///////////////////////
         htmls.addAll(getHtmlPackets())
         log("${htmls.size} htmls à traiter")
-        htmls.onEachIndexed { index, packet ->
+        htmls.onEachIndexed { index, enhancedPacked ->
+
+            val packet = enhancedPacked.first
+            val isNewHtml = enhancedPacked.second
 
             log("")
             log("${index + 1}/${htmls.size} (${packet.videoName.value}) en cours")
@@ -96,34 +88,68 @@ class Links(
             ///////////////
             log("renommage ...")
             val newName = computeNewName(videoName, movieActresses, movieSubjects)
+            val couldNameBeCompleted = newName != videoName
             renameFile(videoName, newName)
 
             /////////////////////////////////
             // écriture du méta sur le NAS //
             /////////////////////////////////
-            //description
-            log("stockage description ...")
-            saveDescription(html = html, videoName = videoName)
-            //image
-            log("stockage image ...")
-            savePicture(html = html, videoName = videoName)
+
+            val isDescriptionPresent = ftpDS.exists(
+                localFilePath = "/annexes/$newName".toTauPath(),
+                fileName = "description.txt".toTauFileName()
+            )
+            val isPicturePresent = ftpDS.exists(
+                localFilePath = "/annexes/$newName".toTauPath(),
+                fileName = "image.jpg".toTauFileName()
+            )
+
+            if (couldNameBeCompleted ||
+                isNewHtml ||
+                !isDescriptionPresent ||
+                !isPicturePresent
+                ) {
+                //description
+                log("stockage description ...")
+                saveDescription(html = html, videoName = newName)
+                //image
+                log("stockage image ...")
+                savePicture(html = html, videoName = newName)
+            }
 
             //////////////////////////////////
             // création des raccourcis html //
             //////////////////////////////////
-            log("création des HTML (filles) ...")
-            createFillesHtmls(
-                annexesNasPath = "/annexes",
-                videoName = videoName,
-                actresses = movieActresses
-            )
 
-            log("création des HTML (fantasmes) ...")
-            createSubjectsHtmls(
-                annexesNasPath = "/annexes",
-                videoName = videoName,
-                subjects = movieSubjects
-            )
+            if (videoName.value.contains("110%"))
+                println("ok")
+
+            if (!htmlsAlreadyDeleted && (couldNameBeCompleted || isNewHtml)) {
+                //////////////////////////////////
+                // suppression de tous les html //
+                //////////////////////////////////
+                diskRepo.deleteAllHtmlsIn(FOLDER_FILLES)
+                diskRepo.deleteAllHtmlsIn(FOLDER_SUBJECTS)
+                htmlsAlreadyDeleted = true
+            }
+
+//            if (couldNameBeCompleted || isNewHtml) {
+            if (true){
+
+                log("création des HTML (filles) ...")
+                createFillesHtmls(
+                    annexesNasPath = "/annexes",
+                    videoName = newName,
+                    actresses = movieActresses
+                )
+
+                log("création des HTML (fantasmes) ...")
+                createSubjectsHtmls(
+                    annexesNasPath = "/annexes",
+                    videoName = newName,
+                    subjects = movieSubjects
+                )
+            }
         }
 
         log(ShortcutMakingEndMessage)
@@ -156,12 +182,30 @@ class Links(
         return newName
     }
 
-    suspend fun  getHtmlPackets(): Set<HtmlPacket> {
+    suspend fun getHtmlPackets(): Set<Pair<HtmlPacket, IsNewPacket>> {
 
         val fileNames = nasRepo.getVideoNames()
-        val result = mutableSetOf<HtmlPacket>()
+        val result = mutableSetOf<Pair<HtmlPacket, IsNewPacket>>()
+        AppBus.lines.tryEmit("Récupération des htmls, actrices et fantasmes ...")
 
         fileNames.onEachIndexed { index, videoName ->
+
+            if (ftpDS.exists(
+                    localFilePath = "/annexes/${videoName.value}".toTauPath(),
+                    fileName = "packet.txt".toTauFileName()
+                )
+            ) {
+                AppBus.lines.tryEmit(" NAS pour ${index + 1}/${fileNames.size} (${videoName.value})")
+                val text = ftpDS.downloadText(
+                    nasFullPath = "/annexes/${videoName.value}/packet.txt".toTauPath(),
+                )
+
+                val packet = Gson().fromJson(text, HtmlPacket::class.java)
+                result.add(packet to false)
+                return@onEachIndexed
+            }
+
+            AppBus.lines.tryEmit(" INTERNET pour ${index + 1}/${fileNames.size} (${videoName.value})")
 
             val movieActresses = webScrappingRepo.getMovieActresses(
                 name = videoName,
@@ -176,13 +220,18 @@ class Links(
                 )
             else emptyList()
 
-            result.add(
-                HtmlPacket(
-                    videoName = videoName,
-                    html = movieActresses.first,
-                    actresses = movieActresses.second,
-                    subjects = movieSubjects
-                )
+            val packet = HtmlPacket(
+                videoName = videoName,
+                html = movieActresses.first,
+                actresses = movieActresses.second,
+                subjects = movieSubjects
+            )
+
+            result.add(packet to true)
+
+            ftpDS.createHtmlInAnnexes(
+                fileName = videoName,
+                textContent = Gson().toJson(packet)
             )
         }
 
@@ -194,13 +243,10 @@ class Links(
         videoName: TauItemName,
         subjects: List<Subject>,
     ) {
-        if (videoName.value.lowercase().contains("gang bang vol"))
-            println("ok")
-
         val picture64 = ftpDS.readJpgFromFtpAsBase64(videoName)
 
-        println("SCRAP ... contenu image récupéré pour création HTML: ${picture64?.take(8)}")
-        AppBus.lines.tryEmit(
+        AppBus.lines.emit("SCRAP ... création de sujet avec image: ${picture64?.take(8)}")
+        AppBus.lines.emit(
             "SCRAP ... contenu image récupéré pour création HTML: ${
                 picture64?.take(
                     8
@@ -240,11 +286,11 @@ class Links(
         annexesNasPath: String,
         videoName: TauItemName,
         actresses: List<ActressName>,
-        ) {
+    ) {
         val picture64 = ftpDS.readJpgFromFtpAsBase64(videoName)
         val description = ftpDS.readDescriptionFromFtpAsBase64(videoName)
 
-        println("SCRAP ... contenu image récupéré pour création HTML: ${picture64?.take(8)}")
+        AppBus.lines.emit("SCRAP ... création de dossier filles avec image: ${picture64?.take(8)}")
         AppBus.lines.tryEmit(
             "SCRAP ... contenu image récupéré pour création HTML: ${
                 picture64?.take(
@@ -304,6 +350,8 @@ class Links(
             "/storage/emulated/0/Movies/sexe/fantasmes/${folder.value}/${videoName.value}"
                 .substringBeforeLast(".") + ".html"
         fullPath.toTauPath().toFile().getOrNull()?.let {
+            if (it.exists())
+                it.delete()
             it.createNewFile()
             it.writeText(htmlContent, Charsets.UTF_8)
         }
@@ -349,6 +397,9 @@ class Links(
         html: MovieHtml,
         videoName: TauItemName
     ) {
+        if (!ftpDS.exists(localFilePath = "/annexes".toTauPath(), fileName = videoName))
+            return
+
         val picture = extractPictureFrom(html)
         println("SCRAP ◕ image: ${if (picture.isSome()) "présente" else "absente"}")
         AppBus.lines.tryEmit("SCRAP ◕ image: ${if (picture.isSome()) "présente" else "absente"}")
@@ -361,6 +412,9 @@ class Links(
     }
 
     private suspend fun saveDescription(html: MovieHtml, videoName: TauItemName) {
+        if (!ftpDS.exists(localFilePath = "/annexes".toTauPath(), fileName = videoName))
+            return
+
         val description = extractDescriptionFrom(html)
         println("SCRAP ◔ description: ${description.getOrNull()?.length ?: 0} caractères")
         AppBus.lines.tryEmit("SCRAP ◔ description: ${description.getOrNull()?.length ?: 0} caractères")
@@ -484,11 +538,12 @@ data class JsonPart(
 
 typealias SubjectName = String
 
+@Serializable
 data class HtmlPacket(
     val videoName: TauItemName,
     val html: MovieHtml,
     val actresses: List<ActressName>,
-    val subjects: List<Subject>
+    val subjects: List<Subject>,
 )
 
 val FOLDER_FILLES = "/storage/emulated/0/Movies/sexe/filles".toTauPath()
@@ -580,10 +635,10 @@ object LocalActressesAndSubjects {
         )
 }
 
-object Logger{
+object Logger {
     val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
-    fun logSummary(text: String){
+    fun logSummary(text: String) {
         scope.launch {
             AppBus.summary.emit(text)
         }

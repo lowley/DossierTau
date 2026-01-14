@@ -28,7 +28,7 @@ import java.nio.file.Paths
 import java.time.LocalDate
 import java.util.Base64
 
-open class FtpDS constructor() : IFtpDS {
+open class FtpDS : IFtpDS {
 
     private suspend fun <T : Any?> doWithNASAccess(
         parent: String,
@@ -170,7 +170,7 @@ open class FtpDS constructor() : IFtpDS {
                     return@doWithNASAccess Result.failure<Boolean>(Exception("Répertoire introuvable sur le NAS"))
                 }
 
-                val fileToUpload = java.io.File(localFilePath.path)
+                val fileToUpload = File(localFilePath.path)
                 val fileSize = fileToUpload.length() // Taille totale du fichier
                 val buffer = ByteArray(4096) // Taille du buffer
                 var uploadedSize = 0L
@@ -263,7 +263,7 @@ open class FtpDS constructor() : IFtpDS {
                     return@doWithNASAccess Result.failure<Boolean>(Exception("Répertoire introuvable sur le NAS"))
                 }
 
-                val fileToUpload = java.io.File(localFilePath.path)
+                val fileToUpload = File(localFilePath.path)
                 val fileSize = fileToUpload.length() // Taille totale du fichier
                 val buffer = ByteArray(4096) // Taille du buffer
                 var uploadedSize = 0L
@@ -295,6 +295,56 @@ open class FtpDS constructor() : IFtpDS {
                 Result.failure(ex)
             }
         } == true
+    }
+
+    override suspend fun exists(
+        localFilePath: TauPath,
+        fileName: TauItemName,
+    ): Boolean {
+        return withContext(Dispatchers.IO) {
+            doWithNASAccess<Boolean>(
+                parent = localFilePath.path,
+            ) { ftp ->
+                insideExists(
+                    ftp = ftp,
+                    localFilePath = localFilePath,
+                    fileName = fileName
+                )
+            }
+        } == true
+    }
+
+    suspend fun insideExists(
+        ftp: FTPClient,
+        localFilePath: TauPath,
+        fileName: TauItemName
+
+    ): Result<Boolean?> {
+//        println("exists: ${localFilePath.path}")
+//        println("exists: fileName=${fileName.value}")
+
+        try {
+            ftp.setFileType(FTPClient.ASCII_FILE_TYPE)
+
+            val result = withContext(Dispatchers.IO) {
+                ftp.changeWorkingDirectory(localFilePath.path)
+            }
+
+            if (!result) {
+                println("Échec du changement de répertoire: $fileName")
+                return Result.failure<Boolean>(Exception("Répertoire introuvable sur le NAS"))
+            }
+
+            val exists = ftp.listFiles()?.any {
+//                println("exists: * ${it.name}")
+//                println("    et: * ${fileName.value}")
+                it.name == fileName.value
+            }
+            return Result.success(exists)
+        } catch (ex: Exception) {
+            println("Erreur lors de la vérification de l'existence du fichier: ${ex.message}")
+            return Result.failure(ex)
+        }
     }
 
     override suspend fun delete(
@@ -439,6 +489,84 @@ open class FtpDS constructor() : IFtpDS {
         }
     }
 
+    override suspend fun createHtmlInAnnexes(
+        fileName: TauItemName,
+        textContent: String
+    ): Boolean {
+        return withContext(Dispatchers.IO) {
+
+            doWithNASAccess<Boolean>(parent = "/annexes") { ftp ->
+                try {
+                    ftp.enterLocalPassiveMode()  // Firewall OK
+                    ftp.setFileType(FTP.ASCII_FILE_TYPE)  // Texte !
+                    ftp.changeWorkingDirectory("/annexes")
+                    ftp.setControlEncoding("UTF-8")
+
+                    withContext(Dispatchers.IO) {
+                        if (ftp.listDirectories()
+                                .map { it.name }
+                                .none { it == fileName.value }
+                        )
+                            ftp.makeDirectory(fileName.value)
+                        ftp.changeWorkingDirectory(fileName.value)
+                    }
+
+                    val inputStream =
+                        ByteArrayInputStream(textContent.toByteArray(Charsets.UTF_8))
+                    val success =
+                        withContext(Dispatchers.IO) {
+                            ftp.storeFile(
+                                "packet.txt",
+                                inputStream
+                            )
+                        }
+
+                    inputStream.close()
+                    ftp.logout()
+                    ftp.disconnect()
+
+                    if (success)
+                        Result.success(true)
+                    else
+                        Result.failure(Exception())
+
+                } catch (ex: Exception) {
+                    Result.failure(ex)
+                }
+            } == true
+        }
+    }
+
+    override suspend fun downloadText(nasFullPath: TauPath): String? {
+        return withContext(Dispatchers.IO) {
+
+            val parent = nasFullPath.path.substringBeforeLast("/")
+            doWithNASAccess<String>(parent = parent) { ftp ->
+                try {
+                    ftp.enterLocalPassiveMode()  // Firewall OK
+                    ftp.setFileType(FTP.ASCII_FILE_TYPE)  // Texte !
+                    ftp.controlEncoding = "UTF-8"
+
+                    withContext(Dispatchers.IO) {
+                        ftp.changeWorkingDirectory(parent)
+                    }
+
+                    val output = ByteArrayOutputStream()
+                    val success = ftp.retrieveFile(nasFullPath.path, output)
+
+                    if (success && ftp.replyCode == 226) {  // 226 = Transfer OK
+                        Result.success(output.toString("UTF-8"))
+                    } else {
+                        println("Erreur FTP: ${ftp.replyString}")
+                        Result.failure(Exception("erreur ftp: ${ftp.replyString}"))
+                    }
+                } catch (ex: Exception) {
+                    Result.failure(ex)
+                }
+            }
+        }
+    }
+
     override suspend fun createPictureFileInAnnexes(
         fileName: TauItemName,
         imageUrl: String
@@ -562,8 +690,7 @@ open class FtpDS constructor() : IFtpDS {
 
                     result = output.toString(Charsets.UTF_8.toString())
                     output.close()
-                }
-                catch (e: Exception) {
+                } catch (e: Exception) {
                     e.printStackTrace()
                     Result.failure<String?>(Exception("Erreur de lecture de la description: $fileName"))
                     try {

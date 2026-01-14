@@ -36,16 +36,17 @@ import lorry.dossiertau.MainActivity
 import lorry.dossiertau.R
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.data.model.fullPath
+import lorry.dossiertau.data.model.isFile
 import lorry.dossiertau.data.model.isFolder
 import lorry.dossiertau.data.model.name
 import lorry.dossiertau.data.model.picture
 import lorry.dossiertau.support.littleClasses.TauPath
 
-
 @Composable
 fun MainActivity.DisplayedItem(
     item: TauItem,
-    setCurrentFolder: (TauPath) -> Unit
+    setCurrentFolder: (TauPath) -> Unit,
+    onClick: (TauPath) -> Unit
 ) {
     val borderSize = 160
     val borderSizeDp = borderSize.dp
@@ -58,6 +59,10 @@ fun MainActivity.DisplayedItem(
             .clickable {
                 if (item.isFolder())
                     setCurrentFolder(item.fullPath)
+                else if (
+                    item.name.value.substringAfterLast('.') in
+                        listOf("avi", "mp4", "mkv", "ts", "mpg", "html"))
+                    onClick(item.fullPath)
             }
 //            .background(Color.Blue)
     ) {
