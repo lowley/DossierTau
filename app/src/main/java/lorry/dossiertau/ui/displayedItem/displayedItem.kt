@@ -1,9 +1,11 @@
 package lorry.dossiertau.ui.displayedItem
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -15,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -22,10 +25,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -34,22 +40,27 @@ import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import lorry.dossiertau.MainActivity
 import lorry.dossiertau.R
+import lorry.dossiertau.TauApp
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.data.model.fullPath
-import lorry.dossiertau.data.model.isFile
 import lorry.dossiertau.data.model.isFolder
 import lorry.dossiertau.data.model.name
 import lorry.dossiertau.data.model.picture
 import lorry.dossiertau.support.littleClasses.TauPath
+import lorry.dossiertau.ui.displayedItem.support.DisplayItemRepo
+import org.koin.android.ext.android.get
+import org.koin.android.ext.android.inject
+import org.koin.dsl.koinApplication
 
 @Composable
 fun MainActivity.DisplayedItem(
     item: TauItem,
     setCurrentFolder: (TauPath) -> Unit,
-    onClick: (TauPath) -> Unit
+    onClick: (TauPath) -> Unit,
 ) {
     val borderSize = 160
     val borderSizeDp = borderSize.dp
+    val displayRepo: DisplayItemRepo by inject()
 
     Column(
         modifier = Modifier
@@ -145,6 +156,18 @@ fun MainActivity.DisplayedItem(
                 },
                 error = { /* fallback en cas d'erreur */ }
             )
+
+            CornerSupplement(
+                item = item,
+                modifier = Modifier,
+                getInfoSup = { item ->
+                    displayRepo.getInfoSup(item)
+                },
+                getInfoInf = { item ->
+                    displayRepo.getInfoInf(item)
+                },
+                onTopLeftPanelClick = { item -> },
+            )
         }
 
         ////////////////
@@ -162,6 +185,97 @@ fun MainActivity.DisplayedItem(
             maxLines = 2,
             minLines = 2,
         )
+    }
+}
+
+context(BoxScope)
+@Composable
+fun CornerSupplement(
+    modifier: Modifier = Modifier,
+    item: TauItem,
+    getInfoSup: suspend (TauItem) -> String?,
+    getInfoInf: suspend (TauItem) -> String?,
+    onTopLeftPanelClick: (TauItem) -> Unit,
+    ) {
+    //Ajout à l'image
+    val infoSup = produceState<String?>(initialValue = null, item) {
+        value = getInfoSup(item)
+    }.value
+
+    val infoInf = produceState<String?>(initialValue = null, item) {
+        value = getInfoInf(item)
+    }.value
+//
+    if (infoSup == null || infoInf == null) {
+//                        CircularProgressIndicator()
+    } else {
+        val boxWidth = 45.dp
+        val shapeForInsert = RoundedCornerShape(
+            topStart = 8.dp,
+            bottomEnd = 8.dp
+        )
+
+        //l'ajout à l'image proprement dit: encart supérieur gauche
+        Box(
+            modifier = modifier
+                .align(Alignment.TopStart)
+                .graphicsLayer {
+                    shape = shapeForInsert
+                    clip = true
+                    shadowElevation = 0f
+                }
+                .background(Color.DarkGray)
+                .width(boxWidth)
+                .border(1.dp, Color.LightGray,
+                    shape = shapeForInsert
+                )
+                .clickable {
+                    onTopLeftPanelClick(item)
+                }
+        ) {
+//                     Couche 2 (Conditionnelle) : Le maillage, dessiné par-dessus le fond
+//            if (!memoEmpty) {
+//                Image(
+//                    painter = painterResource(id = R.drawable.obliques4), // Remplacez par votre fichier
+//                    contentDescription = "Maillage de fond",
+//                    contentScale = ContentScale.Companion.Crop, // Assure que l'image remplit l'espace
+//                    modifier = modifier.matchParentSize() // Fait en sorte que l'image prenne toute la taille de la Box
+//                )
+//            }
+
+            Column(
+                modifier = modifier
+                    .align(Alignment.Companion.TopStart)
+                    .padding(start = 0.dp, top = 0.dp)
+                    .width(boxWidth)
+            ) {
+                val textHeight = 18.dp
+
+                Text(
+                    modifier = modifier
+                        .align(Alignment.Companion.CenterHorizontally)
+                        .padding(0.dp)
+                        .height(textHeight),
+                    text = infoSup,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp,
+                    color = Color.White
+                )
+
+                Text(
+                    modifier = modifier
+                        .align(Alignment.Companion.CenterHorizontally)
+                        .padding(
+                            top = 0.dp, start = 0.dp, bottom = 5.dp, end = 0.dp
+                        )
+                        .height(textHeight),
+                    text = infoInf,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp,
+                    color = Color.White
+                )
+            }
+        }
     }
 }
 

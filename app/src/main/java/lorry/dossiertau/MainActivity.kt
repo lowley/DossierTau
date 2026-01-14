@@ -292,7 +292,7 @@ class MainActivity() : ComponentActivity() {
                                             this@MainActivity
                                         )
                                 }
-                            }
+                            },
                         )
                     }
                 }

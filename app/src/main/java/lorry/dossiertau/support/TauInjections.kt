@@ -20,6 +20,7 @@ import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside.INACTIVE
 import lorry.dossiertau.data.intelligenceService.utils2.repo.SpyRepo
 import lorry.dossiertau.ui.breadcrumb.BreadcrumbComponent
+import lorry.dossiertau.ui.displayedItem.support.DisplayItemRepo
 import lorry.dossiertau.usecases.folderContent.FolderCompo
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
 import lorry.dossiertau.usecases.folderContent.support.FolderRepo
@@ -78,6 +79,7 @@ val TauInjections = module {
     single<ISpy> { Spy(get(), TauFileObserver.of(INACTIVE), get(), get()) }
     single { CIA() }
 
+    single { DisplayItemRepo() }
     single<IPlayingDataSource> { PlayingDataSource(get()) }
 
     single<IFolderCompo>(named("real")) {

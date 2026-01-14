@@ -116,9 +116,9 @@ inline val TauPath.parentPath
         is Either.Right -> this.value.value.value.substringBeforeLast("/").toTauPath()
     }
 
-
 inline val TauPath.name
     get() = when (this.value) {
+
         is Either.Left -> "".toTauFileName()
         is Either.Right -> this.value.value.value.substringAfterLast("/").toTauFileName()
     }
