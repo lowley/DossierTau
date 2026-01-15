@@ -15,6 +15,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,13 +27,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import lorry.dossiertau.MainActivity
+import lorry.dossiertau.SchortcutMakingState.GROUND
+import lorry.dossiertau.SchortcutMakingState.ON_AIR
+import lorry.dossiertau.ShortcutMakingEndMessage
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.data.model.name
+import lorry.dossiertau.ui.AppBus
 
 @Composable
 fun MainActivity.BottomSheetContent(
     type: BottomSheetType,
-    item: TauItem?
+    item: TauItem?,
+    sheetText: MutableState<String>,
+    isSheetVisible: MutableState<Boolean>
 ) {
     when (type) {
         BottomSheetType.APPLICATION -> {
@@ -40,7 +49,7 @@ fun MainActivity.BottomSheetContent(
                     .fillMaxWidth()
                     .width(40.dp)
                     .background(
-                        Color.DarkGray,
+                        Color.LightGray,
                         RoundedCornerShape(
                             topStart = 8.dp,
                             topEnd = 8.dp
@@ -52,15 +61,41 @@ fun MainActivity.BottomSheetContent(
                 Column(
                     modifier = Modifier
                         .padding(start = 16.dp, top = 16.dp, end = 16.dp)
-                        .background(Color.DarkGray)
                 ) {
-                    TextField(
-                        value = text,
-                        onValueChange = { text = it },
-                        label = { Text("Saisir du texte") }
-                    )
-                    Button(onClick = { /* Action sur text */ }) {
-                        Text("Valider")
+                    val shortcutMakingState = remember { mutableStateOf(GROUND) }
+
+                    LaunchedEffect(Unit) {
+                        AppBus.lines.collect { line ->
+                            if (shortcutMakingState.value == GROUND) {
+                                shortcutMakingState.value = ON_AIR
+                            } else {
+                                if (line == ShortcutMakingEndMessage) {
+                                    shortcutMakingState.value = GROUND
+                                }
+                            }
+                        }
+                    }
+
+                    if (shortcutMakingState.value == GROUND)
+                        Button(
+                            modifier = Modifier,
+                            content = { Text(text = "make HTML") },
+                            onClick = {
+                                viewModel.onMakeHTML(
+                                    displayBottomSheet = { text ->
+                                        sheetText.value = text
+                                        isSheetVisible.value = true
+                                    }
+                                )
+                            },
+                        )
+                    else {
+                        val text = AppBus.summary.collectAsState("")
+
+                        Text(
+                            modifier = Modifier,
+                            text = text.value
+                        )
                     }
                 }
             }
@@ -73,7 +108,7 @@ fun MainActivity.BottomSheetContent(
                     .fillMaxWidth()
                     .width(40.dp)
                     .background(
-                        Color.DarkGray,
+                        Color.LightGray,
                         RoundedCornerShape(
                             topStart = 8.dp,
                             topEnd = 8.dp

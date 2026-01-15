@@ -4,18 +4,14 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,7 +28,6 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ripple.RippleAlpha
-import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LocalRippleConfiguration
@@ -53,11 +48,16 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.Font
@@ -70,7 +70,6 @@ import androidx.lifecycle.viewModelScope
 import arrow.core.None
 import arrow.core.Option
 import arrow.core.Some
-import com.mutkuensert.basicbottomsheet.BasicBottomSheet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -94,6 +93,7 @@ import lorry.dossiertau.ui.bottomSheet.support.BottomSheetContent
 import lorry.dossiertau.ui.bottomSheet.support.BottomSheetType
 import lorry.dossiertau.ui.breadcrumb.BreadcrumbComponent
 import lorry.dossiertau.ui.displayedItem.DisplayedItem
+import org.mp4parser.Box
 
 class MainActivity() : ComponentActivity() {
 
@@ -125,7 +125,7 @@ class MainActivity() : ComponentActivity() {
 
                 val sheetText = remember { mutableStateOf("") }
 
-                SetBlackBackgroundForNavigationBar(Color.DarkGray)
+                SetBlackBackgroundForNavigationBar(Color.Transparent)
 
                 NoRippleThemeContent {
                     Scaffold(
@@ -139,17 +139,17 @@ class MainActivity() : ComponentActivity() {
                             )
                         },
                         bottomBar = {
-                            BottomAppBar(
-                                isSheetVisible = isSheetVisible,
-                                sheetText = sheetText
-                            )
+//                            BottomAppBar(
+//                                isSheetVisible = isSheetVisible,
+//                                sheetText = sheetText
+//                            )
                         },
 //                    floatingActionButton = { /* FAB */ }
                     ) { innerPadding ->
 
                         ConstraintLayout(
                             modifier = Modifier
-                                .background(Color.Black)
+                                .background(Color.LightGray)
                                 .padding(innerPadding)
                                 .fillMaxSize()
                         ) {
@@ -196,7 +196,9 @@ class MainActivity() : ComponentActivity() {
 
                         if (isSheetVisible.value && currentType.value != null) {
                             ModalBottomSheet(
-                                onDismissRequest = { isSheetVisible.value = false; currentType.value = null },
+                                onDismissRequest = {
+                                    isSheetVisible.value = false; currentType.value = null
+                                },
                                 sheetState = sheetState,
                                 // ✅ Bord intégré au container (pas de décalage)
                                 containerColor = Color.Transparent,
@@ -230,7 +232,9 @@ class MainActivity() : ComponentActivity() {
                             ) {
                                 BottomSheetContent(
                                     currentType.value!!,
-                                    item = sheetItem.value
+                                    item = sheetItem.value,
+                                    sheetText = sheetText,
+                                    isSheetVisible = isSheetVisible
                                 )
                             }
                         }
@@ -289,6 +293,33 @@ class MainActivity() : ComponentActivity() {
 
         Box(
             modifier = modifier
+                .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+//                .drawWithContent {
+//                    drawContent() // On dessine le contenu normalement (le carré, le texte, etc.)
+//
+//                    // On crée un dégradé de transparence
+//                    val fadeHeight = 20.dp.toPx() // Taille de votre "zone tampon"
+//
+//                    drawRect(
+//                        brush = Brush.verticalGradient(
+//                            0f to Color.Black,             // Totalement opaque en haut de la zone
+//                            1f to Color.Transparent,       // Totalement invisible tout en bas
+//                            startY = size.height - fadeHeight,
+//                            endY = size.height
+//                        ),
+//                        blendMode = BlendMode.DstIn // C'EST LA CLÉ : garde le contenu uniquement là où le dégradé est noir
+//                    )
+//
+//                    drawRect(
+//                        brush = Brush.verticalGradient(
+//                            0f to Color.Black,             // Totalement opaque en haut de la zone
+//                            1f to Color.Transparent,       // Totalement invisible tout en bas
+//                            startY = fadeHeight,
+//                            endY = 0f
+//                        ),
+//                        blendMode = BlendMode.DstIn // C'EST LA CLÉ : garde le contenu uniquement là où le dégradé est noir
+//                    )
+//                }
         )
         {
             val lines = remember { mutableStateOf<List<String>>(emptyList()) }
@@ -309,15 +340,77 @@ class MainActivity() : ComponentActivity() {
             }
 
             if (shortcutMakingState.value == GROUND)
-                ItemGrid(
-                    currentFolder = currentFolder,
-                    state = state,
-                    setCurrentFolder = setCurrentFolder,
-                    setSheetVisible = setSheetVisible
-                )
+                if (currentFolder.isSome()) {
+                    ItemGrid(
+                        modifier = Modifier
+                        .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                        .drawWithContent {
+                            drawContent() // On dessine le contenu normalement (le carré, le texte, etc.)
+
+                            // On crée un dégradé de transparence
+//                            val fadeHeight = 20.dp.toPx() // Taille de votre "zone tampon"
+                            val fadeHeight = 20.dp.toPx() // Augmentez un peu la zone pour mieux voir l'effet
+                            val brush = Brush.verticalGradient(
+                                0.0f to Color.Black,       // 100% opaque au début de la zone tampon
+                                0.3f to Color.Black.copy(alpha = 0.5f), // Déjà à moitié transparent à 30% de la zone
+                                1.0f to Color.Transparent, // 100% invisible à la fin
+                                startY = size.height - fadeHeight,
+                                endY = size.height
+                            )
+
+                            drawRect(
+                                brush = brush
+//                                    Brush.verticalGradient(
+//                                    0f to Color.Black,             // Totalement opaque en haut de la zone
+//                                    1f to Color.Transparent,       // Totalement invisible tout en bas
+//                                    startY = size.height - fadeHeight,
+//                                    endY = size.height
+//                                )
+                                ,
+                                blendMode = BlendMode.DstIn // C'EST LA CLÉ : garde le contenu uniquement là où le dégradé est noir
+                            )
+
+                            drawRect(
+                                brush = Brush.verticalGradient(
+                                    0f to Color.Black,             // Totalement opaque en haut de la zone
+                                    1f to Color.Transparent,       // Totalement invisible tout en bas
+                                    startY = fadeHeight,
+                                    endY = 0f
+                                ),
+                                blendMode = BlendMode.DstIn // C'EST LA CLÉ : garde le contenu uniquement là où le dégradé est noir
+                            )
+                        }
+                        ,
+                        currentFolder = currentFolder,
+                        state = state,
+                        setCurrentFolder = setCurrentFolder,
+                        setSheetVisible = setSheetVisible
+                    )
+                } else {
+                    Text(
+                        modifier = Modifier
+                            .align(Alignment.Center),
+                        text = "Aucun dossier selectionné"
+                    )
+                }
             else {
                 ShortcutMakingLogs(lines)
             }
+
+//            Box(
+//                modifier = Modifier.height(1.dp).fillMaxWidth()
+//                    .padding(start = 50.dp, end = 50.dp)
+//                    .background(Color.DarkGray)
+//                    .align(Alignment.BottomCenter)
+//
+//            )
+
+//            Box(
+//                modifier = Modifier.height(1.dp).fillMaxWidth()
+//                    .padding(start = 50.dp, end = 50.dp)
+//                    .background(Color.DarkGray)
+//                    .align(Alignment.TopCenter)
+//            )
         }
     }
 
@@ -346,11 +439,20 @@ class MainActivity() : ComponentActivity() {
         currentFolder: Option<TauFolder>,
         state: LazyGridState,
         setCurrentFolder: (TauPath) -> Unit,
-        setSheetVisible: (TauItem) -> Unit
+        setSheetVisible: (TauItem) -> Unit,
+        modifier: Modifier
     ) {
-        if (currentFolder.isSome()) {
+        Column(
+           modifier = Modifier
+        ) {
+            Spacer(
+                modifier = Modifier
+                    .height(5.dp)
+                    .background(Color.Transparent)
+            )
+
             LazyVerticalGrid(
-                modifier = Modifier,
+                modifier = modifier,
                 state = state,
                 columns = GridCells.Adaptive(150.dp)
 //        userScrollEnabled = true,
@@ -386,12 +488,6 @@ class MainActivity() : ComponentActivity() {
                     }
                 }
             }
-        } else {
-            Text(
-                modifier = Modifier
-                    .align(Alignment.Center),
-                text = "Aucun dossier selectionné"
-            )
         }
     }
 

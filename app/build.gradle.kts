@@ -89,6 +89,7 @@ dependencies {
     implementation(libs.core.ktx)
     implementation(libs.androidx.compose.testing)
     implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.compose.ui.geometry)
     // --- Unit tests (testImplementation) ---
     testImplementation(libs.junit)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
