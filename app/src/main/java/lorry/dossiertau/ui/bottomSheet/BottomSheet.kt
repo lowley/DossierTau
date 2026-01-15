@@ -5,6 +5,8 @@ import androidx.compose.runtime.MutableState
 import lorry.dossiertau.MainActivity
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.ui.bottomSheet.support.BottomSheetType
+import lorry.dossiertau.ui.bottomSheet.support.IBrowser
+import org.koin.android.ext.android.inject
 
 @Composable
 fun MainActivity.BottomSheetContent(
@@ -13,6 +15,8 @@ fun MainActivity.BottomSheetContent(
     sheetText: MutableState<String>,
     isSheetVisible: MutableState<Boolean>
 ) {
+    val browser: IBrowser by inject()
+
     when (type) {
         BottomSheetType.APPLICATION -> {
             ApplicationContent(
@@ -24,7 +28,11 @@ fun MainActivity.BottomSheetContent(
 
 
         BottomSheetType.ITEM -> {
-            ItemContent(item)
+
+            ItemContent(
+                item = item,
+                browser = browser
+            )
         }
     }
 }

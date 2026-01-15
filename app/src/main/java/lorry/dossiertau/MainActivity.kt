@@ -119,7 +119,7 @@ class MainActivity() : ComponentActivity() {
             DossierTauTheme {
                 val isSheetVisible = remember { mutableStateOf(false) }
                 var currentType = remember { mutableStateOf<BottomSheetType?>(null) }
-                val sheetState = rememberModalBottomSheetState()
+                val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
                 val sheetItem = remember { mutableStateOf<TauItem?>(null) }
                 val scope = rememberCoroutineScope()
 
@@ -196,6 +196,9 @@ class MainActivity() : ComponentActivity() {
 
                         if (isSheetVisible.value && currentType.value != null) {
                             ModalBottomSheet(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 10.dp),
                                 onDismissRequest = {
                                     isSheetVisible.value = false; currentType.value = null
                                 },
@@ -358,25 +361,21 @@ class MainActivity() : ComponentActivity() {
                                 endY = size.height
                             )
 
+                            val brush2 = Brush.verticalGradient(
+                                0.0f to Color.Black,       // 100% opaque au début de la zone tampon
+                                0.3f to Color.Black.copy(alpha = 0.5f), // Déjà à moitié transparent à 30% de la zone
+                                1.0f to Color.Transparent, // 100% invisible à la fin
+                                startY = fadeHeight,
+                                endY = 0f
+                            )
+
                             drawRect(
-                                brush = brush
-//                                    Brush.verticalGradient(
-//                                    0f to Color.Black,             // Totalement opaque en haut de la zone
-//                                    1f to Color.Transparent,       // Totalement invisible tout en bas
-//                                    startY = size.height - fadeHeight,
-//                                    endY = size.height
-//                                )
-                                ,
+                                brush = brush,
                                 blendMode = BlendMode.DstIn // C'EST LA CLÉ : garde le contenu uniquement là où le dégradé est noir
                             )
 
                             drawRect(
-                                brush = Brush.verticalGradient(
-                                    0f to Color.Black,             // Totalement opaque en haut de la zone
-                                    1f to Color.Transparent,       // Totalement invisible tout en bas
-                                    startY = fadeHeight,
-                                    endY = 0f
-                                ),
+                                brush = brush2,
                                 blendMode = BlendMode.DstIn // C'EST LA CLÉ : garde le contenu uniquement là où le dégradé est noir
                             )
                         }
