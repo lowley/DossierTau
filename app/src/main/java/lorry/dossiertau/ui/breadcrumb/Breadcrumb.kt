@@ -5,14 +5,24 @@ import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import lorry.dossiertau.R
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.toTauPath
 
@@ -21,7 +31,8 @@ fun BreadcrumbComponent.UI(
     state: BreadcrumbState?,
     onClick: (TauPath) -> Unit,
     animDuration: Int,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onArrowClicked: () -> Unit
 ) {
     if (state == null || state is BreadcrumbState.LOADING)
         return
@@ -33,10 +44,17 @@ fun BreadcrumbComponent.UI(
         val stateData = state as BreadcrumbState.DATA
         val segs = stateData.currentPath?.split("/")
 
-        Text(
-            text = " ▶ ",
+        AsyncImage(
+            model = R.drawable.arrow2,
+            contentDescription = "Flèche",
             modifier = Modifier
-                .align(Alignment.CenterVertically)
+                .padding(end = 15.dp)
+                .size(24.dp)
+                .clickable {
+                    onArrowClicked()
+                },
+            contentScale = ContentScale.Fit,
+            colorFilter = ColorFilter.tint(Color.White)
         )
 
         // éléments non animés

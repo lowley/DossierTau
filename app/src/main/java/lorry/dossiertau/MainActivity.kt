@@ -1,24 +1,25 @@
 package lorry.dossiertau
 
+import android.app.Activity
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -26,37 +27,47 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ripple.RippleAlpha
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalRippleConfiguration
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.RippleConfiguration
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
-import androidx.constraintlayout.compose.VerticalAlign
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewModelScope
 import arrow.core.None
 import arrow.core.Option
 import arrow.core.Some
-import coil.compose.AsyncImage
 import com.mutkuensert.basicbottomsheet.BasicBottomSheet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
@@ -65,7 +76,6 @@ import lorry.dossiertau.data.intelligenceService.CIA
 import lorry.dossiertau.data.model.children
 import lorry.dossiertau.data.model.fullPath
 import lorry.dossiertau.data.model.isFile
-import lorry.dossiertau.data.model.isFolder
 import lorry.dossiertau.data.model.name
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.path
@@ -77,8 +87,9 @@ import lorry.dossiertau.SchortcutMakingState.*
 
 import lorry.dossiertau.data.model.TauFolder
 import lorry.dossiertau.data.model.TauItem
-import lorry.dossiertau.data.model.picture
 import lorry.dossiertau.ui.AppBus
+import lorry.dossiertau.ui.bottomSheet.support.BottomSheetContent
+import lorry.dossiertau.ui.bottomSheet.support.BottomSheetType
 import lorry.dossiertau.ui.breadcrumb.BreadcrumbComponent
 import lorry.dossiertau.ui.displayedItem.DisplayedItem
 
@@ -90,6 +101,7 @@ class MainActivity() : ComponentActivity() {
 
     val folderCompo = viewModel.folderCompo
 
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 //        enableEdgeToEdge()
@@ -103,74 +115,142 @@ class MainActivity() : ComponentActivity() {
         setContent {
             DossierTauTheme {
                 val isSheetVisible = remember { mutableStateOf(false) }
+                var currentType = remember { mutableStateOf<BottomSheetType?>(null) }
+                val sheetState = rememberModalBottomSheetState()
+                val sheetItem = remember { mutableStateOf<TauItem?>(null) }
+                val scope = rememberCoroutineScope()
+
                 val sheetText = remember { mutableStateOf("") }
 
-                Scaffold(
-                    modifier = Modifier,
-                    topBar = { TopAppBar() },
-                    bottomBar = {
-                        BottomAppBar(
-                            isSheetVisible = isSheetVisible,
-                            sheetText = sheetText
-                        )
-                    },
+                SetBlackBackgroundForNavigationBar(Color.Transparent)
+
+                NoRippleThemeContent {
+                    Scaffold(
+                        modifier = Modifier,
+                        topBar = {
+                            TopAppBar(
+                                setSheetVisible = {
+                                    currentType.value = BottomSheetType.APPLICATION
+                                    isSheetVisible.value = true
+                                }
+                            )
+                        },
+                        bottomBar = {
+                            BottomAppBar(
+                                isSheetVisible = isSheetVisible,
+                                sheetText = sheetText
+                            )
+                        },
 //                    floatingActionButton = { /* FAB */ }
-                ) { innerPadding ->
+                    ) { innerPadding ->
 
-                    ConstraintLayout(
-                        modifier = Modifier
-                            .padding(innerPadding)
-                            .fillMaxSize()
-                    ) {
-                        val (leftPanel, content, statusBar) = createRefs()
-
-                        LeftPane(
-                            Modifier
-                                .width(20.dp)
-                                .fillMaxHeight()
-                                .constrainAs(leftPanel) {
-                                    start.linkTo(parent.start)
-                                }
-                        )
-
-                        StatusBar(
-                            Modifier
-                                .height(45.dp)
-                                .fillMaxWidth()
-                                .constrainAs(statusBar) {
-                                    bottom.linkTo(parent.bottom)
-                                }
-//                                .background(Color.LightGray)
-                        )
-
-                        MainPage(
-                            Modifier
-                                .constrainAs(content) {
-                                    start.linkTo(leftPanel.end)
-                                    end.linkTo(parent.end)
-                                    bottom.linkTo(parent.bottom)
-                                    height = Dimension.matchParent
-                                    width = Dimension.fillToConstraints
-                                },
-                            setCurrentFolder = { newFolder: TauPath ->
-                                viewModel.setTauFolder(newFolder)
-                            }
-                        )
-                    }
-
-                    BasicBottomSheet(
-                        visible = isSheetVisible.value,
-                        onCloseSheet = { isSheetVisible.value = false },
-                    ) {
-                        Text(
+                        ConstraintLayout(
                             modifier = Modifier
-                                .padding(16.dp)
-                                .padding(5.dp),
-                            text = sheetText.value,
-                            color = Color.Black,
-                        )
+                                .background(Color.Black)
+                                .padding(innerPadding)
+                                .fillMaxSize()
+                        ) {
+                            val (leftPanel, content, statusBar) = createRefs()
+
+                            LeftPane(
+                                Modifier
+                                    .width(20.dp)
+                                    .fillMaxHeight()
+                                    .constrainAs(leftPanel) {
+                                        start.linkTo(parent.start)
+                                    }
+                            )
+
+                            StatusBar(
+                                Modifier
+                                    .height(45.dp)
+                                    .fillMaxWidth()
+                                    .constrainAs(statusBar) {
+                                        bottom.linkTo(parent.bottom)
+                                    }
+//                                .background(Color.LightGray)
+                            )
+
+                            MainPage(
+                                Modifier
+                                    .constrainAs(content) {
+                                        start.linkTo(leftPanel.end)
+                                        end.linkTo(parent.end)
+                                        bottom.linkTo(parent.bottom)
+                                        height = Dimension.matchParent
+                                        width = Dimension.fillToConstraints
+                                    },
+                                setCurrentFolder = { newFolder: TauPath ->
+                                    viewModel.setTauFolder(newFolder)
+                                },
+                                setSheetVisible = { item ->
+                                    currentType.value = BottomSheetType.ITEM
+                                    sheetItem.value = item
+                                    isSheetVisible.value = true
+                                }
+                            )
+                        }
+
+                        if (isSheetVisible.value && currentType.value != null) {
+                            ModalBottomSheet(
+                                onDismissRequest = { isSheetVisible.value = false; currentType.value = null },
+                                sheetState = sheetState,
+                                // ✅ Bord intégré au container (pas de décalage)
+                                containerColor = Color(0xFF333333),
+                                tonalElevation = 0.dp,  // Supprime l'ombre qui décale
+                                // ✅ Pas de shape qui clippe le border
+                                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                                dragHandle = {
+                                    // ✅ Handle custom parfaitement centré
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 12.dp, bottom = 12.dp)
+//                                            .border(
+//                                                width = 2.dp,
+//                                                color = Color.Blue,
+//                                                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)  // Même shape !
+//                                            )// Padding uniforme
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.Center)
+                                                .width(40.dp)
+                                                .height(4.dp)
+                                                .background(
+                                                    Color.Red,
+                                                    CircleShape  // Rond parfait
+                                                )
+                                        )
+                                    }
+                                }
+                            ) {
+                                BottomSheetContent(
+                                    currentType.value!!,
+                                    item = sheetItem.value
+                                )
+                            }
+                        }
                     }
                 }
+            }
+        }
+    }
+
+    @Composable
+    private fun SetBlackBackgroundForNavigationBar(
+        color: Color
+    ) {
+        val view = LocalView.current
+        SideEffect {
+            val window = (view.context as Activity).window
+            window.navigationBarColor = color.toArgb()  // Barre nav NOIRE
+            window.statusBarColor = color.toArgb()      // Bonus : status bar noire
+
+            // Icônes blanches sur fond noir
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightNavigationBars = false
+                isAppearanceLightStatusBars = false
             }
         }
     }
@@ -195,8 +275,8 @@ class MainActivity() : ComponentActivity() {
     fun MainPage(
         modifier: Modifier = Modifier,
         setCurrentFolder: (TauPath) -> Unit,
+        setSheetVisible: (TauItem) -> Unit,
     ) {
-
         //faire dans le ViewModel plusieurs State
         //chacun comportant plusieurs valeurs & fonctions fonctionnellement groupées
         val currentFolderPath by folderCompo.folderPathFlow.collectAsState()
@@ -228,7 +308,8 @@ class MainActivity() : ComponentActivity() {
                 ItemGrid(
                     currentFolder = currentFolder,
                     state = state,
-                    setCurrentFolder = setCurrentFolder
+                    setCurrentFolder = setCurrentFolder,
+                    setSheetVisible = setSheetVisible
                 )
             else {
                 ShortcutMakingLogs(lines)
@@ -260,7 +341,8 @@ class MainActivity() : ComponentActivity() {
     fun ItemGrid(
         currentFolder: Option<TauFolder>,
         state: LazyGridState,
-        setCurrentFolder: (TauPath) -> Unit
+        setCurrentFolder: (TauPath) -> Unit,
+        setSheetVisible: (TauItem) -> Unit
     ) {
         if (currentFolder.isSome()) {
             LazyVerticalGrid(
@@ -293,6 +375,9 @@ class MainActivity() : ComponentActivity() {
                                         )
                                 }
                             },
+                            onLongClick = { item ->
+                                setSheetVisible(item)
+                            },
                         )
                     }
                 }
@@ -307,7 +392,7 @@ class MainActivity() : ComponentActivity() {
     }
 
     @Composable
-    private fun TopAppBar() {
+    private fun TopAppBar(setSheetVisible: () -> Unit) {
         Row(
             modifier = Modifier
                 .statusBarsPadding()
@@ -328,6 +413,9 @@ class MainActivity() : ComponentActivity() {
                     path = currentFolderItems,
                     onClick = {
                         folderCompo.setFolderFlow(it)
+                    },
+                    onArrowClicked = {
+                        setSheetVisible()
                     }
                 )
         }
@@ -386,11 +474,7 @@ class MainActivity() : ComponentActivity() {
 
     private fun startSpying() {
         val intent = Intent(this, CIA::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
-        }
+        startForegroundService(intent)
     }
 }
 
@@ -433,6 +517,22 @@ enum class SchortcutMakingState {
 
 val ShortcutMakingEndMessage = "EndMessage"
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun NoRippleThemeContent(content: @Composable () -> Unit) {
+    val noRippleConfig = remember {
+        RippleConfiguration(
+            color = Color.Unspecified,
+            rippleAlpha = RippleAlpha(
+                pressedAlpha = 0f,
+                draggedAlpha = 0f,
+                focusedAlpha = 0f,
+                hoveredAlpha = 0f
+            )
+        )
+    }
 
-
-
+    CompositionLocalProvider(LocalRippleConfiguration provides noRippleConfig) {
+        content()
+    }
+}

@@ -24,7 +24,8 @@ class BreadcrumbComponent @Inject constructor() {
     fun Breadcrumb(
         path: List<String>,
         onClick: (path: TauPath) -> Unit,
-        modifier: Modifier = Modifier
+        modifier: Modifier = Modifier,
+        onArrowClicked: () -> Unit
     ) {
         val state = breadcrumbState.collectAsState()
         var previousPath = (state.value as? BreadcrumbState.DATA)?.let {
@@ -52,7 +53,8 @@ class BreadcrumbComponent @Inject constructor() {
                 onClick(path)
             },
             animDuration = animDuration,
-            modifier = modifier
+            modifier = modifier,
+            onArrowClicked = onArrowClicked
         )
     }
 

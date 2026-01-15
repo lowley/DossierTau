@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -57,6 +58,7 @@ fun MainActivity.DisplayedItem(
     item: TauItem,
     setCurrentFolder: (TauPath) -> Unit,
     onClick: (TauPath) -> Unit,
+    onLongClick: (TauItem) -> Unit
 ) {
     val borderSize = 160
     val borderSizeDp = borderSize.dp
@@ -67,15 +69,18 @@ fun MainActivity.DisplayedItem(
             .width(borderSizeDp)
             .padding(horizontal = 5.dp)
             .clip(RoundedCornerShape(8.dp))
-            .clickable {
-                if (item.isFolder())
-                    setCurrentFolder(item.fullPath)
-                else if (
-                    item.name.value.substringAfterLast('.') in
-                        listOf("avi", "mp4", "mkv", "ts", "mpg", "html"))
-                    onClick(item.fullPath)
-            }
-//            .background(Color.Blue)
+            .combinedClickable(
+                onClick = {
+                    if (item.isFolder())
+                        setCurrentFolder(item.fullPath)
+                    else if (
+                        item.name.value.substringAfterLast('.') in
+                        listOf("avi", "mp4", "mkv", "ts", "mpg", "html")
+                    )
+                        onClick(item.fullPath)
+                },
+                onLongClick = { onLongClick(item) }
+            )
     ) {
         ////////////////
         // zone image //
@@ -113,7 +118,8 @@ fun MainActivity.DisplayedItem(
                 Icon(
                     painter = painterResource(id = R.drawable.diagos),
                     contentDescription = null,
-                    modifier = Modifier.matchParentSize()
+                    modifier = Modifier
+                        .matchParentSize()
                         .clip(shape = RoundedCornerShape(8.dp))
                         .scale(1.2f),
                     tint = Color.DarkGray
@@ -130,7 +136,13 @@ fun MainActivity.DisplayedItem(
                 modifier = Modifier
                     .size(borderSizeDp)
                     .clip(shape = RoundedCornerShape(8.dp))
-                    .then( if (!shouldShowMesh) Modifier.border(1.dp, Color.DarkGray, shape = RoundedCornerShape(8.dp)) else Modifier),
+                    .then(
+                        if (!shouldShowMesh) Modifier.border(
+                            1.dp,
+                            Color.DarkGray,
+                            shape = RoundedCornerShape(8.dp)
+                        ) else Modifier
+                    ),
                 loading = { /*affiche un loader*/ },
                 success = { successState ->
                     val drawable = successState.result.drawable
@@ -196,7 +208,7 @@ fun CornerSupplement(
     getInfoSup: suspend (TauItem) -> String?,
     getInfoInf: suspend (TauItem) -> String?,
     onTopLeftPanelClick: (TauItem) -> Unit,
-    ) {
+) {
     //Ajout à l'image
     val infoSup = produceState<String?>(initialValue = null, item) {
         value = getInfoSup(item)
@@ -226,7 +238,8 @@ fun CornerSupplement(
                 }
                 .background(Color.DarkGray)
                 .width(boxWidth)
-                .border(1.dp, Color.LightGray,
+                .border(
+                    1.dp, Color.LightGray,
                     shape = shapeForInsert
                 )
                 .clickable {
