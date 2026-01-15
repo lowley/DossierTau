@@ -4,7 +4,9 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -104,6 +106,7 @@ class MainActivity() : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
 //        enableEdgeToEdge()
 
         val permissionsManager = PermissionsManager()
@@ -122,7 +125,7 @@ class MainActivity() : ComponentActivity() {
 
                 val sheetText = remember { mutableStateOf("") }
 
-                SetBlackBackgroundForNavigationBar(Color.Transparent)
+                SetBlackBackgroundForNavigationBar(Color.DarkGray)
 
                 NoRippleThemeContent {
                     Scaffold(
@@ -196,7 +199,7 @@ class MainActivity() : ComponentActivity() {
                                 onDismissRequest = { isSheetVisible.value = false; currentType.value = null },
                                 sheetState = sheetState,
                                 // ✅ Bord intégré au container (pas de décalage)
-                                containerColor = Color(0xFF333333),
+                                containerColor = Color.Transparent,
                                 tonalElevation = 0.dp,  // Supprime l'ombre qui décale
                                 // ✅ Pas de shape qui clippe le border
                                 shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
@@ -205,7 +208,7 @@ class MainActivity() : ComponentActivity() {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(top = 12.dp, bottom = 12.dp)
+                                            .padding(top = 12.dp)
 //                                            .border(
 //                                                width = 2.dp,
 //                                                color = Color.Blue,
@@ -251,6 +254,7 @@ class MainActivity() : ComponentActivity() {
             WindowCompat.getInsetsController(window, view).apply {
                 isAppearanceLightNavigationBars = false
                 isAppearanceLightStatusBars = false
+                window.isNavigationBarContrastEnforced = false
             }
         }
     }
