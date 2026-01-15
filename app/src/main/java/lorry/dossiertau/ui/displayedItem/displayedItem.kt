@@ -191,6 +191,7 @@ fun MainActivity.DisplayedItem(
                 .align(Alignment.CenterHorizontally),
 //                .background(Color.Green),
             text = item.name.value,
+            color = Color.Black,
             fontSize = 10.sp,
             lineHeight = 12.sp,
             textAlign = TextAlign.Center,
@@ -239,7 +240,7 @@ fun CornerSupplement(
                 .background(Color.DarkGray)
                 .width(boxWidth)
                 .border(
-                    1.dp, Color.LightGray,
+                    1.dp, Color.DarkGray,
                     shape = shapeForInsert
                 )
                 .clickable {

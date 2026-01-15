@@ -89,7 +89,7 @@ import lorry.dossiertau.SchortcutMakingState.*
 import lorry.dossiertau.data.model.TauFolder
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.ui.AppBus
-import lorry.dossiertau.ui.bottomSheet.support.BottomSheetContent
+import lorry.dossiertau.ui.bottomSheet.BottomSheetContent
 import lorry.dossiertau.ui.bottomSheet.support.BottomSheetType
 import lorry.dossiertau.ui.breadcrumb.BreadcrumbComponent
 import lorry.dossiertau.ui.displayedItem.DisplayedItem
