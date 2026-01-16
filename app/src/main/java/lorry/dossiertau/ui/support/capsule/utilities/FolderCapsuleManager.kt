@@ -10,14 +10,12 @@ class FolderCapsuleManager(
     private val useOld: Boolean = false
 ) {
     suspend fun save(element: IElementInCapsule) {
-        val targetHtmlPath = targetPath.path
-            .plus(".folderPicture.html")
+        val targetHtmlPath = targetPath.appendToTauPath(".folderPicture.html").path
         FileCapsuleManager(targetHtmlPath, false).save(element, forFolder = true)
     }
 
     suspend fun getCapsule(): CapsuleData? {
-        val targetHtmlPath = targetPath.path
-            .plus("/.folderPicture.html")
+        val targetHtmlPath = targetPath.appendToTauPath(".folderPicture.html").path
 
         return FileCapsuleManager(targetHtmlPath, false).getCapsule()
     }

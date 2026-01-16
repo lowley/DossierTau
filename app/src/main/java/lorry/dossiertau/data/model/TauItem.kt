@@ -1,5 +1,6 @@
 package lorry.dossiertau.data.model
 
+import io.ktor.utils.io.bits.of
 import kotlinx.serialization.Serializable
 import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.support.littleClasses.TauDate
@@ -104,5 +105,56 @@ inline val TauItem.modificationDate: TauDate
 inline val TauItem.parentPath: TauPath?
     get() = asDataCommon?.parentPath
 
+inline val TauItem.id: TauIdentifier?
+    get() = asDataCommon?.id
+
 val TauItem.picture: TauPicture
     get() = asDataCommon?.picture ?: TauPicture.NONE
+
+fun TauItem.copy(
+    id: TauIdentifier? = null,
+    parentPath: TauPath? = null,
+    name: TauItemName? = null,
+    picture: TauPicture? = null,
+    modificationDate: TauDate? = null,
+    size: Long? = null,
+    fileId: FileId? = null,
+    items: List<TauItem>? = null
+): TauItem{
+    return when(this){
+        is TauFile.EMPTY -> TauFile.EMPTY
+        is TauFile -> {
+            val data = this.asData!!
+            TauFile.of(
+                id = id ?: data.id,
+                parentPath = parentPath ?: data.parentPath,
+                name = name ?: data.name,
+                picture = picture ?: data.picture,
+                modificationDate = modificationDate ?: data.modificationDate,
+                size = size ?: data.size,
+                fileId = fileId ?: data.fileId
+            )
+        }
+
+        is TauFolder.EMPTY -> TauFolder.EMPTY
+        is TauFolder -> {
+            val data = this.asData!!
+            TauFolder(
+                id = id ?: data.id,
+                parentPath = parentPath ?: data.parentPath,
+                name = name ?: data.name,
+                picture = picture ?: data.picture,
+                modificationDate = modificationDate ?: data.modificationDate,
+                fileId = fileId ?: data.fileId,
+                children = items ?: data.children
+            )
+        }
+
+        else -> this
+
+
+    }
+
+
+
+}

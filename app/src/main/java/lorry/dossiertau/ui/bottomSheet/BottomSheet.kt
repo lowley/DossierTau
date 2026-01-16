@@ -2,37 +2,41 @@ package lorry.dossiertau.ui.bottomSheet
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import com.skydoves.flexible.core.FlexibleSheetState
 import lorry.dossiertau.MainActivity
+import lorry.dossiertau.ShortcutMakingEndMessage
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.ui.bottomSheet.support.BottomSheetType
 import lorry.dossiertau.ui.bottomSheet.support.IBrowser
-import org.koin.android.ext.android.inject
 
 @Composable
 fun MainActivity.BottomSheetContent(
-    type: BottomSheetType,
+    type: BottomSheetType?,
     item: TauItem?,
     sheetText: MutableState<String>,
-    isSheetVisible: MutableState<Boolean>
-) {
-    val browser: IBrowser by inject()
+    sheetState: FlexibleSheetState,
+    browser: IBrowser
+    ) {
 
     when (type) {
         BottomSheetType.APPLICATION -> {
             ApplicationContent(
                 viewModel = viewModel,
                 sheetText = sheetText,
-                isSheetVisible = isSheetVisible
+                sheetState = sheetState,
+                shortcutMakingEndMessage = ShortcutMakingEndMessage
             )
         }
-
 
         BottomSheetType.ITEM -> {
-
             ItemContent(
                 item = item,
-                browser = browser
+                browser = browser,
+                sheetState = sheetState,
+                tauvm = viewModel
             )
         }
+
+        else -> {}
     }
 }

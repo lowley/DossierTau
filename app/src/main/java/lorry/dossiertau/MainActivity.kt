@@ -62,6 +62,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
@@ -70,7 +71,13 @@ import androidx.lifecycle.viewModelScope
 import arrow.core.None
 import arrow.core.Option
 import arrow.core.Some
+import com.skydoves.flexible.bottomsheet.material3.FlexibleBottomSheet
+import com.skydoves.flexible.core.FlexibleSheetSize
+import com.skydoves.flexible.core.FlexibleSheetValue
+import com.skydoves.flexible.core.rememberFlexibleBottomSheetState
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import lorry.dossiertau.data.intelligenceService.CIA
@@ -88,9 +95,12 @@ import lorry.dossiertau.SchortcutMakingState.*
 
 import lorry.dossiertau.data.model.TauFolder
 import lorry.dossiertau.data.model.TauItem
+import lorry.dossiertau.data.model.id
+import lorry.dossiertau.data.model.picture
 import lorry.dossiertau.ui.AppBus
 import lorry.dossiertau.ui.bottomSheet.BottomSheetContent
 import lorry.dossiertau.ui.bottomSheet.support.BottomSheetType
+import lorry.dossiertau.ui.bottomSheet.support.IBrowser
 import lorry.dossiertau.ui.breadcrumb.BreadcrumbComponent
 import lorry.dossiertau.ui.displayedItem.DisplayedItem
 import org.mp4parser.Box
@@ -117,9 +127,15 @@ class MainActivity() : ComponentActivity() {
 
         setContent {
             DossierTauTheme {
-                val isSheetVisible = remember { mutableStateOf(false) }
+                val sheetState = rememberFlexibleBottomSheetState(
+                    isModal = true,
+                    skipSlightlyExpanded = true,
+                    flexibleSheetSize = FlexibleSheetSize(
+                        fullyExpanded = 0.9f,
+                        intermediatelyExpanded = FlexibleSheetSize.WrapContent,
+                    )
+                )
                 var currentType = remember { mutableStateOf<BottomSheetType?>(null) }
-                val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
                 val sheetItem = remember { mutableStateOf<TauItem?>(null) }
                 val scope = rememberCoroutineScope()
 
@@ -134,7 +150,9 @@ class MainActivity() : ComponentActivity() {
                             TopAppBar(
                                 setSheetVisible = {
                                     currentType.value = BottomSheetType.APPLICATION
-                                    isSheetVisible.value = true
+                                    scope.launch {
+                                        sheetState.fullyExpand()
+                                    }
                                 }
                             )
                         },
@@ -189,57 +207,67 @@ class MainActivity() : ComponentActivity() {
                                 setSheetVisible = { item ->
                                     currentType.value = BottomSheetType.ITEM
                                     sheetItem.value = item
-                                    isSheetVisible.value = true
+                                    scope.launch {
+                                        sheetState.fullyExpand()
+                                    }
                                 }
                             )
                         }
 
-                        if (isSheetVisible.value && currentType.value != null) {
-                            ModalBottomSheet(
+                        val browser: IBrowser by inject()
+                        val scope = rememberCoroutineScope()
+
+                        if (currentType.value != null) {
+                            FlexibleBottomSheet(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 10.dp),
                                 onDismissRequest = {
-                                    isSheetVisible.value = false; currentType.value = null
+                                    currentType.value = null
+                                    browser.vm.changeState(isOpen = false)
+                                    scope.launch {
+                                        sheetState.hide()
+                                    }
                                 },
                                 sheetState = sheetState,
-                                // ✅ Bord intégré au container (pas de décalage)
-                                containerColor = Color.Transparent,
-                                tonalElevation = 0.dp,  // Supprime l'ombre qui décale
-                                // ✅ Pas de shape qui clippe le border
-                                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                                dragHandle = {
-                                    // ✅ Handle custom parfaitement centré
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 12.dp)
-//                                            .border(
-//                                                width = 2.dp,
-//                                                color = Color.Blue,
-//                                                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)  // Même shape !
-//                                            )// Padding uniforme
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .align(Alignment.Center)
-                                                .width(40.dp)
-                                                .height(4.dp)
-                                                .background(
-                                                    Color.Red,
-                                                    CircleShape  // Rond parfait
-                                                )
-                                        )
-                                    }
-                                }
+                                containerColor = Color.DarkGray,
                             ) {
+
                                 BottomSheetContent(
-                                    currentType.value!!,
+                                    type = currentType.value,
                                     item = sheetItem.value,
                                     sheetText = sheetText,
-                                    isSheetVisible = isSheetVisible
+                                    sheetState = sheetState,
+                                    browser = browser
                                 )
                             }
+
+//                                val sheetState = rememberFlexibleBottomSheetState(
+//                                    isModal = true,
+//                                    flexibleSheetSize = FlexibleSheetSize(
+//                                        fullyExpanded = 0.9f,
+//                                        intermediatelyExpanded = 0.5f,
+//                                        slightlyExpanded = 0.15f,
+//                                    )
+//                                )
+//
+//                                FlexibleBottomSheet(
+//                                    modifier = Modifier
+//                                        .fillMaxWidth(),
+//                                    onDismissRequest = {
+//                                        isSheetVisible.value = false; currentType.value = null
+//                                    },
+//                                    sheetState = sheetState,
+//                                    // ✅ Bord intégré au container (pas de décalage)
+//                                    containerColor = Color.DarkGray
+//                                ) {
+//                                    BottomSheetContent(
+//                                        currentType.value!!,
+//                                        item = sheetItem.value,
+//                                        sheetText = sheetText,
+//                                        isSheetVisible = isSheetVisible
+//                                    )
+//                                }
                         }
                     }
                 }
@@ -346,40 +374,40 @@ class MainActivity() : ComponentActivity() {
                 if (currentFolder.isSome()) {
                     ItemGrid(
                         modifier = Modifier
-                        .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-                        .drawWithContent {
-                            drawContent() // On dessine le contenu normalement (le carré, le texte, etc.)
+                            .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                            .drawWithContent {
+                                drawContent() // On dessine le contenu normalement (le carré, le texte, etc.)
 
-                            // On crée un dégradé de transparence
+                                // On crée un dégradé de transparence
 //                            val fadeHeight = 20.dp.toPx() // Taille de votre "zone tampon"
-                            val fadeHeight = 20.dp.toPx() // Augmentez un peu la zone pour mieux voir l'effet
-                            val brush = Brush.verticalGradient(
-                                0.0f to Color.Black,       // 100% opaque au début de la zone tampon
-                                0.3f to Color.Black.copy(alpha = 0.5f), // Déjà à moitié transparent à 30% de la zone
-                                1.0f to Color.Transparent, // 100% invisible à la fin
-                                startY = size.height - fadeHeight,
-                                endY = size.height
-                            )
+                                val fadeHeight =
+                                    20.dp.toPx() // Augmentez un peu la zone pour mieux voir l'effet
+                                val brush = Brush.verticalGradient(
+                                    0.0f to Color.Black,       // 100% opaque au début de la zone tampon
+                                    0.3f to Color.Black.copy(alpha = 0.5f), // Déjà à moitié transparent à 30% de la zone
+                                    1.0f to Color.Transparent, // 100% invisible à la fin
+                                    startY = size.height - fadeHeight,
+                                    endY = size.height
+                                )
 
-                            val brush2 = Brush.verticalGradient(
-                                0.0f to Color.Black,       // 100% opaque au début de la zone tampon
-                                0.3f to Color.Black.copy(alpha = 0.5f), // Déjà à moitié transparent à 30% de la zone
-                                1.0f to Color.Transparent, // 100% invisible à la fin
-                                startY = fadeHeight,
-                                endY = 0f
-                            )
+                                val brush2 = Brush.verticalGradient(
+                                    0.0f to Color.Black,       // 100% opaque au début de la zone tampon
+                                    0.3f to Color.Black.copy(alpha = 0.5f), // Déjà à moitié transparent à 30% de la zone
+                                    1.0f to Color.Transparent, // 100% invisible à la fin
+                                    startY = fadeHeight,
+                                    endY = 0f
+                                )
 
-                            drawRect(
-                                brush = brush,
-                                blendMode = BlendMode.DstIn // C'EST LA CLÉ : garde le contenu uniquement là où le dégradé est noir
-                            )
+                                drawRect(
+                                    brush = brush,
+                                    blendMode = BlendMode.DstIn // C'EST LA CLÉ : garde le contenu uniquement là où le dégradé est noir
+                                )
 
-                            drawRect(
-                                brush = brush2,
-                                blendMode = BlendMode.DstIn // C'EST LA CLÉ : garde le contenu uniquement là où le dégradé est noir
-                            )
-                        }
-                        ,
+                                drawRect(
+                                    brush = brush2,
+                                    blendMode = BlendMode.DstIn // C'EST LA CLÉ : garde le contenu uniquement là où le dégradé est noir
+                                )
+                            },
                         currentFolder = currentFolder,
                         state = state,
                         setCurrentFolder = setCurrentFolder,
@@ -442,7 +470,7 @@ class MainActivity() : ComponentActivity() {
         modifier: Modifier
     ) {
         Column(
-           modifier = Modifier
+            modifier = Modifier
         ) {
             Spacer(
                 modifier = Modifier
@@ -450,17 +478,19 @@ class MainActivity() : ComponentActivity() {
                     .background(Color.Transparent)
             )
 
+            val allItems = currentFolder.getOrNull()!!.children
+                .sortedBy { it.isFile().toString() + it.name }
+
             LazyVerticalGrid(
                 modifier = modifier,
                 state = state,
                 columns = GridCells.Adaptive(150.dp)
 //        userScrollEnabled = true,
             ) {
-                items(currentFolder.getOrNull()!!.children.size) { index ->
-                    val item = currentFolder.getOrNull()!!.children
-                        .sortedBy { it.isFile().toString() + it.name }[index]
+                items(allItems.size) { index ->
+                    val item = allItems[index]
 
-                    key(item.fullPath) {
+                    key(item.fullPath, item.picture) {
                         DisplayedItem(
                             item = item,
                             setCurrentFolder = setCurrentFolder,
@@ -481,6 +511,7 @@ class MainActivity() : ComponentActivity() {
                                 }
                             },
                             onLongClick = { item ->
+                                viewModel.setSelectedItem(item)
                                 setSheetVisible(item)
                             },
                         )
@@ -501,7 +532,9 @@ class MainActivity() : ComponentActivity() {
             //faire dans le ViewModel plusieurs State
             //chacun comportant plusieurs valeurs & fonctions fonctionnellement groupées
             val currentFolderItems by folderCompo.folderPathFlow
-                .map { it.getOrNull()?.path?.split("/")?.filter { it.isNotEmpty() } ?: emptyList() }
+                .map {
+                    it.getOrNull()?.path?.split("/")?.filter { it.isNotEmpty() } ?: emptyList()
+                }
                 .collectAsState(emptyList())
 
             if (currentFolderItems.isNotEmpty())
@@ -583,7 +616,6 @@ fun currentFolderPathText(
     optionCurrentFolder: Option<TauPath>,
     setCurrentFolder: (TauPath) -> Unit,
 ) {
-
     TextField(
         modifier = modifier
             .fillMaxSize()
@@ -614,8 +646,6 @@ enum class SchortcutMakingState {
     GROUND
 }
 
-val ShortcutMakingEndMessage = "EndMessage"
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NoRippleThemeContent(content: @Composable () -> Unit) {
@@ -635,3 +665,5 @@ fun NoRippleThemeContent(content: @Composable () -> Unit) {
         content()
     }
 }
+
+const val ShortcutMakingEndMessage = "EndMessage"

@@ -123,10 +123,13 @@ inline val TauPath.name
         is Either.Right -> this.value.value.value.substringAfterLast("/").toTauFileName()
     }
 
-inline val TauPath.path
+val TauPath.path
     get() = when (this.value) {
         is Either.Left -> "EMPTY"
-        is Either.Right -> this.value.value.value
+        is Either.Right -> {
+            val truc = this.value
+            truc.value.value
+        }
     }
 
 sealed class FolderPath {

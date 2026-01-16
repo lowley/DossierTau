@@ -153,10 +153,10 @@ sealed class TauFolder private constructor(): TauItem {
             return this
         }
 
-        return data.copy(
-            children = children.filter { item -> item.asDataCommon?.fileId != itemToModify.asDataCommon?.fileId }
-                .plus(itemToModify)
-        )
+        val newChildren = children.filter { item -> item.asDataCommon?.fileId != itemToModify.asDataCommon?.fileId }
+            .plus(itemToModify)
+
+        return data.copy(children = newChildren)
     }
 
 

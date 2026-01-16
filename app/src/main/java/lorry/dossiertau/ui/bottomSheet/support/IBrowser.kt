@@ -2,6 +2,7 @@ package lorry.dossiertau.ui.bottomSheet.support
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import lorry.dossiertau.TauViewModel
 import lorry.dossiertau.data.model.TauItem
 
 interface IBrowser {
@@ -13,6 +14,7 @@ interface IBrowser {
 
     @Composable
     fun rememberBrowserState(): BrowserState
+    fun manageImageClick(viewModel: TauViewModel, imageUrl: String)
 }
 
 // Extension utilitaire (pas override ⇒ défauts autorisés)

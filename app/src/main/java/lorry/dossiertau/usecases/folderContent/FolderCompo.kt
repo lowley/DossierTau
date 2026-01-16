@@ -63,7 +63,7 @@ open class FolderCompo(
     private val _folderFlow = MutableStateFlow<Option<TauFolder>>(None)
     override val folderFlow = _folderFlow.asStateFlow()
 
-    private fun changeFolderFlow(folder: Option<TauFolder>) {
+    override fun changeFolderFlow(folder: Option<TauFolder>) {
         println("DEBUG: changeFolderFlow: ${folder.display()}")
         _folderFlow.update { folder }
     }
@@ -80,11 +80,10 @@ open class FolderCompo(
                 .sortedBy { it.isFile().toString() + it.name.value }
 
             //TODO tester si children contient déjà item
-
             val folderDate = compoItems.computeParentFolderDate()
 
             val compoItemsWithPictures = compoItems.map { item ->
-                async<TauItem> {
+                async {
 
                     val path = item.fullPath
                     val i = item.asDataCommon ?: return@async TauFolder.EMPTY

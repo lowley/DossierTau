@@ -9,7 +9,6 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     id("dev.mokkery") version "3.1.1"
-
 }
 
 android {
@@ -262,9 +261,12 @@ dependencies {
     // traduction des descriptions de films //
     //////////////////////////////////////////
     implementation("com.google.mlkit:translate:17.0.3")
-    //basic bottomsheet
+
+    ///////////////////////
+    // basic bottomsheet //
+    ///////////////////////
     //https://github.com/mutkuensert/BasicBottomSheet
-    implementation("com.github.mutkuensert:BasicBottomSheet:1.0.1")
-
-
+//    implementation("com.github.mutkuensert:BasicBottomSheet:1.0.1")
+    //https://github.com/skydoves/FlexibleBottomSheet
+    implementation("com.github.skydoves:flexible-bottomsheet-material3:0.2.0")
 }

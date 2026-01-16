@@ -7,9 +7,13 @@ import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.Translator
 import com.google.mlkit.nl.translate.TranslatorOptions
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import lorry.dossiertau.data.intelligenceService.ISpy
+import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
@@ -26,31 +30,13 @@ open class TauViewModel(
 
     var translator: Translator? = null
 
-//    private val _state: MutableStateFlow<BrowserState> = MutableStateFlow<BrowserState>(
-//        BrowserState())
-//    val browserState: StateFlow<BrowserState> = _state
-//
-//    fun changeState(
-//        isOpen: Boolean = _state.value.isOpen,
-//        item: TauItem? = _state.value.item,
-//        target: BrowserTarget? = _state.value.target,
-//        canGoBack: Boolean = _state.value.canGoBack,
-//        canGoForward: Boolean = _state.value.canGoForward,
-//        onImageClicked: (String) -> Unit = _state.value.onImageClicked,
-//    ){
-//        _state.update { it.copy(
-//            isOpen = isOpen,
-//            item = item,
-//            target = target,
-//            canGoBack = canGoBack,
-//            canGoForward = canGoForward,
-//            onImageClicked = onImageClicked
-//        ) }
-//    }
 
-//    fun close() {
-//        _state.update { it.copy(isOpen = false, item = null, target = null) }
-//    }
+    val _selectedItem = MutableStateFlow<TauItem?>(null)
+    val selectedItem: StateFlow<TauItem?> = _selectedItem.asStateFlow()
+
+    fun setSelectedItem(item: TauItem) {
+        _selectedItem.update { item }
+    }
 
     fun setTauFolder(folderPath: TauPath){
         folderCompo.setFolderFlow(folderPath)

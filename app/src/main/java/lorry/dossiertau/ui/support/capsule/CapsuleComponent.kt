@@ -17,7 +17,7 @@ class CapsuleComponent: ICapsuleComponent {
         targetPath: TauPath,
         useOld: Boolean
     ) {
-        val file = targetPath.toFile()?.getOrNull()
+        val file = targetPath.toFile().getOrNull()
         if (file?.exists() != true)
             return
 

@@ -643,5 +643,4 @@ object Logger {
             AppBus.summary.emit(text)
         }
     }
-
 }
