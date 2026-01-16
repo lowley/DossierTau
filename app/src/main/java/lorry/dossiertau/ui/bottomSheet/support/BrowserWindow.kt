@@ -102,7 +102,7 @@ fun BrowserWindow(
     // ⚠️ Charger l’URL UNIQUEMENT quand le paramètre change
     val lastLoadedFromState = remember { mutableStateOf<String?>(null) }
     LaunchedEffect(browserState.url) {
-        val target = browserState.url
+        val target = browserState.computeUrl(browserState.item, browserState.target)
         if (target != null && target != lastLoadedFromState.value) {
             webView.loadUrl(target)
             lastLoadedFromState.value = target

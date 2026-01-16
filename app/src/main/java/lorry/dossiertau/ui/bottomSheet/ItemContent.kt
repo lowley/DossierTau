@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -20,6 +21,8 @@ import com.skydoves.flexible.core.FlexibleSheetState
 import kotlinx.coroutines.launch
 import lorry.dossiertau.TauViewModel
 import lorry.dossiertau.data.model.TauItem
+import lorry.dossiertau.data.model.name
+import lorry.dossiertau.ui.bottomSheet.support.BrowserState
 import lorry.dossiertau.ui.bottomSheet.support.BrowserTarget
 import lorry.dossiertau.ui.bottomSheet.support.IBrowser
 
@@ -50,7 +53,7 @@ fun ItemContent(
                 item = item,
                 browser = browser,
                 sheetState = sheetState,
-                tauvm = tauvm
+                tauvm = tauvm,
             )
 
             Spacer(
@@ -85,7 +88,7 @@ fun Inside(
                 bvm.changeState(
                     isOpen = true,
                     item = item,
-                    target = BrowserTarget.GOOGLE,
+                    target = BrowserTarget.GOOGLE.withQuery(item?.name?.value ?: ""),
                     onImageClicked = { imageUrl ->
                         browser.manageImageClick(
                             viewModel = tauvm,

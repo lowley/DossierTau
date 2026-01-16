@@ -2,6 +2,7 @@ package lorry.dossiertau.ui.bottomSheet
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import com.skydoves.flexible.core.FlexibleSheetState
 import lorry.dossiertau.MainActivity
 import lorry.dossiertau.ShortcutMakingEndMessage
@@ -33,7 +34,7 @@ fun MainActivity.BottomSheetContent(
                 item = item,
                 browser = browser,
                 sheetState = sheetState,
-                tauvm = viewModel
+                tauvm = viewModel,
             )
         }
 

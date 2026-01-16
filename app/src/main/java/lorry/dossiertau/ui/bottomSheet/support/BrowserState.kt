@@ -37,19 +37,22 @@ data class BrowserState(
         target: BrowserTarget?
     ): String? {
         var searchString = ""
+        val delimiter = ","
 
         if (target == null)
             return null
 
         if (item?.isFolder() == true) {
             val coreName = item.name.value
-            val splitted = coreName.split(".")
+            val splitted = coreName.split(delimiter)
             if (splitted.size == 2)
                 searchString = splitted.last()
+            else if (splitted.size == 1)
+                searchString = splitted.first()
         }
 
         if (item?.isFile() == true) {
-            val coreName = item.name.value.substringBeforeLast(".")
+            val coreName = item.name.value.substringBeforeLast(delimiter)
 
             val prepared1 = target
                 .prepareSearchText(coreName)
