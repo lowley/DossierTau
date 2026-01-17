@@ -1,35 +1,30 @@
 package lorry.dossiertau.ui.bottomSheet.support
 
 import android.app.Activity
-import android.app.Application
 import android.content.Context
 import android.content.ContextWrapper
-import android.graphics.Bitmap
 import androidx.activity.ComponentActivity
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.ViewModelProvider
-import lorry.dossiertau.TauApp
+import androidx.compose.ui.unit.dp
 import lorry.dossiertau.TauViewModel
 import org.koin.java.KoinJavaComponent.inject
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
 import arrow.core.toOption
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
-import lorry.dossiertau.data.base64.VideoInfoEmbedder
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.data.model.copy
 import lorry.dossiertau.data.model.fullPath
-import lorry.dossiertau.data.model.picture
 import lorry.dossiertau.support.littleClasses.TauPicture
 import lorry.dossiertau.ui.support.base64.IVideoInfoEmbedder
 import lorry.dossiertau.ui.support.capsule.CapsuleComponent
@@ -67,7 +62,7 @@ class Browser(
     // zoneUI //
     ////////////
     @Composable
-    override fun Render(modifier: Modifier) {
+    override fun Render(modifier: Modifier, gestureOwner: MutableState<GestureOwner>) {
         val browserState: BrowserState by vm.state.collectAsState()
 
         if (browserState.isOpen)
@@ -89,7 +84,8 @@ class Browser(
                 },
                 closeBrowser = {
                     vm.close()
-                }
+                },
+                gestureOwner = gestureOwner
             )
     }
 

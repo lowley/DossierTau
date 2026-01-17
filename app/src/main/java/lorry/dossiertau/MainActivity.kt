@@ -9,9 +9,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,8 +25,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ripple.RippleAlpha
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -51,18 +49,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
@@ -73,11 +69,8 @@ import arrow.core.Option
 import arrow.core.Some
 import com.skydoves.flexible.bottomsheet.material3.FlexibleBottomSheet
 import com.skydoves.flexible.core.FlexibleSheetSize
-import com.skydoves.flexible.core.FlexibleSheetValue
 import com.skydoves.flexible.core.rememberFlexibleBottomSheetState
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import lorry.dossiertau.data.intelligenceService.CIA
@@ -95,15 +88,14 @@ import lorry.dossiertau.SchortcutMakingState.*
 
 import lorry.dossiertau.data.model.TauFolder
 import lorry.dossiertau.data.model.TauItem
-import lorry.dossiertau.data.model.id
 import lorry.dossiertau.data.model.picture
 import lorry.dossiertau.ui.AppBus
 import lorry.dossiertau.ui.bottomSheet.BottomSheetContent
 import lorry.dossiertau.ui.bottomSheet.support.BottomSheetType
+import lorry.dossiertau.ui.bottomSheet.support.GestureOwner
 import lorry.dossiertau.ui.bottomSheet.support.IBrowser
 import lorry.dossiertau.ui.breadcrumb.BreadcrumbComponent
 import lorry.dossiertau.ui.displayedItem.DisplayedItem
-import org.mp4parser.Box
 
 class MainActivity() : ComponentActivity() {
 
@@ -132,7 +124,7 @@ class MainActivity() : ComponentActivity() {
                     skipSlightlyExpanded = true,
                     flexibleSheetSize = FlexibleSheetSize(
                         fullyExpanded = 0.9f,
-                        intermediatelyExpanded = FlexibleSheetSize.WrapContent,
+                        intermediatelyExpanded = 0.5f,
                     )
                 )
                 var currentType = remember { mutableStateOf<BottomSheetType?>(null) }
@@ -216,9 +208,10 @@ class MainActivity() : ComponentActivity() {
 
                         val browser: IBrowser by inject()
                         val scope = rememberCoroutineScope()
+                        var gestureOwner = remember { mutableStateOf(GestureOwner.None) }
 
                         if (currentType.value != null) {
-                            FlexibleBottomSheet(
+                            ModalBottomSheet(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 10.dp),
@@ -229,45 +222,19 @@ class MainActivity() : ComponentActivity() {
                                         sheetState.hide()
                                     }
                                 },
-                                sheetState = sheetState,
+                                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
                                 containerColor = Color.DarkGray,
+                                contentWindowInsets = { WindowInsets(0) } // Pour le edge-to-edge
                             ) {
-
-                                BottomSheetContent(
+                                 BottomSheetContent(
                                     type = currentType.value,
                                     item = sheetItem.value,
                                     sheetText = sheetText,
                                     sheetState = sheetState,
-                                    browser = browser
+                                    browser = browser,
+                                    gestureOwner = gestureOwner
                                 )
                             }
-
-//                                val sheetState = rememberFlexibleBottomSheetState(
-//                                    isModal = true,
-//                                    flexibleSheetSize = FlexibleSheetSize(
-//                                        fullyExpanded = 0.9f,
-//                                        intermediatelyExpanded = 0.5f,
-//                                        slightlyExpanded = 0.15f,
-//                                    )
-//                                )
-//
-//                                FlexibleBottomSheet(
-//                                    modifier = Modifier
-//                                        .fillMaxWidth(),
-//                                    onDismissRequest = {
-//                                        isSheetVisible.value = false; currentType.value = null
-//                                    },
-//                                    sheetState = sheetState,
-//                                    // ✅ Bord intégré au container (pas de décalage)
-//                                    containerColor = Color.DarkGray
-//                                ) {
-//                                    BottomSheetContent(
-//                                        currentType.value!!,
-//                                        item = sheetItem.value,
-//                                        sheetText = sheetText,
-//                                        isSheetVisible = isSheetVisible
-//                                    )
-//                                }
                         }
                     }
                 }

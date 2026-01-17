@@ -2,12 +2,12 @@ package lorry.dossiertau.ui.bottomSheet
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.collectAsState
 import com.skydoves.flexible.core.FlexibleSheetState
 import lorry.dossiertau.MainActivity
 import lorry.dossiertau.ShortcutMakingEndMessage
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.ui.bottomSheet.support.BottomSheetType
+import lorry.dossiertau.ui.bottomSheet.support.GestureOwner
 import lorry.dossiertau.ui.bottomSheet.support.IBrowser
 
 @Composable
@@ -16,7 +16,8 @@ fun MainActivity.BottomSheetContent(
     item: TauItem?,
     sheetText: MutableState<String>,
     sheetState: FlexibleSheetState,
-    browser: IBrowser
+    browser: IBrowser,
+    gestureOwner: MutableState<GestureOwner>
     ) {
 
     when (type) {
@@ -35,6 +36,7 @@ fun MainActivity.BottomSheetContent(
                 browser = browser,
                 sheetState = sheetState,
                 tauvm = viewModel,
+                gestureOwner = gestureOwner
             )
         }
 
