@@ -3,14 +3,18 @@ package lorry.dossiertau.ui.bottomSheet.support
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.graphics.Bitmap
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -22,6 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.data.model.copy
 import lorry.dossiertau.data.model.fullPath
@@ -31,6 +36,7 @@ import lorry.dossiertau.ui.support.capsule.CapsuleComponent
 import lorry.dossiertau.ui.support.capsule.utilities.CroppedPicture
 import lorry.dossiertau.ui.support.capsule.utilities.InitialPicture
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
+import lorry.dossiertau.usecases.generateHTMLs.Logger.scope
 import kotlin.getValue
 
 class Browser(
@@ -61,8 +67,12 @@ class Browser(
     ////////////
     // zoneUI //
     ////////////
+    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    override fun Render(modifier: Modifier, gestureOwner: MutableState<GestureOwner>) {
+    override fun Render(
+        modifier: Modifier,
+        gestureOwner: MutableState<GestureOwner>
+    ) {
         val browserState: BrowserState by vm.state.collectAsState()
 
         if (browserState.isOpen)
@@ -95,26 +105,44 @@ class Browser(
             .firstOrNull()
             ?: error("Browser attend un @ActivityContext ; vérifie le scope et l’annotation.")
 
-    override fun manageImageClick(viewModel: TauViewModel, imageUrl: String) {
+    @OptIn(ExperimentalMaterial3Api::class)
+    override fun manageImageClick(
+        viewModel: TauViewModel,
+        imageUrl: String,
+        sheetState: SheetState,
+        scope: CoroutineScope
+    ) {
 
         val selectedItem = viewModel.selectedItem.value ?: return
-        val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
         scope.launch {
             doWorkWhenImageClicked(
-                imageUrl, selectedItem
+                imageUrl = imageUrl,
+                selectedItem = selectedItem,
+                sheetState = sheetState,
+                scope = scope
             )
         }
     }
 
-    context(CoroutineScope)
+    @OptIn(ExperimentalMaterial3Api::class)
     private suspend fun doWorkWhenImageClicked(
         imageUrl: String,
-        selectedItem: TauItem
+        selectedItem: TauItem,
+        sheetState: SheetState,
+        scope: CoroutineScope
     ) {
-        val image = async {
+        scope.launch(Dispatchers.Main) {
+            sheetState
+            sheetState.hide()
+        }
+
+        val image = withContext(Dispatchers.IO) {
             vm.urlToBitmap(imageUrl)
-        }.await() ?: return
+        }
+
+        if (image == null)
+            return
 
         val currentFolder = folderCompo.folderFlow.value.getOrNull()
         val imageBitmap = TauPicture.fromBitmap(image)
@@ -123,18 +151,27 @@ class Browser(
         )
 
         if (newFolder != null)
-            folderCompo.changeFolderFlow(newFolder.toOption())
+            scope.launch(Dispatchers.Main) {
+                folderCompo.changeFolderFlow(newFolder.toOption())
+            }
 
         val capsuleMgr = CapsuleComponent()
 //            val capsule = capsuleMgr.getCapsule(selectedItem.fullPath)
+
         capsuleMgr.save(
-            element = InitialPicture(imageBitmap.bitmap, lorry.dossiertau.ui.support.base64.VideoInfoEmbedder() as IVideoInfoEmbedder),
+            element = InitialPicture(
+                imageBitmap.bitmap,
+                lorry.dossiertau.ui.support.base64.VideoInfoEmbedder() as IVideoInfoEmbedder
+            ),
             targetPath = selectedItem.fullPath,
             useOld = false
         )
 
         capsuleMgr.save(
-            element = CroppedPicture(imageBitmap.bitmap, lorry.dossiertau.ui.support.base64.VideoInfoEmbedder() as IVideoInfoEmbedder),
+            element = CroppedPicture(
+                imageBitmap.bitmap,
+                lorry.dossiertau.ui.support.base64.VideoInfoEmbedder() as IVideoInfoEmbedder
+            ),
             targetPath = selectedItem.fullPath,
             useOld = false
         )

@@ -3,6 +3,8 @@ package lorry.dossiertau.ui.bottomSheet
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -14,7 +16,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.skydoves.flexible.core.FlexibleSheetState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -23,12 +24,13 @@ import lorry.dossiertau.SchortcutMakingState
 import lorry.dossiertau.TauViewModel
 import lorry.dossiertau.ui.AppBus
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ApplicationContent(
     viewModel: TauViewModel,
     sheetText: MutableState<String>,
     shortcutMakingEndMessage: String,
-    sheetState: FlexibleSheetState
+    sheetState: SheetState
 ) {
     var text by remember { mutableStateOf("truc") }
     Column(
@@ -61,7 +63,7 @@ fun ApplicationContent(
                         displayBottomSheet = { text ->
                             sheetText.value = text
                             scope.launch{
-                                sheetState.fullyExpand()
+                                sheetState.expand()
                             }
                         }
                     )

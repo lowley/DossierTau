@@ -55,7 +55,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -67,9 +66,6 @@ import androidx.lifecycle.viewModelScope
 import arrow.core.None
 import arrow.core.Option
 import arrow.core.Some
-import com.skydoves.flexible.bottomsheet.material3.FlexibleBottomSheet
-import com.skydoves.flexible.core.FlexibleSheetSize
-import com.skydoves.flexible.core.rememberFlexibleBottomSheetState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -119,14 +115,7 @@ class MainActivity() : ComponentActivity() {
 
         setContent {
             DossierTauTheme {
-                val sheetState = rememberFlexibleBottomSheetState(
-                    isModal = true,
-                    skipSlightlyExpanded = true,
-                    flexibleSheetSize = FlexibleSheetSize(
-                        fullyExpanded = 0.9f,
-                        intermediatelyExpanded = 0.5f,
-                    )
-                )
+                val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
                 var currentType = remember { mutableStateOf<BottomSheetType?>(null) }
                 val sheetItem = remember { mutableStateOf<TauItem?>(null) }
                 val scope = rememberCoroutineScope()
@@ -143,7 +132,7 @@ class MainActivity() : ComponentActivity() {
                                 setSheetVisible = {
                                     currentType.value = BottomSheetType.APPLICATION
                                     scope.launch {
-                                        sheetState.fullyExpand()
+                                        sheetState.expand()
                                     }
                                 }
                             )
@@ -200,7 +189,7 @@ class MainActivity() : ComponentActivity() {
                                     currentType.value = BottomSheetType.ITEM
                                     sheetItem.value = item
                                     scope.launch {
-                                        sheetState.fullyExpand()
+                                        sheetState.expand()
                                     }
                                 }
                             )
@@ -222,17 +211,17 @@ class MainActivity() : ComponentActivity() {
                                         sheetState.hide()
                                     }
                                 },
-                                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                                sheetState = sheetState,
                                 containerColor = Color.DarkGray,
                                 contentWindowInsets = { WindowInsets(0) } // Pour le edge-to-edge
                             ) {
                                  BottomSheetContent(
-                                    type = currentType.value,
-                                    item = sheetItem.value,
-                                    sheetText = sheetText,
-                                    sheetState = sheetState,
-                                    browser = browser,
-                                    gestureOwner = gestureOwner
+                                     type = currentType.value,
+                                     item = sheetItem.value,
+                                     sheetText = sheetText,
+                                     sheetState = sheetState,
+                                     browser = browser,
+                                     gestureOwner = gestureOwner
                                 )
                             }
                         }

@@ -51,9 +51,9 @@ class BrowserViewModel: ViewModel() {
 
     }
 
-    suspend fun urlToBitmap(data: String): Bitmap? = withContext(Dispatchers.IO) {
-        try {
-            return@withContext if (data.startsWith("data:image")) {
+    suspend fun urlToBitmap(data: String): Bitmap? {
+        val result = try {
+            if (data.startsWith("data:image")) {
                 // 🟢 C'est une image encodée en base64
                 val base64Data = data.replace("data:image/png;base64,", "").replace("data:image/jpeg;base64,","")
                 val decodedBytes = Base64.decode(base64Data, Base64.DEFAULT)
@@ -72,6 +72,7 @@ class BrowserViewModel: ViewModel() {
             e.printStackTrace()
             null
         }
-    }
 
+        return result
+    }
 }

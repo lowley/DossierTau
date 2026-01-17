@@ -24,12 +24,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import lorry.dossiertau.MainActivity
 import lorry.dossiertau.R
+import lorry.dossiertau.TauApp
 import org.koin.android.ext.android.inject
 
 //implémentation ici: [[BrowserBottomToolbar]]
 
 @Composable
-context(MainActivity)
 fun BrowserBottomToolbar(
     modifier: Modifier = Modifier
 ) {
@@ -37,9 +37,9 @@ fun BrowserBottomToolbar(
         modifier = modifier
             .fillMaxWidth()
             .height(65.dp)
-            .background(Color.Companion.Transparent)
+            .background(Color.Transparent)
     ) {
-        val browser: IBrowser by inject()
+        val browser: IBrowser by TauApp.instance.koin.inject()
 
 //        Spacer(
 //            modifier = Modifier.Companion

@@ -10,32 +10,31 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.dp
-import com.skydoves.flexible.core.FlexibleSheetState
 import kotlinx.coroutines.launch
 import lorry.dossiertau.MainActivity
 import lorry.dossiertau.TauViewModel
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.data.model.name
-import lorry.dossiertau.ui.bottomSheet.support.BrowserBottomToolbar
 import lorry.dossiertau.ui.bottomSheet.support.BrowserTarget
 import lorry.dossiertau.ui.bottomSheet.support.GestureOwner
 import lorry.dossiertau.ui.bottomSheet.support.IBrowser
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainActivity.ItemContent(
     item: TauItem?,
     browser: IBrowser,
-    sheetState: FlexibleSheetState,
+    sheetState: SheetState,
     tauvm: TauViewModel,
     gestureOwner: MutableState<GestureOwner>,
 ) {
@@ -74,11 +73,12 @@ fun MainActivity.ItemContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainActivity.Inside(
     item: TauItem?,
     browser: IBrowser,
-    sheetState: FlexibleSheetState,
+    sheetState: SheetState,
     tauvm: TauViewModel,
     gestureOwner: MutableState<GestureOwner>,
 ) {
@@ -92,11 +92,7 @@ fun MainActivity.Inside(
         ) {
             browser.Render(
                 modifier = Modifier.heightIn(max = 600.dp),
-                gestureOwner = gestureOwner
-            )
-            BrowserBottomToolbar(
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
+                gestureOwner = gestureOwner,
             )
         }
     else
@@ -110,13 +106,15 @@ fun MainActivity.Inside(
                     onImageClicked = { imageUrl ->
                         browser.manageImageClick(
                             viewModel = tauvm,
-                            imageUrl = imageUrl
+                            imageUrl = imageUrl,
+                            sheetState = sheetState,
+                            scope = scope
                         )
                     }
                 )
                 scope.launch {
 //                    sheetState.hide()
-                    sheetState.fullyExpand()
+                    sheetState.expand()
                 }
             }
         ) { Text(text = "Changer l'image") }

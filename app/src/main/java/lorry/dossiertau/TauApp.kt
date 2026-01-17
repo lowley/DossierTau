@@ -10,6 +10,11 @@ import org.koin.dsl.koinApplication
 
 class TauApp: Application() {
 
+    companion object{
+        lateinit var instance: TauApp
+            private set
+    }
+
     val app: KoinApplication = koinApplication {
         androidContext(this@TauApp)
         modules(TauInjections)
@@ -20,7 +25,6 @@ class TauApp: Application() {
 
     init{
         startKoin(app)
+        instance = this
     }
-
-
 }

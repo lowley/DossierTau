@@ -39,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import lorry.dossiertau.MainActivity
 import lorry.dossiertau.R
 import lorry.dossiertau.TauApp
@@ -212,11 +214,11 @@ fun CornerSupplement(
 ) {
     //Ajout à l'image
     val infoSup = produceState<String?>(initialValue = null, item) {
-        value = getInfoSup(item)
+        value = withContext(Dispatchers.IO) { getInfoSup(item) }
     }.value
 
     val infoInf = produceState<String?>(initialValue = null, item) {
-        value = getInfoInf(item)
+        value = withContext(Dispatchers.IO) { getInfoInf(item) }
     }.value
 //
     if (infoSup == null || infoInf == null) {

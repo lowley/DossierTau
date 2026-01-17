@@ -1,8 +1,11 @@
 package lorry.dossiertau.ui.bottomSheet.support
 
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.SheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.CoroutineScope
 import lorry.dossiertau.TauViewModel
 import lorry.dossiertau.data.model.TauItem
 
@@ -11,11 +14,19 @@ interface IBrowser {
     val vm: BrowserViewModel
 
     @Composable
-    fun Render(modifier: Modifier, gestureOwner: MutableState<GestureOwner>)
-
-    @Composable
     fun rememberBrowserState(): BrowserState
-    fun manageImageClick(viewModel: TauViewModel, imageUrl: String)
+    @Composable
+    fun Render(
+        modifier: Modifier,
+        gestureOwner: MutableState<GestureOwner>)
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    fun manageImageClick(
+        viewModel: TauViewModel,
+        imageUrl: String,
+        sheetState: SheetState,
+        scope: CoroutineScope
+    )
 }
 
 // Extension utilitaire (pas override ⇒ défauts autorisés)
