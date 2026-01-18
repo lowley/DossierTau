@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.graphics.Bitmap
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,28 +32,25 @@ import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.data.model.copy
 import lorry.dossiertau.data.model.fullPath
 import lorry.dossiertau.support.littleClasses.TauPicture
+import lorry.dossiertau.ui.bottomSheet.BSVM
 import lorry.dossiertau.ui.support.base64.IVideoInfoEmbedder
 import lorry.dossiertau.ui.support.capsule.CapsuleComponent
 import lorry.dossiertau.ui.support.capsule.utilities.CroppedPicture
 import lorry.dossiertau.ui.support.capsule.utilities.InitialPicture
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
 import lorry.dossiertau.usecases.generateHTMLs.Logger.scope
+import org.koin.android.ext.android.inject
 import kotlin.getValue
 
 class Browser(
 ) : IBrowser {
 
     override val vm: BrowserViewModel by inject(BrowserViewModel::class.java)
-//    override val vm: BrowserViewModel by lazy {
-//        val activity = context.findActivity()
-//        ViewModelProvider(activity)[BrowserViewModel::class.java]
-//    }
 
     val folderCompo: IFolderCompo by inject(IFolderCompo::class.java)
 
-
     @Composable
-    fun rememberActivityContext(): Activity? {
+    fun rememberActivityContext(): Activity {
         val context = LocalContext.current
         return remember(context) {
             context.findActivity()
@@ -71,7 +69,8 @@ class Browser(
     @Composable
     override fun Render(
         modifier: Modifier,
-        gestureOwner: MutableState<GestureOwner>
+        gestureOwner: MutableState<GestureOwner>,
+        exitImageSelection: () -> Unit
     ) {
         val browserState: BrowserState by vm.state.collectAsState()
 
@@ -95,7 +94,8 @@ class Browser(
                 closeBrowser = {
                     vm.close()
                 },
-                gestureOwner = gestureOwner
+                gestureOwner = gestureOwner,
+                exitImageSelection = exitImageSelection
             )
     }
 
@@ -110,9 +110,9 @@ class Browser(
         viewModel: TauViewModel,
         imageUrl: String,
         sheetState: SheetState,
-        scope: CoroutineScope
+        scope: CoroutineScope,
+        changeSheetType: (BottomSheetType) -> Unit
     ) {
-
         val selectedItem = viewModel.selectedItem.value ?: return
 
         scope.launch {
@@ -120,7 +120,9 @@ class Browser(
                 imageUrl = imageUrl,
                 selectedItem = selectedItem,
                 sheetState = sheetState,
-                scope = scope
+                scope = scope,
+                changeSheetType = changeSheetType
+
             )
         }
     }
@@ -130,11 +132,12 @@ class Browser(
         imageUrl: String,
         selectedItem: TauItem,
         sheetState: SheetState,
-        scope: CoroutineScope
+        scope: CoroutineScope,
+        changeSheetType: (BottomSheetType) -> Unit = {}
     ) {
         scope.launch(Dispatchers.Main) {
-            sheetState
             sheetState.hide()
+            changeSheetType(BottomSheetType.NONE)
         }
 
         val image = withContext(Dispatchers.IO) {

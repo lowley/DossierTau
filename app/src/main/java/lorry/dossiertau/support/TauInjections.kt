@@ -19,6 +19,7 @@ import lorry.dossiertau.data.intelligenceService.utils.TauFileObserver
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside.INACTIVE
 import lorry.dossiertau.data.intelligenceService.utils2.repo.SpyRepo
+import lorry.dossiertau.ui.bottomSheet.BSVM
 import lorry.dossiertau.ui.bottomSheet.support.Browser
 import lorry.dossiertau.ui.bottomSheet.support.BrowserViewModel
 import lorry.dossiertau.ui.bottomSheet.support.IBrowser
@@ -96,6 +97,7 @@ val TauInjections = module {
     single<IBrowser> { Browser() }
     single<IFolderCompo> { get(named("real")) }
 
+    single { BSVM() }
     single { VmLinks() }
     single<IFtpDS> { FtpDS() }
     single<INasRepo> { NasRepo(FtpDS()) }

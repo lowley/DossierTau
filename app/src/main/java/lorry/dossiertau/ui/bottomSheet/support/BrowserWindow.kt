@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,6 +49,7 @@ fun BrowserWindow(
     setCanGoForward: (Boolean) -> Unit,
     closeBrowser: () -> Unit,
     gestureOwner: MutableState<GestureOwner>,
+    exitImageSelection: () -> Unit
 ) {
     Column(modifier = modifier.fillMaxSize()) {
 
@@ -172,7 +174,8 @@ fun BrowserWindow(
 
         BrowserBottomToolbar(
             modifier = Modifier
-                .align(Alignment.CenterHorizontally)
+                .align(Alignment.CenterHorizontally),
+            exitImageSelection = exitImageSelection
         )
 
         LaunchedEffect(Unit) {

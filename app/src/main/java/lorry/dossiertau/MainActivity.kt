@@ -32,6 +32,7 @@ import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RippleConfiguration
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -54,6 +55,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.Font
@@ -86,6 +88,7 @@ import lorry.dossiertau.data.model.TauFolder
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.data.model.picture
 import lorry.dossiertau.ui.AppBus
+import lorry.dossiertau.ui.bottomSheet.BSVM
 import lorry.dossiertau.ui.bottomSheet.BottomSheetContent
 import lorry.dossiertau.ui.bottomSheet.support.BottomSheetType
 import lorry.dossiertau.ui.bottomSheet.support.GestureOwner
@@ -99,6 +102,7 @@ class MainActivity() : ComponentActivity() {
     val links: Links by inject()
     val breadcrumbComponent: BreadcrumbComponent by inject()
 
+    val bsVM: BSVM by inject()
     val folderCompo = viewModel.folderCompo
 
     @OptIn(ExperimentalMaterial3Api::class)
@@ -115,13 +119,11 @@ class MainActivity() : ComponentActivity() {
 
         setContent {
             DossierTauTheme {
-                val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-                var currentType = remember { mutableStateOf<BottomSheetType?>(null) }
+                val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
                 val sheetItem = remember { mutableStateOf<TauItem?>(null) }
                 val scope = rememberCoroutineScope()
 
                 val sheetText = remember { mutableStateOf("") }
-
                 SetBlackBackgroundForNavigationBar(Color.Transparent)
 
                 NoRippleThemeContent {
@@ -130,7 +132,7 @@ class MainActivity() : ComponentActivity() {
                         topBar = {
                             TopAppBar(
                                 setSheetVisible = {
-                                    currentType.value = BottomSheetType.APPLICATION
+                                    bsVM.changeType(BottomSheetType.APPLICATION)
                                     scope.launch {
                                         sheetState.expand()
                                     }
@@ -145,6 +147,7 @@ class MainActivity() : ComponentActivity() {
                         },
 //                    floatingActionButton = { /* FAB */ }
                     ) { innerPadding ->
+                        val currentType = bsVM.type.collectAsState()
 
                         ConstraintLayout(
                             modifier = Modifier
@@ -186,7 +189,7 @@ class MainActivity() : ComponentActivity() {
                                     viewModel.setTauFolder(newFolder)
                                 },
                                 setSheetVisible = { item ->
-                                    currentType.value = BottomSheetType.ITEM
+                                    bsVM.changeType(BottomSheetType.ITEM)
                                     sheetItem.value = item
                                     scope.launch {
                                         sheetState.expand()
@@ -195,33 +198,43 @@ class MainActivity() : ComponentActivity() {
                             )
                         }
 
-                        val browser: IBrowser by inject()
                         val scope = rememberCoroutineScope()
                         var gestureOwner = remember { mutableStateOf(GestureOwner.None) }
+                        val browser: IBrowser by inject()
 
-                        if (currentType.value != null) {
+                        if (currentType.value != null && currentType.value != BottomSheetType.NONE) {
                             ModalBottomSheet(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 10.dp),
+                                    .padding(start = 10.dp, end = 10.dp, bottom = 0.dp),
                                 onDismissRequest = {
-                                    currentType.value = null
                                     browser.vm.changeState(isOpen = false)
                                     scope.launch {
                                         sheetState.hide()
+                                        bsVM.changeType(BottomSheetType.NONE)
                                     }
+                                    browser.vm.changeState(target = null)
                                 },
                                 sheetState = sheetState,
-                                containerColor = Color.DarkGray,
+                                containerColor = lerp(
+                                    Color.LightGray,
+                                    Color.DarkGray,
+                                    0.2f
+                                ),
                                 contentWindowInsets = { WindowInsets(0) } // Pour le edge-to-edge
                             ) {
                                  BottomSheetContent(
+                                     modifier = Modifier
+                                         .navigationBarsPadding(),
                                      type = currentType.value,
                                      item = sheetItem.value,
                                      sheetText = sheetText,
                                      sheetState = sheetState,
                                      browser = browser,
-                                     gestureOwner = gestureOwner
+                                     gestureOwner = gestureOwner,
+                                     changeSheetType = {
+                                         bsVM.changeType(it)
+                                     }
                                 )
                             }
                         }

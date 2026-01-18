@@ -15,17 +15,22 @@ interface IBrowser {
 
     @Composable
     fun rememberBrowserState(): BrowserState
+
+    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun Render(
         modifier: Modifier,
-        gestureOwner: MutableState<GestureOwner>)
+        gestureOwner: MutableState<GestureOwner>,
+        exitImageSelection: () -> Unit
+    )
 
     @OptIn(ExperimentalMaterial3Api::class)
     fun manageImageClick(
         viewModel: TauViewModel,
         imageUrl: String,
         sheetState: SheetState,
-        scope: CoroutineScope
+        scope: CoroutineScope,
+        changeSheetType: (BottomSheetType) -> Unit
     )
 }
 

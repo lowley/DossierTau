@@ -124,7 +124,11 @@ fun MainActivity.DisplayedItem(
                         .matchParentSize()
                         .clip(shape = RoundedCornerShape(8.dp))
                         .scale(1.2f),
-                    tint = Color.DarkGray
+                    tint = lerp(
+                        Color.DarkGray,
+                        Color.LightGray,
+                        0.3f
+                    )
                 )
             }
 

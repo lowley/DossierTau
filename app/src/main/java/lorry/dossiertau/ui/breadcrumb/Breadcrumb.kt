@@ -23,6 +23,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import lorry.dossiertau.R
+import lorry.dossiertau.TauColors
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.toTauPath
 
@@ -54,7 +55,7 @@ fun BreadcrumbComponent.UI(
                     onArrowClicked()
                 },
             contentScale = ContentScale.Fit,
-            colorFilter = ColorFilter.tint(Color.White)
+            colorFilter = ColorFilter.tint(TauColors.Tertiary)
         )
 
         // éléments non animés
@@ -105,14 +106,20 @@ fun BreadcrumbChip(
     onClick: () -> Unit
 ) {
     Text(
-        text = text, modifier = modifier.clickable {
+        text = text,
+        modifier = modifier.clickable {
             onClick()
-        })
+        },
+        color = Color.DarkGray
+    )
 }
 
 @Composable
 fun Separator() {
-    Text(text = "/")
+    Text(
+        text = "/",
+        color = TauColors.Tertiary
+    )
 }
 
 

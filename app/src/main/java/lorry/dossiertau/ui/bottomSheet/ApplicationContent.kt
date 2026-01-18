@@ -30,11 +30,12 @@ fun ApplicationContent(
     viewModel: TauViewModel,
     sheetText: MutableState<String>,
     shortcutMakingEndMessage: String,
-    sheetState: SheetState
+    sheetState: SheetState,
+    modifier: Modifier
 ) {
     var text by remember { mutableStateOf("truc") }
     Column(
-        modifier = Modifier.Companion
+        modifier = modifier
             .padding(start = 16.dp, top = 16.dp, end = 16.dp)
     ) {
         val shortcutMakingState =

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
@@ -31,13 +32,13 @@ import org.koin.android.ext.android.inject
 
 @Composable
 fun BrowserBottomToolbar(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    exitImageSelection: () -> Unit
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
             .height(65.dp)
-            .background(Color.Transparent)
     ) {
         val browser: IBrowser by TauApp.instance.koin.inject()
 
@@ -98,7 +99,7 @@ fun BrowserBottomToolbar(
             }
 
             Button(
-                onClick = browser.vm::close,
+                onClick = exitImageSelection,
                 modifier = Modifier.Companion.padding(horizontal = 5.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFFe9c46a),

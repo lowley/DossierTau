@@ -16,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCompositionContext
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,6 +26,7 @@ import lorry.dossiertau.MainActivity
 import lorry.dossiertau.TauViewModel
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.data.model.name
+import lorry.dossiertau.ui.bottomSheet.support.BottomSheetType
 import lorry.dossiertau.ui.bottomSheet.support.BrowserTarget
 import lorry.dossiertau.ui.bottomSheet.support.GestureOwner
 import lorry.dossiertau.ui.bottomSheet.support.IBrowser
@@ -37,13 +39,16 @@ fun MainActivity.ItemContent(
     sheetState: SheetState,
     tauvm: TauViewModel,
     gestureOwner: MutableState<GestureOwner>,
+    modifier: Modifier,
+    changeSheetType: (BottomSheetType) -> Unit = {}
+
 ) {
     Box(
-        modifier = Modifier
-            .height(650.dp)
+        modifier = modifier
+//            .height(650.dp)
             .fillMaxWidth()
             .background(
-                Color.DarkGray,
+                Color.Transparent,
                 RoundedCornerShape(
                     topStart = 8.dp,
                     topEnd = 8.dp
@@ -52,22 +57,15 @@ fun MainActivity.ItemContent(
     )
     {
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
         ) {
             Inside(
                 item = item,
                 browser = browser,
                 sheetState = sheetState,
                 tauvm = tauvm,
-                gestureOwner = gestureOwner
-            )
-
-            // Petit espacement en bas pour éviter que le contenu soit collé au bord
-            Spacer(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(16.dp)
-                    .background(Color.DarkGray)
+                gestureOwner = gestureOwner,
+                changeSheetType = changeSheetType
             )
         }
     }
@@ -81,6 +79,7 @@ fun MainActivity.Inside(
     sheetState: SheetState,
     tauvm: TauViewModel,
     gestureOwner: MutableState<GestureOwner>,
+    changeSheetType: (BottomSheetType) -> Unit
 ) {
     val bvm = browser.vm
     val state = bvm.state.collectAsState()
@@ -91,8 +90,16 @@ fun MainActivity.Inside(
             modifier = Modifier
         ) {
             browser.Render(
-                modifier = Modifier.heightIn(max = 600.dp),
+                modifier = Modifier.heightIn(max = 670.dp),
                 gestureOwner = gestureOwner,
+                exitImageSelection = {
+                    browser.vm.close()
+                    scope.launch {
+                        sheetState.hide()
+                        changeSheetType(BottomSheetType.NONE)
+                    }
+                    browser.vm.changeState(target = null)
+                }
             )
         }
     else
@@ -108,12 +115,13 @@ fun MainActivity.Inside(
                             viewModel = tauvm,
                             imageUrl = imageUrl,
                             sheetState = sheetState,
-                            scope = scope
+                            scope = scope,
+                            changeSheetType = changeSheetType
                         )
                     }
                 )
                 scope.launch {
-//                    sheetState.hide()
+                    sheetState.hide()
                     sheetState.expand()
                 }
             }
