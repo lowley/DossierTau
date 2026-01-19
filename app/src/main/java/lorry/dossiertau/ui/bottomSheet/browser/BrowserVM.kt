@@ -1,26 +1,26 @@
-package lorry.dossiertau.ui.bottomSheet.support
+package lorry.dossiertau.ui.bottomSheet.browser
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Base64
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.withContext
 import lorry.dossiertau.data.model.TauItem
+import lorry.dossiertau.ui.bottomSheet.browser.support.BrowserState
+import lorry.dossiertau.ui.bottomSheet.browser.support.BrowserTarget
 import java.net.HttpURLConnection
 import java.net.URL
 
-class BrowserViewModel: ViewModel() {
+class BrowserVM: ViewModel() {
 
     ///////////////////
     // browser state //
     ///////////////////
     private val _state: MutableStateFlow<BrowserState> = MutableStateFlow<BrowserState>(
-        BrowserState())
+        BrowserState()
+    )
     val state: StateFlow<BrowserState> = _state
 
     fun open(item: TauItem, target: BrowserTarget) {

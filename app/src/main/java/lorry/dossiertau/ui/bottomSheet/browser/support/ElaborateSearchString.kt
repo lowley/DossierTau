@@ -1,4 +1,4 @@
-package lorry.dossiertau.ui.bottomSheet.support
+package lorry.dossiertau.ui.bottomSheet.browser.support
 
 import kotlinx.coroutines.flow.StateFlow
 import lorry.dossiertau.data.model.TauItem

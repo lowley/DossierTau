@@ -8,27 +8,26 @@ import androidx.compose.ui.Modifier
 import lorry.dossiertau.MainActivity
 import lorry.dossiertau.ShortcutMakingEndMessage
 import lorry.dossiertau.data.model.TauItem
-import lorry.dossiertau.ui.bottomSheet.contents.ApplicationContent
-import lorry.dossiertau.ui.bottomSheet.contents.ItemContent
-import lorry.dossiertau.ui.bottomSheet.support.BottomSheetType
-import lorry.dossiertau.ui.bottomSheet.support.GestureOwner
-import lorry.dossiertau.ui.bottomSheet.support.IBrowser
+import lorry.dossiertau.ui.bottomSheet.contents.ContentApplication
+import lorry.dossiertau.ui.bottomSheet.contents.ContentItem
+import lorry.dossiertau.ui.bottomSheet.support.SheetType
+import lorry.dossiertau.ui.bottomSheet.browser.IBrowser
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainActivity.Sheet(
     modifier: Modifier = Modifier,
-    type: BottomSheetType?,
+    type: SheetType?,
     item: TauItem?,
     sheetText: MutableState<String>,
     sheetState: SheetState,
     browser: IBrowser,
-    changeSheetType: (BottomSheetType) -> Unit = {}
+    changeSheetType: (SheetType) -> Unit = {}
     ) {
 
     when (type) {
-        BottomSheetType.APPLICATION -> {
-            ApplicationContent(
+        SheetType.APPLICATION -> {
+            ContentApplication(
                 modifier = modifier,
                 viewModel = viewModel,
                 sheetText = sheetText,
@@ -37,8 +36,8 @@ fun MainActivity.Sheet(
             )
         }
 
-        BottomSheetType.ITEM -> {
-            ItemContent(
+        SheetType.ITEM -> {
+            ContentItem(
                 modifier = modifier,
                 item = item,
                 browser = browser,

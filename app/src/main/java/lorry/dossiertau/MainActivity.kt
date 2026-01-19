@@ -89,9 +89,8 @@ import lorry.dossiertau.data.model.picture
 import lorry.dossiertau.ui.AppBus
 import lorry.dossiertau.ui.bottomSheet.SheetVM
 import lorry.dossiertau.ui.bottomSheet.Sheet
-import lorry.dossiertau.ui.bottomSheet.support.BottomSheetType
-import lorry.dossiertau.ui.bottomSheet.support.GestureOwner
-import lorry.dossiertau.ui.bottomSheet.support.IBrowser
+import lorry.dossiertau.ui.bottomSheet.support.SheetType
+import lorry.dossiertau.ui.bottomSheet.browser.IBrowser
 import lorry.dossiertau.ui.breadcrumb.BreadcrumbComponent
 import lorry.dossiertau.ui.displayedItem.DisplayedItem
 
@@ -131,7 +130,7 @@ class MainActivity() : ComponentActivity() {
                         topBar = {
                             TopAppBar(
                                 setSheetVisible = {
-                                    bsVM.changeType(BottomSheetType.APPLICATION)
+                                    bsVM.changeType(SheetType.APPLICATION)
                                     scope.launch {
                                         sheetState.expand()
                                     }
@@ -188,7 +187,7 @@ class MainActivity() : ComponentActivity() {
                                     viewModel.setTauFolder(newFolder)
                                 },
                                 setSheetVisible = { item ->
-                                    bsVM.changeType(BottomSheetType.ITEM)
+                                    bsVM.changeType(SheetType.ITEM)
                                     sheetItem.value = item
                                     scope.launch {
                                         sheetState.expand()
@@ -200,7 +199,7 @@ class MainActivity() : ComponentActivity() {
                         val scope = rememberCoroutineScope()
                         val browser: IBrowser by inject()
 
-                        if (currentType.value != null && currentType.value != BottomSheetType.NONE) {
+                        if (currentType.value != null && currentType.value != SheetType.NONE) {
                             ModalBottomSheet(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -209,7 +208,7 @@ class MainActivity() : ComponentActivity() {
                                     browser.vm.changeState(isOpen = false)
                                     scope.launch {
                                         sheetState.hide()
-                                        bsVM.changeType(BottomSheetType.NONE)
+                                        bsVM.changeType(SheetType.NONE)
                                     }
                                     browser.vm.changeState(target = null)
                                 },

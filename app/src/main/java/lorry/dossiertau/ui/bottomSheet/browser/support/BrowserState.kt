@@ -1,4 +1,4 @@
-package lorry.dossiertau.ui.bottomSheet.support
+package lorry.dossiertau.ui.bottomSheet.browser.support
 
 import androidx.compose.runtime.Immutable
 import kotlinx.coroutines.flow.MutableSharedFlow

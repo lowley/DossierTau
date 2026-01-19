@@ -1,4 +1,4 @@
-package lorry.dossiertau.ui.bottomSheet.support
+package lorry.dossiertau.ui.bottomSheet.browser
 
 import android.app.Activity
 import android.content.Context
@@ -7,7 +7,6 @@ import androidx.activity.ComponentActivity
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -24,7 +23,11 @@ import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.data.model.copy
 import lorry.dossiertau.data.model.fullPath
 import lorry.dossiertau.support.littleClasses.TauPicture
+import lorry.dossiertau.ui.bottomSheet.browser.support.BrowserState
+import lorry.dossiertau.ui.bottomSheet.browser.support.BrowserWindow
+import lorry.dossiertau.ui.bottomSheet.support.SheetType
 import lorry.dossiertau.ui.support.base64.IVideoInfoEmbedder
+import lorry.dossiertau.ui.support.base64.VideoInfoEmbedder
 import lorry.dossiertau.ui.support.capsule.CapsuleComponent
 import lorry.dossiertau.ui.support.capsule.utilities.CroppedPicture
 import lorry.dossiertau.ui.support.capsule.utilities.InitialPicture
@@ -34,7 +37,7 @@ import kotlin.getValue
 class Browser(
 ) : IBrowser {
 
-    override val vm: BrowserViewModel by inject(BrowserViewModel::class.java)
+    override val vm: BrowserVM by inject(BrowserVM::class.java)
 
     val folderCompo: IFolderCompo by inject(IFolderCompo::class.java)
 
@@ -98,7 +101,7 @@ class Browser(
         imageUrl: String,
         sheetState: SheetState,
         scope: CoroutineScope,
-        changeSheetType: (BottomSheetType) -> Unit
+        changeSheetType: (SheetType) -> Unit
     ) {
         val selectedItem = viewModel.selectedItem.value ?: return
 
@@ -120,11 +123,11 @@ class Browser(
         selectedItem: TauItem,
         sheetState: SheetState,
         scope: CoroutineScope,
-        changeSheetType: (BottomSheetType) -> Unit = {}
+        changeSheetType: (SheetType) -> Unit = {}
     ) {
         scope.launch(Dispatchers.Main) {
             sheetState.hide()
-            changeSheetType(BottomSheetType.NONE)
+            changeSheetType(SheetType.NONE)
         }
 
         val image = withContext(Dispatchers.IO) {
@@ -151,7 +154,7 @@ class Browser(
         capsuleMgr.save(
             element = InitialPicture(
                 imageBitmap.bitmap,
-                lorry.dossiertau.ui.support.base64.VideoInfoEmbedder() as IVideoInfoEmbedder
+                VideoInfoEmbedder() as IVideoInfoEmbedder
             ),
             targetPath = selectedItem.fullPath,
             useOld = false
@@ -160,7 +163,7 @@ class Browser(
         capsuleMgr.save(
             element = CroppedPicture(
                 imageBitmap.bitmap,
-                lorry.dossiertau.ui.support.base64.VideoInfoEmbedder() as IVideoInfoEmbedder
+                VideoInfoEmbedder() as IVideoInfoEmbedder
             ),
             targetPath = selectedItem.fullPath,
             useOld = false

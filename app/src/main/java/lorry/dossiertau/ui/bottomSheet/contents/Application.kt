@@ -47,7 +47,7 @@ import kotlin.getValue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ApplicationContent(
+fun ContentApplication(
     viewModel: TauViewModel,
     sheetText: MutableState<String>,
     shortcutMakingEndMessage: String,

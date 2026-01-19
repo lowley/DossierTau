@@ -1,17 +1,19 @@
-package lorry.dossiertau.ui.bottomSheet.support
+package lorry.dossiertau.ui.bottomSheet.browser
 
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Modifier
 import kotlinx.coroutines.CoroutineScope
 import lorry.dossiertau.TauViewModel
 import lorry.dossiertau.data.model.TauItem
+import lorry.dossiertau.ui.bottomSheet.browser.support.BrowserState
+import lorry.dossiertau.ui.bottomSheet.browser.support.BrowserTarget
+import lorry.dossiertau.ui.bottomSheet.support.SheetType
 
 interface IBrowser {
 
-    val vm: BrowserViewModel
+    val vm: BrowserVM
 
     @Composable
     fun rememberBrowserState(): BrowserState
@@ -29,7 +31,7 @@ interface IBrowser {
         imageUrl: String,
         sheetState: SheetState,
         scope: CoroutineScope,
-        changeSheetType: (BottomSheetType) -> Unit
+        changeSheetType: (SheetType) -> Unit
     )
 }
 

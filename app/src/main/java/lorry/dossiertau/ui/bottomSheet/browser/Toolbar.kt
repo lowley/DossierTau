@@ -1,14 +1,12 @@
-package lorry.dossiertau.ui.bottomSheet.support
+package lorry.dossiertau.ui.bottomSheet.browser
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
@@ -23,15 +21,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import lorry.dossiertau.MainActivity
 import lorry.dossiertau.R
 import lorry.dossiertau.TauApp
-import org.koin.android.ext.android.inject
+import lorry.dossiertau.ui.bottomSheet.browser.support.BrowserTarget
 
 //implémentation ici: [[BrowserBottomToolbar]]
 
 @Composable
-fun BrowserBottomToolbar(
+fun BrowserToolbar(
     modifier: Modifier = Modifier,
     exitImageSelection: () -> Unit
 ) {

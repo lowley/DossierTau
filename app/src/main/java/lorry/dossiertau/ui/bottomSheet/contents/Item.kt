@@ -22,7 +22,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -43,24 +42,23 @@ import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.data.model.isFile
 import lorry.dossiertau.data.model.modificationDate
 import lorry.dossiertau.data.model.name
-import lorry.dossiertau.ui.bottomSheet.support.BottomSheetType
-import lorry.dossiertau.ui.bottomSheet.support.BrowserTarget
-import lorry.dossiertau.ui.bottomSheet.support.BrowserViewModel
-import lorry.dossiertau.ui.bottomSheet.support.GestureOwner
-import lorry.dossiertau.ui.bottomSheet.support.IBrowser
+import lorry.dossiertau.ui.bottomSheet.support.SheetType
+import lorry.dossiertau.ui.bottomSheet.browser.support.BrowserTarget
+import lorry.dossiertau.ui.bottomSheet.browser.BrowserVM
+import lorry.dossiertau.ui.bottomSheet.browser.IBrowser
 import lorry.dossiertau.usecases.applicationFavorites.AppliFavos
 import lorry.dossiertau.usecases.applicationFavorites.contains
 import org.koin.java.KoinJavaComponent.inject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainActivity.ItemContent(
+fun MainActivity.ContentItem(
     item: TauItem?,
     browser: IBrowser,
     sheetState: SheetState,
     tauvm: TauViewModel,
     modifier: Modifier,
-    changeSheetType: (BottomSheetType) -> Unit = {}
+    changeSheetType: (SheetType) -> Unit = {}
 
 ) {
     Box(
@@ -97,7 +95,7 @@ fun MainActivity.Inside(
     browser: IBrowser,
     sheetState: SheetState,
     tauvm: TauViewModel,
-    changeSheetType: (BottomSheetType) -> Unit
+    changeSheetType: (SheetType) -> Unit
 ) {
     val bvm = browser.vm
     val state = bvm.state.collectAsState()
@@ -116,7 +114,7 @@ fun MainActivity.Inside(
                     browser.vm.close()
                     scope.launch {
                         sheetState.hide()
-                        changeSheetType(BottomSheetType.NONE)
+                        changeSheetType(SheetType.NONE)
                     }
                     browser.vm.changeState(target = null)
                 }
@@ -177,8 +175,8 @@ fun ApplicationFavorite(
     browser: IBrowser,
     sheetState: SheetState,
     tauvm: TauViewModel,
-    changeSheetType: (BottomSheetType) -> Unit,
-    bvm: BrowserViewModel,
+    changeSheetType: (SheetType) -> Unit,
+    bvm: BrowserVM,
     scope: CoroutineScope,
 ) {
     if (item == null)
@@ -210,8 +208,8 @@ fun MainActivity.HtmlButton(
     browser: IBrowser,
     sheetState: SheetState,
     tauvm: TauViewModel,
-    changeSheetType: (BottomSheetType) -> Unit,
-    bvm: BrowserViewModel,
+    changeSheetType: (SheetType) -> Unit,
+    bvm: BrowserVM,
     scope: CoroutineScope
 ) {
     Button(

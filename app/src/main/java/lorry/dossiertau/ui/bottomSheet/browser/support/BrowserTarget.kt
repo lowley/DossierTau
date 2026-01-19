@@ -1,4 +1,4 @@
-package lorry.dossiertau.ui.bottomSheet.support
+package lorry.dossiertau.ui.bottomSheet.browser.support
 
 sealed class BrowserTarget(
     val url: String,
