@@ -8,6 +8,7 @@ import lorry.dossiertau.support.littleClasses.TauIdentifier
 import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
+import lorry.dossiertau.usecases.applicationFavorites.support.Favorite
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -151,10 +152,12 @@ fun TauItem.copy(
         }
 
         else -> this
-
-
     }
+}
 
-
-
+fun TauItem.toFavorite(): Favorite {
+    return Favorite.Data(
+        _fullPath = this.fullPath,
+        _picture = this.picture
+    )
 }

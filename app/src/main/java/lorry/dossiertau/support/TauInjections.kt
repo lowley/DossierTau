@@ -42,6 +42,9 @@ import lorry.dossiertau.ui.support.base64.IBase64DataSource
 import lorry.dossiertau.ui.support.capsule.CapsuleComponent
 import lorry.dossiertau.ui.support.capsule.ICapsuleComponent
 import lorry.dossiertau.ui.support.capsule.utilities.FileCapsuleIO
+import lorry.dossiertau.usecases.applicationFavorites.AFVm
+import lorry.dossiertau.usecases.applicationFavorites.AppliFavos
+import lorry.dossiertau.usecases.applicationFavorites.support.AFRepo
 import lorry.folder.items.dossiersigma.external.playing.IPlayingDataSource
 import lorry.folder.items.dossiersigma.external.playing.PlayingDataSource
 import org.koin.core.qualifier.named
@@ -104,6 +107,10 @@ val TauInjections = module {
     single<IDiskRepo> { DiskRepo() }
     single<IWebScrappingRepo> { WebScrappingRepo() }
     single { Links(get(), get(), get(), get(), get()) }
+
+    single { AppliFavos() }
+    single { AFRepo() }
+    single { AFVm() }
 
     single<TauViewModel>(named("real")) { TauViewModel(get(), get(), get(), get()) }
     single<TauViewModel> { get(named("real")) }
