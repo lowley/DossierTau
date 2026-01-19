@@ -32,7 +32,6 @@ import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RippleConfiguration
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -88,8 +87,8 @@ import lorry.dossiertau.data.model.TauFolder
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.data.model.picture
 import lorry.dossiertau.ui.AppBus
-import lorry.dossiertau.ui.bottomSheet.BSVM
-import lorry.dossiertau.ui.bottomSheet.BottomSheetContent
+import lorry.dossiertau.ui.bottomSheet.SheetVM
+import lorry.dossiertau.ui.bottomSheet.Sheet
 import lorry.dossiertau.ui.bottomSheet.support.BottomSheetType
 import lorry.dossiertau.ui.bottomSheet.support.GestureOwner
 import lorry.dossiertau.ui.bottomSheet.support.IBrowser
@@ -102,7 +101,7 @@ class MainActivity() : ComponentActivity() {
     val links: Links by inject()
     val breadcrumbComponent: BreadcrumbComponent by inject()
 
-    val bsVM: BSVM by inject()
+    val bsVM: SheetVM by inject()
     val folderCompo = viewModel.folderCompo
 
     @OptIn(ExperimentalMaterial3Api::class)
@@ -223,7 +222,7 @@ class MainActivity() : ComponentActivity() {
                                 ),
                                 contentWindowInsets = { WindowInsets(0) } // Pour le edge-to-edge
                             ) {
-                                 BottomSheetContent(
+                                 Sheet(
                                      modifier = Modifier
                                          .navigationBarsPadding(),
                                      type = currentType.value,

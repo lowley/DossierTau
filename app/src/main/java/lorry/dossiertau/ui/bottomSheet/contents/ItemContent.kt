@@ -1,4 +1,4 @@
-package lorry.dossiertau.ui.bottomSheet
+package lorry.dossiertau.ui.bottomSheet.contents
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -22,10 +22,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -38,13 +36,13 @@ import coil.compose.AsyncImage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import lorry.dossiertau.MainActivity
+import lorry.dossiertau.R
 import lorry.dossiertau.TauColors
 import lorry.dossiertau.TauViewModel
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.data.model.isFile
 import lorry.dossiertau.data.model.modificationDate
 import lorry.dossiertau.data.model.name
-import lorry.dossiertau.data.model.toFavorite
 import lorry.dossiertau.ui.bottomSheet.support.BottomSheetType
 import lorry.dossiertau.ui.bottomSheet.support.BrowserTarget
 import lorry.dossiertau.ui.bottomSheet.support.BrowserViewModel
@@ -52,9 +50,7 @@ import lorry.dossiertau.ui.bottomSheet.support.GestureOwner
 import lorry.dossiertau.ui.bottomSheet.support.IBrowser
 import lorry.dossiertau.usecases.applicationFavorites.AppliFavos
 import lorry.dossiertau.usecases.applicationFavorites.contains
-import lorry.dossiertau.usecases.applicationFavorites.support.Favorite
 import org.koin.java.KoinJavaComponent.inject
-import kotlin.Boolean
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -204,7 +200,7 @@ fun ApplicationFavorite(
             .clickable{
                 appliFavos.toggleApplicationFavorite(item)
             },
-        model = if (isApplicationfavorite) lorry.dossiertau.R.drawable.star_fill else lorry.dossiertau.R.drawable.star,
+        model = if (isApplicationfavorite) R.drawable.star_fill else R.drawable.star,
         contentDescription = "Icone du titre",
         colorFilter = ColorFilter.tint(Color(0xFFE1D693))
     )
@@ -220,7 +216,7 @@ fun MainActivity.HtmlButton(
     tauvm: TauViewModel,
     changeSheetType: (BottomSheetType) -> Unit,
     bvm: BrowserViewModel,
-    scope: kotlinx.coroutines.CoroutineScope
+    scope: CoroutineScope
 ) {
     Button(
         modifier = modifier,
@@ -283,7 +279,7 @@ fun BottomSheetHeader(
                     .size(24.dp)
                     .align(Alignment.CenterVertically)
                     .padding(start = 0.dp),
-                model = lorry.dossiertau.R.drawable.title3,
+                model = R.drawable.title3,
                 contentDescription = "Icone du titre",
             )
 
@@ -324,7 +320,7 @@ fun BottomSheetHeader(
                         AsyncImage(
                             modifier = Modifier
                                 .size(24.dp),
-                            model = lorry.dossiertau.R.drawable.extensions,
+                            model = R.drawable.extensions,
                             contentDescription = "Icone du titre",
                         )
 
@@ -362,7 +358,7 @@ fun BottomSheetHeader(
                     modifier = Modifier
                         .size(20.dp)
                         .align(Alignment.CenterVertically),
-                    model = lorry.dossiertau.R.drawable.calendrier,
+                    model = R.drawable.calendrier,
                     contentDescription = "Calendrier",
                 )
 
