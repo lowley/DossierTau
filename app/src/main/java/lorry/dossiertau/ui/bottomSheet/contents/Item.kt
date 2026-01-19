@@ -42,12 +42,14 @@ import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.data.model.isFile
 import lorry.dossiertau.data.model.modificationDate
 import lorry.dossiertau.data.model.name
+import lorry.dossiertau.data.model.toFavorite
 import lorry.dossiertau.ui.bottomSheet.support.SheetType
 import lorry.dossiertau.ui.bottomSheet.browser.support.BrowserTarget
 import lorry.dossiertau.ui.bottomSheet.browser.BrowserVM
 import lorry.dossiertau.ui.bottomSheet.browser.IBrowser
 import lorry.dossiertau.usecases.applicationFavorites.AppliFavos
 import lorry.dossiertau.usecases.applicationFavorites.contains
+import lorry.folder.items.dossiersigma.external.userPreferences.PrefsAppliFavo
 import org.koin.android.ext.android.inject
 import org.koin.java.KoinJavaComponent.inject
 
@@ -58,8 +60,6 @@ fun MainActivity.ContentItem(
     sheetState: SheetState,
     tauvm: TauViewModel,
     modifier: Modifier,
-    changeSheetType: (SheetType) -> Unit = {}
-
 ) {
     Box(
         modifier = modifier
@@ -81,7 +81,6 @@ fun MainActivity.ContentItem(
                 item = item,
                 sheetState = sheetState,
                 tauvm = tauvm,
-                changeSheetType = changeSheetType
             )
         }
     }
@@ -93,7 +92,6 @@ fun MainActivity.Inside(
     item: TauItem?,
     sheetState: SheetState,
     tauvm: TauViewModel,
-    changeSheetType: (SheetType) -> Unit
 ) {
     val browser: IBrowser by inject<IBrowser>()
     val bvm = browser.vm
@@ -113,10 +111,11 @@ fun MainActivity.Inside(
                     browser.vm.close()
                     scope.launch {
                         sheetState.hide()
-                        changeSheetType(SheetType.NONE)
+                        bsVM.changeType(SheetType.NONE)
                     }
                     browser.vm.changeState(target = null)
-                }
+                },
+                bsVM = bsVM
             )
         } else {
 
@@ -129,7 +128,7 @@ fun MainActivity.Inside(
                         .align(Alignment.TopEnd)
                         .padding(end = 10.dp),
                     item = item, browser = browser, sheetState = sheetState,
-                    tauvm = tauvm, changeSheetType = changeSheetType, bvm = bvm,
+                    tauvm = tauvm, bvm = bvm,
                     scope = scope,
                 )
 
@@ -157,7 +156,7 @@ fun MainActivity.Inside(
                 HtmlButton(
                     modifier = Modifier,
                     item = item, browser = browser, sheetState = sheetState,
-                    tauvm = tauvm, changeSheetType = changeSheetType, bvm = bvm,
+                    tauvm = tauvm, bvm = bvm,
                     scope = scope
                 )
             }
@@ -174,7 +173,6 @@ fun ApplicationFavorite(
     browser: IBrowser,
     sheetState: SheetState,
     tauvm: TauViewModel,
-    changeSheetType: (SheetType) -> Unit,
     bvm: BrowserVM,
     scope: CoroutineScope,
 ) {
@@ -184,14 +182,22 @@ fun ApplicationFavorite(
     val appliFavos: AppliFavos by inject(AppliFavos::class.java)
     val favoris by appliFavos.appliFavorites.collectAsState()
     val isApplicationfavorite = favoris.contains(item)
+    val prefsAppliFavo: PrefsAppliFavo by inject(PrefsAppliFavo::class.java)
 
     AsyncImage(
         modifier = Modifier
             .padding(end = 25.dp)
             .align(Alignment.TopEnd)
             .size(24.dp)
-            .clickable{
+            .clickable {
                 appliFavos.toggleApplicationFavorite(item)
+                scope.launch {
+                    if (isApplicationfavorite) {
+                        prefsAppliFavo.removeAppliFavo(item.toFavorite())
+                    } else {
+                        prefsAppliFavo.addAppliFavo(item.toFavorite())
+                    }
+                }
             },
         model = if (isApplicationfavorite) R.drawable.star_fill else R.drawable.star,
         contentDescription = "Icone du titre",
@@ -207,7 +213,6 @@ fun MainActivity.HtmlButton(
     browser: IBrowser,
     sheetState: SheetState,
     tauvm: TauViewModel,
-    changeSheetType: (SheetType) -> Unit,
     bvm: BrowserVM,
     scope: CoroutineScope
 ) {
@@ -231,7 +236,7 @@ fun MainActivity.HtmlButton(
                         imageUrl = imageUrl,
                         sheetState = sheetState,
                         scope = scope,
-                        changeSheetType = changeSheetType
+                        bsVm = bsVM
                     )
                 }
             )

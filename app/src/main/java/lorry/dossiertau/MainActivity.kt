@@ -227,9 +227,6 @@ class MainActivity() : ComponentActivity() {
                                      item = sheetItem.value,
                                      sheetText = sheetText,
                                      sheetState = sheetState,
-                                     changeSheetType = {
-                                         bsVM.changeType(it)
-                                     }
                                 )
                             }
                         }

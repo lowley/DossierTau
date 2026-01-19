@@ -4,7 +4,6 @@ import androidx.compose.ui.graphics.Color
 import kotlinx.serialization.Serializable
 import java.util.UUID
 
-@Serializable
 data class ColoredTag(
     val id: UUID? = UUID.randomUUID(),
     val color: Color,

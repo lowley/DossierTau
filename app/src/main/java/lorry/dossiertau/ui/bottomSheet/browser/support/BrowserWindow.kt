@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import lorry.dossiertau.ui.bottomSheet.SheetVM
 import lorry.dossiertau.ui.bottomSheet.browser.BrowserToolbar
 
 @Composable
@@ -28,7 +29,7 @@ fun BrowserWindow(
     setCanGoBack: (Boolean) -> Unit,
     setCanGoForward: (Boolean) -> Unit,
     closeBrowser: () -> Unit,
-    exitImageSelection: () -> Unit
+    exitImageSelection: () -> Unit,
 ) {
     Column(modifier = modifier.fillMaxSize()) {
 

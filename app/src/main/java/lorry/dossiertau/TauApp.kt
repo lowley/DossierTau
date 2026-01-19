@@ -7,6 +7,7 @@ import org.koin.core.Koin
 import org.koin.core.KoinApplication
 import org.koin.core.context.startKoin
 import org.koin.dsl.koinApplication
+import kotlinx.serialization.json.Json
 
 class TauApp: Application() {
 
@@ -27,4 +28,11 @@ class TauApp: Application() {
         startKoin(app)
         instance = this
     }
+}
+
+
+val json = Json {
+    encodeDefaults = true
+    ignoreUnknownKeys = true
+    classDiscriminator = "type"
 }

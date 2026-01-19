@@ -1,5 +1,8 @@
 package lorry.dossiertau.support.littleClasses
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 @JvmInline
 value class TauDate(val value: Long) {
 

@@ -1,5 +1,6 @@
 package lorry.dossiertau.usecases.applicationFavorites.support
 
+import kotlinx.serialization.Serializable
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.data.model.fullPath
 import lorry.dossiertau.data.model.toFavorite
@@ -8,10 +9,13 @@ import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
 import lorry.dossiertau.support.littleClasses.name
 
+@Serializable
 sealed class Favorite(
 ) {
+    @Serializable
     object EMPTY: Favorite()
 
+    @Serializable
     data class Data(
         val _fullPath: TauPath,
         val _picture: TauPicture,

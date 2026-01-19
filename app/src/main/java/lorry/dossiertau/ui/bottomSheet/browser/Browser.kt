@@ -23,6 +23,7 @@ import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.data.model.copy
 import lorry.dossiertau.data.model.fullPath
 import lorry.dossiertau.support.littleClasses.TauPicture
+import lorry.dossiertau.ui.bottomSheet.SheetVM
 import lorry.dossiertau.ui.bottomSheet.browser.support.BrowserState
 import lorry.dossiertau.ui.bottomSheet.browser.support.BrowserWindow
 import lorry.dossiertau.ui.bottomSheet.support.SheetType
@@ -61,7 +62,8 @@ class Browser(
     @Composable
     override fun Render(
         modifier: Modifier,
-        exitImageSelection: () -> Unit
+        exitImageSelection: () -> Unit,
+        bsVM: SheetVM
     ) {
         val browserState: BrowserState by vm.state.collectAsState()
 
@@ -85,7 +87,7 @@ class Browser(
                 closeBrowser = {
                     vm.close()
                 },
-                exitImageSelection = exitImageSelection
+                exitImageSelection = exitImageSelection,
             )
     }
 
@@ -101,7 +103,7 @@ class Browser(
         imageUrl: String,
         sheetState: SheetState,
         scope: CoroutineScope,
-        changeSheetType: (SheetType) -> Unit
+        bsVm: SheetVM,
     ) {
         val selectedItem = viewModel.selectedItem.value ?: return
 
@@ -111,8 +113,7 @@ class Browser(
                 selectedItem = selectedItem,
                 sheetState = sheetState,
                 scope = scope,
-                changeSheetType = changeSheetType
-
+                bsVm = bsVm
             )
         }
     }
@@ -123,11 +124,12 @@ class Browser(
         selectedItem: TauItem,
         sheetState: SheetState,
         scope: CoroutineScope,
-        changeSheetType: (SheetType) -> Unit = {}
+        bsVm: SheetVM,
     ) {
         scope.launch(Dispatchers.Main) {
             sheetState.hide()
-            changeSheetType(SheetType.NONE)
+            bsVm.changeType(SheetType.NONE)
+
         }
 
         val image = withContext(Dispatchers.IO) {

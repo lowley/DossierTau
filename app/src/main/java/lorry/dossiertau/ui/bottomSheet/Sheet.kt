@@ -11,7 +11,6 @@ import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.ui.bottomSheet.contents.ContentApplication
 import lorry.dossiertau.ui.bottomSheet.contents.ContentItem
 import lorry.dossiertau.ui.bottomSheet.support.SheetType
-import lorry.dossiertau.ui.bottomSheet.browser.IBrowser
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -21,7 +20,6 @@ fun MainActivity.Sheet(
     item: TauItem?,
     sheetText: MutableState<String>,
     sheetState: SheetState,
-    changeSheetType: (SheetType) -> Unit = {}
     ) {
 
     when (type) {
@@ -41,7 +39,6 @@ fun MainActivity.Sheet(
                 item = item,
                 sheetState = sheetState,
                 tauvm = viewModel,
-                changeSheetType = changeSheetType
             )
         }
 

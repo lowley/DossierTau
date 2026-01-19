@@ -47,6 +47,7 @@ import lorry.dossiertau.usecases.applicationFavorites.AppliFavos
 import lorry.dossiertau.usecases.applicationFavorites.support.AFRepo
 import lorry.folder.items.dossiersigma.external.playing.IPlayingDataSource
 import lorry.folder.items.dossiersigma.external.playing.PlayingDataSource
+import lorry.folder.items.dossiersigma.external.userPreferences.PrefsAppliFavo
 import org.koin.core.qualifier.named
 
 val TauInjections = module {
@@ -89,6 +90,7 @@ val TauInjections = module {
     single { DisplayItemRepo() }
     single<IPlayingDataSource> { PlayingDataSource(get()) }
 
+    single { PrefsAppliFavo(get()) }
     single<IFolderCompo>(named("real")) {
         FolderCompo(
             folderRepo = get(),

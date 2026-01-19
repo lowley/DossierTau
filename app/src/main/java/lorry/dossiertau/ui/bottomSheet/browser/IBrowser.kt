@@ -7,9 +7,9 @@ import androidx.compose.ui.Modifier
 import kotlinx.coroutines.CoroutineScope
 import lorry.dossiertau.TauViewModel
 import lorry.dossiertau.data.model.TauItem
+import lorry.dossiertau.ui.bottomSheet.SheetVM
 import lorry.dossiertau.ui.bottomSheet.browser.support.BrowserState
 import lorry.dossiertau.ui.bottomSheet.browser.support.BrowserTarget
-import lorry.dossiertau.ui.bottomSheet.support.SheetType
 
 interface IBrowser {
 
@@ -22,7 +22,8 @@ interface IBrowser {
     @Composable
     fun Render(
         modifier: Modifier,
-        exitImageSelection: () -> Unit
+        exitImageSelection: () -> Unit,
+        bsVM: SheetVM
     )
 
     @OptIn(ExperimentalMaterial3Api::class)
@@ -31,7 +32,7 @@ interface IBrowser {
         imageUrl: String,
         sheetState: SheetState,
         scope: CoroutineScope,
-        changeSheetType: (SheetType) -> Unit
+        bsVm: SheetVM,
     )
 }
 

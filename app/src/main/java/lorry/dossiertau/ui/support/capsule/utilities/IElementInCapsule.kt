@@ -13,7 +13,6 @@ import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.ui.support.base64.IVideoInfoEmbedder
 import lorry.dossiertau.ui.support.base64.VideoInfoEmbedder
 
-@Serializable
 data class CapsuleData(
     val initialPicture: String? = null,       // base64
     val croppedPicture: String? = null,       // base64
@@ -23,6 +22,7 @@ data class CapsuleData(
     val memo2: String? = null,
     val country: String? = null
 ) {
+    @Transient
     val videoInfoEmbedder = VideoInfoEmbedder()
 
     @Transient
