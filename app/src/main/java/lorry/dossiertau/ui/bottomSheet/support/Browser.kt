@@ -58,7 +58,6 @@ class Browser(
     @Composable
     override fun Render(
         modifier: Modifier,
-        gestureOwner: MutableState<GestureOwner>,
         exitImageSelection: () -> Unit
     ) {
         val browserState: BrowserState by vm.state.collectAsState()
@@ -83,7 +82,6 @@ class Browser(
                 closeBrowser = {
                     vm.close()
                 },
-                gestureOwner = gestureOwner,
                 exitImageSelection = exitImageSelection
             )
     }

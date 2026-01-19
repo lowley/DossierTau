@@ -198,7 +198,6 @@ class MainActivity() : ComponentActivity() {
                         }
 
                         val scope = rememberCoroutineScope()
-                        var gestureOwner = remember { mutableStateOf(GestureOwner.None) }
                         val browser: IBrowser by inject()
 
                         if (currentType.value != null && currentType.value != BottomSheetType.NONE) {
@@ -230,7 +229,6 @@ class MainActivity() : ComponentActivity() {
                                      sheetText = sheetText,
                                      sheetState = sheetState,
                                      browser = browser,
-                                     gestureOwner = gestureOwner,
                                      changeSheetType = {
                                          bsVM.changeType(it)
                                      }

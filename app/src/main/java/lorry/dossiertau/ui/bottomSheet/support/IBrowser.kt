@@ -20,7 +20,6 @@ interface IBrowser {
     @Composable
     fun Render(
         modifier: Modifier,
-        gestureOwner: MutableState<GestureOwner>,
         exitImageSelection: () -> Unit
     )
 

@@ -23,7 +23,6 @@ fun MainActivity.Sheet(
     sheetText: MutableState<String>,
     sheetState: SheetState,
     browser: IBrowser,
-    gestureOwner: MutableState<GestureOwner>,
     changeSheetType: (BottomSheetType) -> Unit = {}
     ) {
 
@@ -45,7 +44,6 @@ fun MainActivity.Sheet(
                 browser = browser,
                 sheetState = sheetState,
                 tauvm = viewModel,
-                gestureOwner = gestureOwner,
                 changeSheetType = changeSheetType
             )
         }

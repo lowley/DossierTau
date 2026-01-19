@@ -34,21 +34,12 @@ import androidx.compose.ui.viewinterop.AndroidView
 
 @Composable
 fun BrowserWindow(
-    modifier: Modifier = Modifier
-        .pointerInput(Unit) {
-            awaitPointerEventScope {
-                val down = awaitFirstDown()
-                gestureOwner.value = GestureOwner.Sheet
-                waitForUpOrCancellation()
-                gestureOwner.value = GestureOwner.None
-            }
-        },
+    modifier: Modifier = Modifier,
     browserState: BrowserState,
     onImageClicked: (String) -> Unit,
     setCanGoBack: (Boolean) -> Unit,
     setCanGoForward: (Boolean) -> Unit,
     closeBrowser: () -> Unit,
-    gestureOwner: MutableState<GestureOwner>,
     exitImageSelection: () -> Unit
 ) {
     Column(modifier = modifier.fillMaxSize()) {
@@ -87,28 +78,6 @@ fun BrowserWindow(
                             null
                         )
                     }
-                }
-
-                // 1er touch : focus réel + ouverture IME
-                setOnTouchListener { v, ev ->
-                    when (ev.actionMasked) {
-                        MotionEvent.ACTION_DOWN -> {
-                            gestureOwner.value = GestureOwner.WebView
-                        }
-
-                        MotionEvent.ACTION_UP,
-                        MotionEvent.ACTION_CANCEL -> {
-                            gestureOwner.value = GestureOwner.None
-                        }
-                    }
-
-                    if (ev.action == MotionEvent.ACTION_DOWN) {
-                        if (!v.hasFocus()) {
-                            v.requestFocus()
-                            requestFocusFromTouch()
-                        }
-                    }
-                    false // ne pas consommer, laisser WebView gérer
                 }
 
                 addJavascriptInterface(

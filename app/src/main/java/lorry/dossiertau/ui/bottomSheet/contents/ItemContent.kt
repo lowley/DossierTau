@@ -59,7 +59,6 @@ fun MainActivity.ItemContent(
     browser: IBrowser,
     sheetState: SheetState,
     tauvm: TauViewModel,
-    gestureOwner: MutableState<GestureOwner>,
     modifier: Modifier,
     changeSheetType: (BottomSheetType) -> Unit = {}
 
@@ -85,7 +84,6 @@ fun MainActivity.ItemContent(
                 browser = browser,
                 sheetState = sheetState,
                 tauvm = tauvm,
-                gestureOwner = gestureOwner,
                 changeSheetType = changeSheetType
             )
         }
@@ -99,7 +97,6 @@ fun MainActivity.Inside(
     browser: IBrowser,
     sheetState: SheetState,
     tauvm: TauViewModel,
-    gestureOwner: MutableState<GestureOwner>,
     changeSheetType: (BottomSheetType) -> Unit
 ) {
     val bvm = browser.vm
@@ -115,7 +112,6 @@ fun MainActivity.Inside(
         if (state.value.isOpen) {
             browser.Render(
                 modifier = Modifier.heightIn(max = 670.dp),
-                gestureOwner = gestureOwner,
                 exitImageSelection = {
                     browser.vm.close()
                     scope.launch {
