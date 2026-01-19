@@ -180,7 +180,7 @@ fun ApplicationFavorite(
         return
 
     val appliFavos: AppliFavos by inject(AppliFavos::class.java)
-    val favoris by appliFavos.appliFavorites.collectAsState()
+    val favoris by appliFavos.appliFavorites.collectAsState(emptyList())
     val isApplicationfavorite = favoris.contains(item)
     val prefsAppliFavo: PrefsAppliFavo by inject(PrefsAppliFavo::class.java)
 

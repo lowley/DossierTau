@@ -8,9 +8,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.any
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import lorry.dossiertau.data.model.TauItem
+import lorry.dossiertau.data.model.fullPath
 import lorry.dossiertau.data.model.toFavorite
 import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.support.littleClasses.TauPath
@@ -26,32 +28,30 @@ class AppliFavos {
     val repo: AFRepo by inject(AFRepo::class.java)
     val vm: AFVm by inject(AFVm::class.java)
     val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    val prefsAppliFavo: PrefsAppliFavo by inject(PrefsAppliFavo::class.java)
 
-    val _appliFavorites = MutableStateFlow<List<Favorite>>(emptyList())
-    val appliFavorites = _appliFavorites.asStateFlow()
+    val appliFavorites = prefsAppliFavo.appliFavosFlow
 
     fun addFavorite(favorite: Favorite) {
-        _appliFavorites.update { appliFavorites.value.plus(favorite) }
+        scope.launch {
+            prefsAppliFavo.addAppliFavo(favorite)
+        }
     }
 
     fun removeFavorite(favorite: Favorite) {
-        _appliFavorites.update { appliFavorites.value.filter { it.fullPath != favorite.fullPath } }
+        scope.launch {
+            prefsAppliFavo.removeAppliFavo(favorite)
+        }
     }
 
     fun toggleApplicationFavorite(item: TauItem) {
-        val favorite = item.toFavorite()
-        val isApplicationfavorite = appliFavorites.value.contains(item)
-
-        if (isApplicationfavorite)
-            removeFavorite(favorite)
-        else addFavorite(favorite)
-    }
-
-    init {
-        val prefsAppliFavo: PrefsAppliFavo by inject(PrefsAppliFavo::class.java)
         scope.launch {
-            val all = prefsAppliFavo.appliFavos()
-            _appliFavorites.update { all }
+            val favorite = item.toFavorite()
+            val isApplicationfavorite = appliFavorites.first().any { it.fullPath == item.fullPath }
+
+            if (isApplicationfavorite)
+                removeFavorite(favorite)
+            else addFavorite(favorite)
         }
     }
 }

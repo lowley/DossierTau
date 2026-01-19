@@ -7,6 +7,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.serializer
@@ -40,9 +41,8 @@ open class PrefsAppliFavo(
     override suspend fun appliFavos(): List<Favorite> {
         return withContext(Dispatchers.IO) {
             var destinationFolders = emptyList<Favorite>()
-            appliFavosFlow.collect { item ->
-                destinationFolders = item
-            }
+            val item = appliFavosFlow.first()
+            destinationFolders = item
 
             return@withContext destinationFolders
         }
@@ -58,27 +58,21 @@ open class PrefsAppliFavo(
         }
     }
 
-    override suspend fun addAppliFavo(favorite: Favorite) {
-        withContext(Dispatchers.IO) {
-            var appliFavos = mutableSetOf<Favorite>()
-            appliFavosFlow.collect { item ->
-                appliFavos = item.toMutableSet()
-            }
+    override suspend fun addAppliFavo(favorite: Favorite) = withContext(Dispatchers.IO) {
+        var appliFavos = mutableSetOf<Favorite>()
+        val item = appliFavosFlow.first()
+        appliFavos = item.toMutableSet()
 
-            appliFavos.add(favorite)
-            saveAppliFavos(appliFavos.toList())
-        }
+        appliFavos.add(favorite)
+        saveAppliFavos(appliFavos.toList())
     }
 
-    override suspend fun removeAppliFavo(favorite: Favorite) {
-        withContext(Dispatchers.IO) {
-            var appliFavos = mutableSetOf<Favorite>()
-            appliFavosFlow.collect { item ->
-                appliFavos = item.toMutableSet()
-            }
+    override suspend fun removeAppliFavo(favorite: Favorite) = withContext(Dispatchers.IO) {
+        var appliFavos = mutableSetOf<Favorite>()
+        val item = appliFavosFlow.first()
+        appliFavos = item.toMutableSet()
 
-            val newOnes = appliFavos.filter { it.fullPath != favorite.fullPath }
-            saveAppliFavos(newOnes.toList())
-        }
+        val newOnes = appliFavos.filter { it.fullPath != favorite.fullPath }
+        saveAppliFavos(newOnes.toList())
     }
 }

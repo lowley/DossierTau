@@ -55,7 +55,7 @@ fun ContentApplication(
     modifier: Modifier
 ) {
     val appliFavos: AppliFavos by inject(AppliFavos::class.java)
-    val favoris by appliFavos.appliFavorites.collectAsState()
+    val favoris by appliFavos.appliFavorites.collectAsState(emptyList())
     val folderCompo: IFolderCompo by inject(IFolderCompo::class.java)
 
     var text by remember { mutableStateOf("truc") }
