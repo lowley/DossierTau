@@ -48,13 +48,13 @@ import lorry.dossiertau.ui.bottomSheet.browser.BrowserVM
 import lorry.dossiertau.ui.bottomSheet.browser.IBrowser
 import lorry.dossiertau.usecases.applicationFavorites.AppliFavos
 import lorry.dossiertau.usecases.applicationFavorites.contains
+import org.koin.android.ext.android.inject
 import org.koin.java.KoinJavaComponent.inject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainActivity.ContentItem(
     item: TauItem?,
-    browser: IBrowser,
     sheetState: SheetState,
     tauvm: TauViewModel,
     modifier: Modifier,
@@ -79,7 +79,6 @@ fun MainActivity.ContentItem(
         ) {
             Inside(
                 item = item,
-                browser = browser,
                 sheetState = sheetState,
                 tauvm = tauvm,
                 changeSheetType = changeSheetType
@@ -92,11 +91,11 @@ fun MainActivity.ContentItem(
 @Composable
 fun MainActivity.Inside(
     item: TauItem?,
-    browser: IBrowser,
     sheetState: SheetState,
     tauvm: TauViewModel,
     changeSheetType: (SheetType) -> Unit
 ) {
+    val browser: IBrowser by inject<IBrowser>()
     val bvm = browser.vm
     val state = bvm.state.collectAsState()
     val scope = rememberCoroutineScope()

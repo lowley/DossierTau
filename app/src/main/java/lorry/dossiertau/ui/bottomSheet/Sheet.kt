@@ -21,7 +21,6 @@ fun MainActivity.Sheet(
     item: TauItem?,
     sheetText: MutableState<String>,
     sheetState: SheetState,
-    browser: IBrowser,
     changeSheetType: (SheetType) -> Unit = {}
     ) {
 
@@ -40,7 +39,6 @@ fun MainActivity.Sheet(
             ContentItem(
                 modifier = modifier,
                 item = item,
-                browser = browser,
                 sheetState = sheetState,
                 tauvm = viewModel,
                 changeSheetType = changeSheetType
