@@ -24,6 +24,7 @@ import lorry.dossiertau.data.intelligenceService.utils.CIALevel
 import lorry.dossiertau.data.intelligenceService.utils.events.AtomicSpyLevel
 import lorry.dossiertau.data.intelligenceService.utils.events.GlobalSpyLevel
 import lorry.dossiertau.data.intelligenceService.utils.events.ISpyLevel
+import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauDate
 import org.koin.core.context.GlobalContext
@@ -59,7 +60,13 @@ class CIA() : LifecycleService() {
 
     override fun onCreate() {
         super.onCreate()
-        startForegroundServiceWithNotification()
+
+        scope.launch(dispatcher) {
+            spy.observedFolderFlow.collect { folder ->
+                startForegroundServiceWithNotification(folder = folder)
+            }
+        }
+
         airForce.cia = this
         airForce.startListeningForCIADecisions()
 
@@ -140,24 +147,22 @@ class CIA() : LifecycleService() {
         }
     }
 
-    private fun startForegroundServiceWithNotification() {
+    private fun startForegroundServiceWithNotification(folder: TauPath) {
         val channelId = "cia_channel"
         val channelName = "CIA Surveillance"
         val notificationId = 1
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                channelName,
-                NotificationManager.IMPORTANCE_LOW
-            )
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
-        }
+        val channel = NotificationChannel(
+            channelId,
+            channelName,
+            NotificationManager.IMPORTANCE_LOW
+        )
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(channel)
 
         val notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle("CIA active")
-            .setContentText("Service ok. Répertoire courant: ${spy.observedFolderFlow.value.path}")
+            .setContentText("Service ok. Répertoire courant: ${folder.path}")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .build()
 

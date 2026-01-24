@@ -62,7 +62,9 @@ fun BreadcrumbComponent.UI(
         segs?.dropLast(1)?.forEachIndexed { i, seg ->
             BreadcrumbChip(
                 text = seg,
-            ) { onClick(("/" + segs.slice(0..i).joinToString("/")).toTauPath()) }
+            ) {
+                onClick(("/" + segs.slice(0..i).joinToString("/")).toTauPath())
+            }
 
             if (i < segs.size - 1) Separator()
         }

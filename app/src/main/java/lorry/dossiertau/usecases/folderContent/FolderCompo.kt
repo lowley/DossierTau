@@ -28,6 +28,7 @@ import lorry.dossiertau.data.dbModel.OpType
 import lorry.dossiertau.data.dbModel.toTauItem
 import lorry.dossiertau.data.model.computeParentFolderDate
 import lorry.dossiertau.data.diskTransfer.toTauItems
+import lorry.dossiertau.data.intelligenceService.ISpy
 import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.data.model.TauFile
 import lorry.dossiertau.data.model.TauFolder
@@ -50,7 +51,8 @@ import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 open class FolderCompo(
     open val folderRepo: IFolderRepo,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
-    val fileDiffDAO: FileDiffDao
+    val fileDiffDAO: FileDiffDao,
+    private val spy: ISpy
 ) : IFolderCompo {
 
     companion object {
@@ -74,6 +76,7 @@ open class FolderCompo(
     override fun setFolderFlow(folderFullPath: TauPath) {
         //#[[coroutine longue]]
         scope.launch(dispatcher) {
+            spy.setObservedFolder(folderFullPath)
             val repoItems = folderRepo.getItemsInFullPath(folderFullPath)
             val compoItems = repoItems.toTauItems()
                 .filter { !it.name.value.startsWith('.') }

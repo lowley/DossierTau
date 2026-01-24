@@ -94,7 +94,8 @@ val TauInjections = module {
     single<IFolderCompo>(named("real")) {
         FolderCompo(
             folderRepo = get(),
-            fileDiffDAO = get()
+            fileDiffDAO = get(),
+            spy = get()
         )
     }
 

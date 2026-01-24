@@ -1,5 +1,6 @@
 package lorry.dossiertau.fileListDisplay
 
+import app.cash.turbine.test
 import dev.mokkery.answering.calls
 import dev.mokkery.answering.returns
 import dev.mokkery.everySuspend
@@ -12,8 +13,10 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import lorry.dossiertau.data.dbModel.AppDb
 import lorry.dossiertau.data.dbModel.FileDiffDao
+import lorry.dossiertau.data.intelligenceService.Spy
 import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.support.littleClasses.toTauFileName
+import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.usecases.generateHTMLs.Links
 import lorry.dossiertau.usecases.generateHTMLs.VmLinks
 import lorry.dossiertau.usecases.generateHTMLs.repos.IDiskRepo
@@ -27,7 +30,7 @@ import org.robolectric.RobolectricTestRunner
 
 
 @RunWith(RobolectricTestRunner::class)
-class createHTMLTest : KoinTest {
+class GlobalScanWithContentTest : KoinTest {
 
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
@@ -37,71 +40,26 @@ class createHTMLTest : KoinTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun `#18 Links ∎ rename file #1 ∎ nothing to do`() = runTest {
+    fun `#1 ScanAndFiles ∎ dossierSuivi change ∎ ⇒ verif envoi`() = runTest {
 
         val dispatcher = StandardTestDispatcher(testScheduler)
 
-        val vmLinks = VmLinks()
-        val nasRepo = mock<INasRepo>()
-        val diskRepo = mock<IDiskRepo>()
-        val webScrappingRepo = mock<IWebScrappingRepo>()
+        TestStuff.configure(dispatcher).use { stuff ->
+            val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
 
-        val originalVideoFileName = "threesomes & foursomes.bonnge.three.machin.mp4".toTauFileName()
+            val observedFolder = spy.observedFolderFlow
+            val folderFake = "/storage/emulated/0/Downloads".toTauPath()
 
-        val links = Links(
-            vm = vmLinks,
-            nasRepo = nasRepo,
-            diskRepo = diskRepo,
-            webScrappingRepo = webScrappingRepo
-        )
+            //arrange
+            spy.setSurveillance(true)
+            spy.setObservedFolder(folderFake)
 
-        val localActresses = listOf(
-            morgan(),
-            cova(),
-            rhoades(),
-            gee()
-        )
+            //act
 
-        val localSubjects = listOf(
-            trio(),
-            lesbos(),
-            bandeau(),
-            black()
-        )
 
-        //arrange
-        everySuspend { diskRepo.getLocalActresses() } returns localActresses
-        everySuspend { diskRepo.getLocalSubjects() } returns localSubjects
+            //assert
 
-        everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
-
-        everySuspend { webScrappingRepo.getMovieActresses(
-            name = originalVideoFileName,
-            localActresses = localActresses
-        ) } returns listOf()
-        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName,) } returns listOf()
-
-        everySuspend {
-            nasRepo.renameFile(
-                from = any<TauItemName>(),
-                to = any<TauItemName>()
-            )
-        } calls {}
-
-        //act
-        links.generateLinks()
-
-        //assert
-        verifySuspend(exactly(1)) { nasRepo.getVideoNames() }
-        verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
-        verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName,) }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieSubjects(name = originalVideoFileName,) }
-        verifySuspend(exactly(0)) {
-            nasRepo.renameFile(
-                from = originalVideoFileName,
-                to = originalVideoFileName
-            )
+            }
         }
     }
 
@@ -143,10 +101,10 @@ class createHTMLTest : KoinTest {
 
         everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
 
-        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName,) } returns listOf(
+        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf(
             morgan().name
         )
-        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName,) } returns listOf()
+        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf()
 
         everySuspend {
             nasRepo.renameFile(
@@ -162,8 +120,8 @@ class createHTMLTest : KoinTest {
         verifySuspend(exactly(1)) { nasRepo.getVideoNames() }
         verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
         verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName,) }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieSubjects(name = originalVideoFileName,) }
+        verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName) }
+        verifySuspend(exactly(1)) { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) }
         verifySuspend(exactly(1)) {
             nasRepo.renameFile(
                 from = originalVideoFileName,
@@ -211,11 +169,11 @@ class createHTMLTest : KoinTest {
 
         everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
 
-        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName,) } returns listOf(
+        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf(
             cova().name,
             rhoades().name
         )
-        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName,) } returns listOf()
+        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf()
 
         everySuspend {
             nasRepo.renameFile(
@@ -231,8 +189,8 @@ class createHTMLTest : KoinTest {
         verifySuspend(exactly(1)) { nasRepo.getVideoNames() }
         verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
         verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName,) }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieSubjects(name = originalVideoFileName,) }
+        verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName) }
+        verifySuspend(exactly(1)) { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) }
         verifySuspend(exactly(1)) {
             nasRepo.renameFile(
                 from = originalVideoFileName,
@@ -280,11 +238,11 @@ class createHTMLTest : KoinTest {
 
         everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
 
-        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName,) } returns listOf(
+        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf(
             morgan().name,
             rhoades().name
         )
-        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName,) } returns listOf()
+        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf()
 
         everySuspend {
             nasRepo.renameFile(
@@ -300,8 +258,8 @@ class createHTMLTest : KoinTest {
         verifySuspend(exactly(1)) { nasRepo.getVideoNames() }
         verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
         verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName,) }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieSubjects(name = originalVideoFileName,) }
+        verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName) }
+        verifySuspend(exactly(1)) { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) }
         verifySuspend(exactly(1)) {
             nasRepo.renameFile(
                 from = originalVideoFileName,
@@ -349,8 +307,8 @@ class createHTMLTest : KoinTest {
 
         everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
 
-        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName,) } returns listOf()
-        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName,) } returns listOf(
+        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf()
+        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf(
             bandeau().name
         )
 
@@ -368,8 +326,8 @@ class createHTMLTest : KoinTest {
         verifySuspend(exactly(1)) { nasRepo.getVideoNames() }
         verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
         verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName,) }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieSubjects(name = originalVideoFileName,) }
+        verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName) }
+        verifySuspend(exactly(1)) { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) }
         verifySuspend(exactly(1)) {
             nasRepo.renameFile(
                 from = originalVideoFileName,
@@ -417,8 +375,8 @@ class createHTMLTest : KoinTest {
 
         everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
 
-        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName,) } returns listOf()
-        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName,) } returns listOf(
+        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf()
+        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf(
             bandeau().name, black().name
         )
 
@@ -436,8 +394,8 @@ class createHTMLTest : KoinTest {
         verifySuspend(exactly(1)) { nasRepo.getVideoNames() }
         verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
         verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName,) }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieSubjects(name = originalVideoFileName,) }
+        verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName) }
+        verifySuspend(exactly(1)) { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) }
         verifySuspend(exactly(1)) {
             nasRepo.renameFile(
                 from = originalVideoFileName,
@@ -485,8 +443,12 @@ class createHTMLTest : KoinTest {
 
         everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
 
-        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName,) } returns listOf(cova().name)
-        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName,) } returns listOf(black().name)
+        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf(
+            cova().name
+        )
+        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf(
+            black().name
+        )
 
         everySuspend {
             nasRepo.renameFile(
@@ -502,8 +464,8 @@ class createHTMLTest : KoinTest {
         verifySuspend(exactly(1)) { nasRepo.getVideoNames() }
         verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
         verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName,) }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieSubjects(name = originalVideoFileName,) }
+        verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName) }
+        verifySuspend(exactly(1)) { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) }
         verifySuspend(exactly(1)) {
             nasRepo.renameFile(
                 from = originalVideoFileName,
