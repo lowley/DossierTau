@@ -97,7 +97,7 @@ open class Spy(
     // Le canal pour recevoir les demandes de snapshot
     // Capacity = UNLIMITED pour ne rater aucune modif disque
     private val commandChannel = Channel<Unit>(Channel.UNLIMITED)
-    private val snapshotAtomic = AtomicReference<Snapshot>(Snapshot.EMPTY(TauPath.EMPTY))
+    override val snapshotAtomic = AtomicReference<Snapshot>(Snapshot.EMPTY(TauPath.EMPTY))
     private val _lastSnapshot = MutableStateFlow(snapshotAtomic.get())
     override val lastSnapshotFlow: StateFlow<Snapshot> = _lastSnapshot.asStateFlow()
 

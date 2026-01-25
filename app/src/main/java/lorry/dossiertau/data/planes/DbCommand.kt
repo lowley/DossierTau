@@ -1,12 +1,15 @@
 package lorry.dossiertau.data.planes
 
 import kotlinx.serialization.Serializable
+import lorry.dossiertau.data.dbModel.ContentItem
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauIdentifier
 import lorry.dossiertau.support.littleClasses.TauPath
+import lorry.dossiertau.support.littleClasses.TauPicture
+import java.time.Instant
 
 sealed class DbCommand {
     data class CreateItem(
@@ -25,6 +28,18 @@ sealed class DbCommand {
     data class GlobalRefresh(
         val path: TauPath,
         val refreshDate: TauDate
+    ): DbCommand()
+
+    data class FolderWithContent(
+        val correlationId: String?,               // optionnel: TauIdentifier.toString()
+        val full_path: TauPath,                    // TauPath normalisé (sans slash final)
+        val modifiedAtIso: TauDate,           // TauDate
+        val parentPath: TauPath,
+        val fileId: FileId = FileId.EMPTY,
+        val pictureData: TauPicture.Bitmap? = null,
+        val items: List<TauItem> = emptyList()
+
+
     ): DbCommand()
 
     override fun equals(other: Any?): Boolean {
