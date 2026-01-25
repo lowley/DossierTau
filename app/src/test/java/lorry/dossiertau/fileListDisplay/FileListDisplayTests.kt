@@ -1483,9 +1483,9 @@ class FileListDisplayTests : KoinTest {
                 println("afterInsert = $entry")
 
                 expect(entry).notToEqualNull() {
-                    toBeAnInstanceOf<DiffEntity>()
-                    feature { f((it as DiffEntity)::full_path) }.toEqual(folderToEmit.path)
-                    feature { f((it as DiffEntity)::fileId) }.toEqual(divers.fileId)
+                    toBeAnInstanceOf<Diff>()
+                    feature { f((it as Diff)::full_path) }.toEqual(folderToEmit.path)
+                    feature { f((it as Diff)::fileId) }.toEqual(divers.fileId)
                 }
 
                 job.cancel()

@@ -1,6 +1,7 @@
 package lorry.dossiertau.data.dbModel
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
@@ -18,6 +19,7 @@ import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.ui.support.capsule.utilities.FileCapsuleManager
 import lorry.dossiertau.ui.support.capsule.utilities.FolderCapsuleManager
 import java.time.Instant
+import java.time.Instant.*
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -26,19 +28,16 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 @Entity(
-    tableName = "file_diffs",
-    indices = [Index(value = ["full_path", "op_type"], unique = false)]
+    tableName = "folder_content",
+//    indices = [Index(value = ["full_path", "op_type"], unique = false)]
 )
-data class DiffEntity(
-    @PrimaryKey(autoGenerate = true) val diffId: Long = 0L,
+data class Content(
+    @PrimaryKey(autoGenerate = true) val contentId: Long = 0L,
     val correlationId: String?,               // optionnel: TauIdentifier.toString()
-    val op_type: String,                      // "CREATE_FILE" (plus tard: DELETE/RENAME…)
     val full_path: String,                    // TauPath normalisé (sans slash final)
     val modifiedAtIso: Instant?,           // TauDate
-    val item_type: String,
-    val parentPath: String, // "FILE" / "DIR" (ItemType)
     val fileId: FileId = FileId.EMPTY,
-    val pictureData: ByteArray? = null
+    val items: List<ContentItem> = emptyList()
 ){
 
     fun display(): String{
@@ -46,21 +45,43 @@ data class DiffEntity(
     }
 }
 
-@OptIn(ExperimentalUuidApi::class)
-suspend fun DbCommand.toFileDiffEntity(correlationId: String? = null): DiffEntity {
+@Entity(
+    tableName = "content_items",
+    foreignKeys = [
+        ForeignKey(
+            entity = Content::class,
+            parentColumns = ["contentId"],
+            childColumns = ["parentContentId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("parentContentId")]
+)
+data class ContentItem(
+    @PrimaryKey(autoGenerate = true) val itemId: Long = 0L,
+    //lien inter-tables
+    val parentContentId: Long,
+    val id: String?,
+    val name: String,
+    val picture: ByteArray? = null,
+    val memo: String?,
+    val modificationDate: Instant?,
+    val fileId: FileId = FileId.EMPTY
+)
 
-    val result = when (this) {
-        is DbCommand.CreateItem -> suspend {
+@OptIn(ExperimentalUuidApi::class)
+suspend fun DbCommand.toContent(correlationId: String? = null): Content {
+
             val capsule = if (item.type == ItemType.FILE) FileCapsuleManager(item.fullPath.path, useOld = false).getCapsule()
             else FolderCapsuleManager(item.fullPath, useOld = false).getCapsule()
 
             val pictureBytes = capsule?.croppedPicture?.let { base64ToByteArray(it) }
 
-            DiffEntity(
+            Diff(
                 correlationId = correlationId ?: item.id.value.toString(),
                 op_type = OpType.CreateItem.text,
                 full_path = item.fullPath.path,
-                modifiedAtIso = Instant.ofEpochMilli(item.modificationDate.value),
+                modifiedAtIso = ofEpochMilli(item.modificationDate.value),
                 item_type = item.type.name,
                 parentPath = item.fullPath.parentPath.path,
                 fileId = item.fileId,
@@ -68,43 +89,7 @@ suspend fun DbCommand.toFileDiffEntity(correlationId: String? = null): DiffEntit
             )
         }.invoke()
 
-        is DbCommand.DeleteItem -> DiffEntity(
-            correlationId = correlationId ?: item.id.value.toString(),
-            op_type = OpType.DeleteItem.text,
-            full_path = item.fullPath.path,
-            modifiedAtIso = Instant.ofEpochMilli(item.modificationDate.value),
-            item_type = item.type.name,
-            parentPath = item.fullPath.parentPath.path,
-            fileId = item.fileId
-        )
 
-        is DbCommand.ModifyItem -> suspend {
-
-            val capsule = if (item.type == ItemType.FILE) FileCapsuleManager(item.fullPath.path, useOld = false).getCapsule()
-                else FolderCapsuleManager(item.fullPath, useOld = false).getCapsule()
-
-            val pictureBytes = capsule?.croppedPicture?.let { base64ToByteArray(it) }
-
-            DiffEntity(
-                correlationId = correlationId ?: item.id.value.toString(),
-                op_type = OpType.ModifyItem.text,
-                full_path = item.fullPath.path,
-                modifiedAtIso = Instant.ofEpochMilli(item.modificationDate.value),
-                item_type = item.type.name,
-                parentPath = item.fullPath.parentPath.path,
-                fileId = item.fileId,
-                pictureData = pictureBytes
-            )
-        }.invoke()
-
-        is DbCommand.GlobalRefresh -> DiffEntity(
-            correlationId = correlationId,
-            op_type = OpType.FolderRefresh.text,
-            full_path = path.path,
-            modifiedAtIso = Instant.ofEpochMilli(refreshDate.value),
-            item_type = ItemType.FOLDER.name,
-            parentPath = path.parentPath.path,
-        )
     }
 
     println ("SQL: va être envoyé Diff type ${result.op_type} avec path ${result.full_path}")
@@ -112,7 +97,7 @@ suspend fun DbCommand.toFileDiffEntity(correlationId: String? = null): DiffEntit
 }
 
 @OptIn(ExperimentalUuidApi::class)
-fun DiffEntity.toTauItem(): TauItem {
+fun Diff.toTauItem(): TauItem {
 
     val item = when (this.op_type) {
         OpType.CreateItem.text,
@@ -162,7 +147,7 @@ enum class OpType(val text: String) {
 val dateTimePattern = "dd/MM/yyyy HH:mm:ss + AAAA"
 fun Long.epochMillisToDateTime(zone: ZoneId = ZoneId.systemDefault()): String{
     val fmt = DateTimeFormatter.ofPattern(dateTimePattern)
-    return Instant.ofEpochMilli(this).atZone(zone).format(fmt)
+    return ofEpochMilli(this).atZone(zone).format(fmt)
 }
 
 

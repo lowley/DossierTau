@@ -1,33 +1,46 @@
 package lorry.dossiertau.fileListDisplay
 
-import app.cash.turbine.test
-import dev.mokkery.answering.calls
+import app.cash.turbine.testIn
+import ch.tutteli.atrium.api.fluent.en_GB.feature
+import ch.tutteli.atrium.api.fluent.en_GB.notToEqualNull
+import ch.tutteli.atrium.api.fluent.en_GB.toBeAnInstanceOf
+import ch.tutteli.atrium.api.fluent.en_GB.toEqual
+import ch.tutteli.atrium.api.fluent.en_GB.toHaveSize
+import ch.tutteli.atrium.api.verbs.expect
 import dev.mokkery.answering.returns
+import dev.mokkery.every
 import dev.mokkery.everySuspend
-import dev.mokkery.matcher.any
-import dev.mokkery.mock
-import dev.mokkery.verify.VerifyMode.Companion.exactly
-import dev.mokkery.verifySuspend
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import lorry.dossiertau.data.dbModel.AppDb
+import lorry.dossiertau.data.dbModel.Content
+import lorry.dossiertau.data.dbModel.ContentItem
+import lorry.dossiertau.data.dbModel.Diff
+import lorry.dossiertau.data.dbModel.DiffRepository
 import lorry.dossiertau.data.dbModel.FileDiffDao
-import lorry.dossiertau.data.intelligenceService.Spy
-import lorry.dossiertau.support.littleClasses.TauItemName
-import lorry.dossiertau.support.littleClasses.toTauFileName
+import lorry.dossiertau.data.intelligenceService.AirForce
+import lorry.dossiertau.data.intelligenceService.CIA
+import lorry.dossiertau.data.intelligenceService.utils2.events.Snapshot
+import lorry.dossiertau.data.intelligenceService.utils2.events.SnapshotElement
+import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
+import lorry.dossiertau.data.model.fileId
+import lorry.dossiertau.support.littleClasses.TauPicture
+import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauPath
-import lorry.dossiertau.usecases.generateHTMLs.Links
-import lorry.dossiertau.usecases.generateHTMLs.VmLinks
-import lorry.dossiertau.usecases.generateHTMLs.repos.IDiskRepo
-import lorry.dossiertau.usecases.generateHTMLs.repos.INasRepo
-import lorry.dossiertau.usecases.generateHTMLs.repos.IWebScrappingRepo
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.koin.test.KoinTest
 import org.robolectric.RobolectricTestRunner
-
+import kotlin.collections.listOf
+import lorry.dossiertau.usecases.generateHTMLs.toBitmap
+import lorry.dossiertau.usecases.generateHTMLs.toByteArray
+import java.time.Instant
 
 @RunWith(RobolectricTestRunner::class)
 class GlobalScanWithContentTest : KoinTest {
@@ -47,432 +60,102 @@ class GlobalScanWithContentTest : KoinTest {
         TestStuff.configure(dispatcher).use { stuff ->
             val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
 
-            val observedFolder = spy.observedFolderFlow
-            val folderFake = "/storage/emulated/0/Downloads".toTauPath()
+            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
 
-            //arrange
-            spy.setSurveillance(true)
-            spy.setObservedFolder(folderFake)
+            val spyFlow = spy.spyLevelFlow.testIn(this)
+            val dbFlow = dbDao.diffFlow().drop(1).testIn(this)
+
+            val cia = CIA()
+            cia.spy = spy
+
+            val PATH = "/storage/emulated/0/Download".toTauPath()
+
+            advanceUntilIdle()
+            val global = spyFlow.awaitItem()
+
+            val diffRepo = DiffRepository(
+                dao = dbDao,
+                io = dispatcher
+            )
+
+            val testScope = this
+            val airForce = AirForce(
+                repo = diffRepo,
+                scope = testScope
+            )
+
+            airForce.cia = cia
+            val job = airForce.startListeningForCIADecisions()
+
+            val byteArray = ByteArray(18)
+            byteArray.set(15, 13)
+            val bitmap = byteArray.toBitmap()
+
+            val downloads = "/storage/emulated/0/Download".toTauPath()
+
+            //l'ancien snapshot
+            spy.snapshotAtomic.set(
+                Snapshot(
+                    folderPath = downloads,
+                    entriesByName = mapOf()
+                )
+            )
+
+            //le nouveau snapshot
+            val element = SnapshotElement(
+                name = "colomba.txt",
+                isDir = false,
+                size = 18L,
+                lastModified = 3815L,
+                fileId = FileId.fileIdOf(5L, 45L),
+                picture = TauPicture.fromBitmap(bitmap),
+                memo = "corps liquide"
+            )
+
+            everySuspend { repo.createSnapshotFor(PATH) } returns Snapshot(
+                folderPath = downloads,
+                entriesByName = mapOf(
+                    "colomba.txt" to element
+                )
+            )
 
             //act
+            spy.setObservedFolder(PATH)
 
+            //act + arrange
+            advanceTimeBy(500)
+            runCurrent()
+            val event = spyFlow.awaitItem()
+            val decision = cia.manageUpdateEvents(event)
+            cia.emitCIALevels(decision)
 
-            //assert
+            advanceTimeBy(500)
+            runCurrent()
+            val entry = dbFlow.awaitItem()
+            println("afterInsert = $entry")
 
+            expect(entry).notToEqualNull() {
+                toBeAnInstanceOf<Content>()
+                feature { f((it as Content)::full_path) }.toEqual(downloads.path)
+                feature { f((it as Content)::items) }.toHaveSize(1)
+//                feature { f((it as Content)::correlationId) }.toEqual(folderToEmit.path)
+//                feature { f((it as Content)::modifiedAtIso) }.toEqual(folderToEmit.path)
+//                feature { f((it as Content)::fileId) }.toEqual(folderToEmit.path)
             }
+
+            expect((entry as Content).items[0]) {
+                toBeAnInstanceOf<ContentItem>()
+//                feature { f((it as ContentItem)::id) }.toEqual(folderToEmit.path)
+                feature { f(it::name) }.toEqual(element.name)
+                feature { f(it::picture) }.toEqual(element.picture?.bitmap?.toByteArray())
+                feature { f(it::memo) }.toEqual(element.memo)
+                feature { f(it::fileId) }.toEqual(element.fileId)
+                feature { f(it::modificationDate) }.toEqual(Instant.ofEpochMilli(element.lastModified))
+            }
+
+            job.cancel()
+            spyFlow.cancel()
+            dbFlow.cancel()
         }
     }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `#19 Links ∎ rename file #2 ∎ one actress`() = runTest {
-
-        val dispatcher = StandardTestDispatcher(testScheduler)
-
-        val vmLinks = VmLinks()
-        val nasRepo = mock<INasRepo>()
-        val diskRepo = mock<IDiskRepo>()
-        val webScrappingRepo = mock<IWebScrappingRepo>()
-
-        val originalVideoFileName = "threesomes & foursomes.bonnge.three.machin.mp4".toTauFileName()
-        val finalVideoFileName =
-            "threesomes & foursomes.bonnge.three.machin.markmo.mp4".toTauFileName()
-
-        val links = Links(
-            vm = vmLinks,
-            nasRepo = nasRepo,
-            diskRepo = diskRepo,
-            webScrappingRepo = webScrappingRepo
-        )
-
-        //arrange
-        everySuspend { diskRepo.getLocalActresses() } returns listOf(
-            morgan(),
-            cova(),
-            rhoades(),
-            gee()
-        )
-        everySuspend { diskRepo.getLocalSubjects() } returns listOf(
-            trio(),
-            lesbos(),
-            bandeau(),
-            black()
-        )
-
-        everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
-
-        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf(
-            morgan().name
-        )
-        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf()
-
-        everySuspend {
-            nasRepo.renameFile(
-                from = any<TauItemName>(),
-                to = any<TauItemName>()
-            )
-        } calls {}
-
-        //act
-        links.generateLinks()
-
-        //assert
-        verifySuspend(exactly(1)) { nasRepo.getVideoNames() }
-        verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
-        verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName) }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) }
-        verifySuspend(exactly(1)) {
-            nasRepo.renameFile(
-                from = originalVideoFileName,
-                to = finalVideoFileName
-            )
-        }
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `#20 Links ∎ rename file #3 ∎ 2 actresses`() = runTest {
-
-        val dispatcher = StandardTestDispatcher(testScheduler)
-
-        val vmLinks = VmLinks()
-        val nasRepo = mock<INasRepo>()
-        val diskRepo = mock<IDiskRepo>()
-        val webScrappingRepo = mock<IWebScrappingRepo>()
-
-        val originalVideoFileName =
-            "threesomes & foursomes.bonnge.three.machin.markmo.mp4".toTauFileName()
-        val finalVideoFileName =
-            "threesomes & foursomes.bonnge.three.machin.markmo.janaco.lanarh.mp4".toTauFileName()
-
-        val links = Links(
-            vm = vmLinks,
-            nasRepo = nasRepo,
-            diskRepo = diskRepo,
-            webScrappingRepo = webScrappingRepo
-        )
-
-        //arrange
-        everySuspend { diskRepo.getLocalActresses() } returns listOf(
-            morgan(),
-            cova(),
-            rhoades(),
-            gee()
-        )
-        everySuspend { diskRepo.getLocalSubjects() } returns listOf(
-            trio(),
-            lesbos(),
-            bandeau(),
-            black()
-        )
-
-        everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
-
-        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf(
-            cova().name,
-            rhoades().name
-        )
-        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf()
-
-        everySuspend {
-            nasRepo.renameFile(
-                from = any<TauItemName>(),
-                to = any<TauItemName>()
-            )
-        } calls {}
-
-        //act
-        links.generateLinks()
-
-        //assert
-        verifySuspend(exactly(1)) { nasRepo.getVideoNames() }
-        verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
-        verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName) }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) }
-        verifySuspend(exactly(1)) {
-            nasRepo.renameFile(
-                from = originalVideoFileName,
-                to = finalVideoFileName
-            )
-        }
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `#21 Links ∎ rename file #4 ∎ 2 actresses whom 1 exists`() = runTest {
-
-        val dispatcher = StandardTestDispatcher(testScheduler)
-
-        val vmLinks = VmLinks()
-        val nasRepo = mock<INasRepo>()
-        val diskRepo = mock<IDiskRepo>()
-        val webScrappingRepo = mock<IWebScrappingRepo>()
-
-        val originalVideoFileName =
-            "threesomes & foursomes.bonnge.three.machin.markmo.mp4".toTauFileName()
-        val finalVideoFileName =
-            "threesomes & foursomes.bonnge.three.machin.markmo.lanarh.mp4".toTauFileName()
-
-        val links = Links(
-            vm = vmLinks,
-            nasRepo = nasRepo,
-            diskRepo = diskRepo,
-            webScrappingRepo = webScrappingRepo
-        )
-
-        //arrange
-        everySuspend { diskRepo.getLocalActresses() } returns listOf(
-            morgan(),
-            cova(),
-            rhoades(),
-            gee()
-        )
-        everySuspend { diskRepo.getLocalSubjects() } returns listOf(
-            trio(),
-            lesbos(),
-            bandeau(),
-            black()
-        )
-
-        everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
-
-        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf(
-            morgan().name,
-            rhoades().name
-        )
-        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf()
-
-        everySuspend {
-            nasRepo.renameFile(
-                from = any<TauItemName>(),
-                to = any<TauItemName>()
-            )
-        } calls {}
-
-        //act
-        links.generateLinks()
-
-        //assert
-        verifySuspend(exactly(1)) { nasRepo.getVideoNames() }
-        verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
-        verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName) }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) }
-        verifySuspend(exactly(1)) {
-            nasRepo.renameFile(
-                from = originalVideoFileName,
-                to = finalVideoFileName
-            )
-        }
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `#22 Links ∎ rename file #5 ∎ 1 subject`() = runTest {
-
-        val dispatcher = StandardTestDispatcher(testScheduler)
-
-        val vmLinks = VmLinks()
-        val nasRepo = mock<INasRepo>()
-        val diskRepo = mock<IDiskRepo>()
-        val webScrappingRepo = mock<IWebScrappingRepo>()
-
-        val originalVideoFileName =
-            "threesomes & foursomes.bonnge.three.machin.markmo.mp4".toTauFileName()
-        val finalVideoFileName =
-            "threesomes & foursomes.bonnge.three.machin.markmo.bando.mp4".toTauFileName()
-
-        val links = Links(
-            vm = vmLinks,
-            nasRepo = nasRepo,
-            diskRepo = diskRepo,
-            webScrappingRepo = webScrappingRepo
-        )
-
-        //arrange
-        everySuspend { diskRepo.getLocalActresses() } returns listOf(
-            morgan(),
-            cova(),
-            rhoades(),
-            gee()
-        )
-        everySuspend { diskRepo.getLocalSubjects() } returns listOf(
-            trio(),
-            lesbos(),
-            bandeau(),
-            black()
-        )
-
-        everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
-
-        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf()
-        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf(
-            bandeau().name
-        )
-
-        everySuspend {
-            nasRepo.renameFile(
-                from = any<TauItemName>(),
-                to = any<TauItemName>()
-            )
-        } calls {}
-
-        //act
-        links.generateLinks()
-
-        //assert
-        verifySuspend(exactly(1)) { nasRepo.getVideoNames() }
-        verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
-        verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName) }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) }
-        verifySuspend(exactly(1)) {
-            nasRepo.renameFile(
-                from = originalVideoFileName,
-                to = finalVideoFileName
-            )
-        }
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `#23 Links ∎ rename file #5 ∎ 2 subjects`() = runTest {
-
-        val dispatcher = StandardTestDispatcher(testScheduler)
-
-        val vmLinks = VmLinks()
-        val nasRepo = mock<INasRepo>()
-        val diskRepo = mock<IDiskRepo>()
-        val webScrappingRepo = mock<IWebScrappingRepo>()
-
-        val originalVideoFileName =
-            "threesomes & foursomes.bonnge.three.machin.markmo.mp4".toTauFileName()
-        val finalVideoFileName =
-            "threesomes & foursomes.bonnge.three.machin.markmo.bando.black.mp4".toTauFileName()
-
-        val links = Links(
-            vm = vmLinks,
-            nasRepo = nasRepo,
-            diskRepo = diskRepo,
-            webScrappingRepo = webScrappingRepo
-        )
-
-        //arrange
-        everySuspend { diskRepo.getLocalActresses() } returns listOf(
-            morgan(),
-            cova(),
-            rhoades(),
-            gee()
-        )
-        everySuspend { diskRepo.getLocalSubjects() } returns listOf(
-            trio(),
-            lesbos(),
-            bandeau(),
-            black()
-        )
-
-        everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
-
-        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf()
-        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf(
-            bandeau().name, black().name
-        )
-
-        everySuspend {
-            nasRepo.renameFile(
-                from = any<TauItemName>(),
-                to = any<TauItemName>()
-            )
-        } calls {}
-
-        //act
-        links.generateLinks()
-
-        //assert
-        verifySuspend(exactly(1)) { nasRepo.getVideoNames() }
-        verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
-        verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName) }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) }
-        verifySuspend(exactly(1)) {
-            nasRepo.renameFile(
-                from = originalVideoFileName,
-                to = finalVideoFileName
-            )
-        }
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `#24 Links ∎ rename file #5 ∎ 1 subject + 1 actress`() = runTest {
-
-        val dispatcher = StandardTestDispatcher(testScheduler)
-
-        val vmLinks = VmLinks()
-        val nasRepo = mock<INasRepo>()
-        val diskRepo = mock<IDiskRepo>()
-        val webScrappingRepo = mock<IWebScrappingRepo>()
-
-        val originalVideoFileName =
-            "threesomes & foursomes.bonnge.three.machin.markmo.mp4".toTauFileName()
-        val finalVideoFileName =
-            "threesomes & foursomes.bonnge.three.machin.markmo.janaco.black.mp4".toTauFileName()
-
-        val links = Links(
-            vm = vmLinks,
-            nasRepo = nasRepo,
-            diskRepo = diskRepo,
-            webScrappingRepo = webScrappingRepo
-        )
-
-        //arrange
-        everySuspend { diskRepo.getLocalActresses() } returns listOf(
-            morgan(),
-            cova(),
-            rhoades(),
-            gee()
-        )
-        everySuspend { diskRepo.getLocalSubjects() } returns listOf(
-            trio(),
-            lesbos(),
-            bandeau(),
-            black()
-        )
-
-        everySuspend { nasRepo.getVideoNames() } returns listOf(originalVideoFileName)
-
-        everySuspend { webScrappingRepo.getMovieActresses(name = originalVideoFileName) } returns listOf(
-            cova().name
-        )
-        everySuspend { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) } returns listOf(
-            black().name
-        )
-
-        everySuspend {
-            nasRepo.renameFile(
-                from = any<TauItemName>(),
-                to = any<TauItemName>()
-            )
-        } calls {}
-
-        //act
-        links.generateLinks()
-
-        //assert
-        verifySuspend(exactly(1)) { nasRepo.getVideoNames() }
-        verifySuspend(exactly(1)) { diskRepo.getLocalActresses() }
-        verifySuspend(exactly(1)) { diskRepo.getLocalSubjects() }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieActresses(name = originalVideoFileName) }
-        verifySuspend(exactly(1)) { webScrappingRepo.getMovieSubjects(name = originalVideoFileName) }
-        verifySuspend(exactly(1)) {
-            nasRepo.renameFile(
-                from = originalVideoFileName,
-                to = finalVideoFileName
-            )
-        }
-    }
-
-
 }

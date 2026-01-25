@@ -9,6 +9,7 @@ import lorry.dossiertau.data.intelligenceService.utils2.events.Snapshot
 import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauPath
+import java.util.concurrent.atomic.AtomicReference
 
 interface ISpy {
 
@@ -54,4 +55,5 @@ interface ISpy {
     fun emitSpyLevels(events: List<ISpyLevel>)
     val lastSnapshotFlow: StateFlow<Snapshot>
     fun setLastSnapshot(newSnapshot: Snapshot)
+    val snapshotAtomic: AtomicReference<Snapshot>
 }

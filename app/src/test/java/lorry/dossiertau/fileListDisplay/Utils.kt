@@ -98,7 +98,7 @@ fun FileListDisplayTests.prepareKoin(testScheduler: TestCoroutineScheduler) {
     }
 }
 
-fun FileListDisplayTests.setAsInjectors(
+fun setAsInjectors(
     repo: IFolderRepo,
     compo: IFolderCompo,
     vm: TauViewModel,
@@ -150,7 +150,7 @@ fun FileListDisplayTests.SNAPSHOT_TOTO(parentPath: TauPath) = SnapshotElement(
     fileId = FileId.fileIdOf(5L, 3L)
 )
 
-fun FileListDisplayTests.FOLDER_DIVERS(parentPath: TauPath) = TauFolder(
+fun FOLDER_DIVERS(parentPath: TauPath) = TauFolder(
     fullPath = TauPath.of("${parentPath.path}/divers"),
     modificationDate = TauDate(834),
     fileId = FileId.fileIdOf(15L, 61L)
