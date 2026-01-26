@@ -5,6 +5,7 @@ import lorry.dossiertau.data.intelligenceService.utils.CIALevel
 import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauPath
+import lorry.dossiertau.support.littleClasses.TauPicture
 import lorry.dossiertau.support.littleClasses.parentPath
 import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauDate
@@ -14,7 +15,9 @@ data class AtomicSpyLevel(
     override val path: TauPath,
     val itemType: ItemType,
     val modificationDate: TauDate,
-    val itemId: FileId
+    val itemId: FileId,
+    val picture: TauPicture?,
+    val memo: String?
 ): ISpyLevel{
 
     override fun toString(): String {

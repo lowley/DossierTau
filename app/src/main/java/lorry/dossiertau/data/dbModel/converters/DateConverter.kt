@@ -3,7 +3,7 @@ package lorry.dossiertau.data.dbModel.converters
 import androidx.room.TypeConverter
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import lorry.dossiertau.data.dbModel.ContentItem
+import lorry.dossiertau.data.dbModel.TauEntity
 import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import java.time.Instant
 
@@ -40,12 +40,12 @@ class FileIdConverter {
 
 class ContentItemConverter {
     @TypeConverter
-    fun fromList(value: List<ContentItem>): String {
+    fun fromList(value: List<TauEntity.ContentItem>): String {
         return Json.encodeToString(value)
     }
 
     @TypeConverter
-    fun toList(value: String): List<ContentItem> {
+    fun toList(value: String): List<TauEntity.ContentItem> {
         return Json.decodeFromString(value)
     }
 }

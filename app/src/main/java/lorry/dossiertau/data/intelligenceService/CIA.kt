@@ -4,7 +4,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.ServiceInfo
-import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
@@ -100,7 +99,10 @@ class CIA() : LifecycleService() {
     private fun manageGlobalEvent(event: GlobalSpyLevel): CIALevel? {
         val result = CIALevel.GlobalRefresh(
             eventPath = event.path,
-            refreshDate = Clock.systemDefaultZone().millis().toTauDate())
+            refreshDate = Clock.systemDefaultZone().millis().toTauDate(),
+            items = event.items,
+        )
+
         return result
     }
 
@@ -114,7 +116,9 @@ class CIA() : LifecycleService() {
                         eventPath = event.path,
                         modificationDate = event.modificationDate,
                         itemType = event.itemType,
-                        itemId = event.itemId
+                        itemId = event.itemId,
+                        picture = event.picture,
+                        memo = event.memo
                     )
                 )
             }
@@ -127,7 +131,9 @@ class CIA() : LifecycleService() {
                         eventPath = event.path,
                         modificationDate = event.modificationDate,
                         itemType = event.itemType,
-                        itemId = event.itemId
+                        itemId = event.itemId,
+                        picture = event.picture,
+                        memo = event.memo
                     )
                 )
             }
@@ -140,7 +146,9 @@ class CIA() : LifecycleService() {
                         eventPath = event.path,
                         modificationDate = event.modificationDate,
                         itemType = event.itemType,
-                        itemId = event.itemId
+                        itemId = event.itemId,
+                        picture = event.picture,
+                        memo = event.memo
                     )
                 )
             }

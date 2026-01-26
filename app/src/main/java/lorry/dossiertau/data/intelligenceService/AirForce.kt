@@ -6,9 +6,16 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import lorry.dossiertau.data.dbModel.DiffRepository
+import lorry.dossiertau.data.dbModel.TauEntity
 import lorry.dossiertau.data.intelligenceService.utils.CIALevel
 import lorry.dossiertau.data.planes.DbCommand
 import lorry.dossiertau.data.planes.DbItem
+import lorry.dossiertau.support.littleClasses.name
+import lorry.dossiertau.support.littleClasses.parentPath
+import lorry.dossiertau.support.littleClasses.path
+import lorry.dossiertau.usecases.generateHTMLs.toByteArray
+import java.time.Instant
+import kotlin.uuid.ExperimentalUuidApi
 
 /**
  * Necesita injectar con cia
@@ -29,7 +36,9 @@ class AirForce(
                                 fullPath = ciaLevel.itemPath,
                                 modificationDate = ciaLevel.modificationDate,
                                 type = ciaLevel.itemType,
-                                fileId = ciaLevel.itemId
+                                fileId = ciaLevel.itemId,
+                                pictureData = ciaLevel.picture,
+                                memo = ciaLevel.memo,
                             )
                         )
                     }
@@ -40,7 +49,9 @@ class AirForce(
                                 fullPath = ciaLevel.itemPath,
                                 modificationDate = ciaLevel.modificationDate,
                                 type = ciaLevel.itemType,
-                                fileId = ciaLevel.itemId
+                                fileId = ciaLevel.itemId,
+                                pictureData = ciaLevel.picture,
+                                memo = ciaLevel.memo,
                             )
                         )
                     }
@@ -51,20 +62,32 @@ class AirForce(
                                 fullPath = ciaLevel.itemPath,
                                 modificationDate = ciaLevel.modificationDate,
                                 type = ciaLevel.itemType,
-                                fileId = ciaLevel.itemId
+                                fileId = ciaLevel.itemId,
+                                pictureData = ciaLevel.picture,
+                                memo = ciaLevel.memo,
                             )
                         )
                     }
 
                     is CIALevel.GlobalRefresh -> {
+
+                        val dbItems = ciaLevel.items.map { globalItem ->
+                            DbItem(
+                                fullPath = globalItem.path,
+                                modificationDate = globalItem.modificationDate,
+                                type = globalItem.itemType,
+                                fileId = globalItem.itemId,
+                                pictureData = globalItem.picture,
+                                memo = globalItem.memo
+                            )
+                        }
+
                         DbCommand.GlobalRefresh(
                             path = ciaLevel.itemPath,
-                            refreshDate = ciaLevel.refreshDate
+                            refreshDate = ciaLevel.refreshDate,
+                            parentPath = ciaLevel.itemPath.parentPath,
+                            items = dbItems,
                         )
-                    }
-
-                    else -> {
-                        null
                     }
                 }
             }
@@ -75,7 +98,42 @@ class AirForce(
 
     fun modifyDatabaseByAll(commands: List<DbCommand>) {
         scope.launch {
-            repo.insertDiffs(commands)
+            commands.partition { it is DbCommand.CreateItem || it is DbCommand.DeleteItem || it is DbCommand.ModifyItem }.let {
+                val (diffs, contents) = it
+                repo.insertDiffs(diffs)
+                repo.insertContents(contents.toContents())
+
+            }
         }
     }
+}
+
+@OptIn(ExperimentalUuidApi::class)
+fun List<DbCommand>.toContents(): List<TauEntity.Content>{
+    assert(this.all { it is DbCommand.GlobalRefresh })
+
+    val result = this
+        .map { it as DbCommand.GlobalRefresh }
+        .map { globesh ->
+        TauEntity.Content(
+            correlationId = "",
+            full_path = globesh.path.path,
+            modifiedAtIso = Instant.ofEpochMilli(globesh.refreshDate.value),
+            items = globesh.items
+                .map { conti ->
+                TauEntity.ContentItem(
+                    //traitement particulier lors de l'enregistrement: 2 phases
+                    parentContentId = 0L,
+                    id = conti.id.value.toString(),
+                    name = conti.fullPath.name.value,
+                    picture = conti.pictureData?.toBitmap()?.toByteArray(),
+                    memo = conti.memo,
+                    modificationDate = Instant.ofEpochMilli(conti.modificationDate.value),
+                    fileId = conti.fileId
+                )
+            }
+        )
+    }
+
+    return result
 }

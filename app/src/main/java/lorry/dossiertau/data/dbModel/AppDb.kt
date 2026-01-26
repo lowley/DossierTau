@@ -12,7 +12,13 @@ import lorry.dossiertau.data.dbModel.converters.FileIdConverter
     DateConverters::class,
     ContentItemConverter::class
 )
-@Database(entities = [Diff::class, Content::class], version = 3)
+@Database(
+    entities = [
+        TauEntity.Diff::class,
+        TauEntity.Content::class,
+        TauEntity.ContentItem::class
+    ], version = 4
+)
 abstract class AppDb : RoomDatabase() {
     abstract fun fileDiffDao(): FileDiffDao
 }

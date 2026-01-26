@@ -6,9 +6,11 @@ import android.util.Base64
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import lorry.dossiertau.data.dbModel.base64ToByteArray
 import lorry.dossiertau.data.diskTransfer.TauRepoFile
 import lorry.dossiertau.data.diskTransfer.TauRepoFolder
 import lorry.dossiertau.data.diskTransfer.TauRepoItem
+import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.data.intelligenceService.utils2.events.Snapshot
 import lorry.dossiertau.data.intelligenceService.utils2.events.SnapshotElement
 import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
@@ -17,9 +19,15 @@ import lorry.dossiertau.data.intelligenceService.utils2.repo.SpyRepo
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
+import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauFileName
 import lorry.dossiertau.support.littleClasses.toTauPath
+import lorry.dossiertau.support.littleClasses.toTauPicture
+import lorry.dossiertau.ui.support.capsule.utilities.FileCapsuleManager
+import lorry.dossiertau.ui.support.capsule.utilities.FolderCapsuleManager
+import lorry.dossiertau.usecases.generateHTMLs.toBitmap
 import java.io.File
+import kotlin.let
 
 open class FolderRepo(
     val spyRepo: ISpyRepo
@@ -47,40 +55,51 @@ open class FolderRepo(
 
     override suspend fun getItemsInFullPath(tauPath: TauPath): List<TauRepoItem> {
 
-            val items = try {
-                tauPath.toFile().fold(
-                    ifEmpty = { emptyList<File>() },
-                    ifSome = { file ->
-                        val result = withContext(Dispatchers.IO){
-                            val files = file.listFiles()?.toList() ?: emptyList<File>()
-                            files
-                        }
-                        result
+        val items = try {
+            tauPath.toFile().fold(
+                ifEmpty = { emptyList<File>() },
+                ifSome = { file ->
+                    val result = withContext(Dispatchers.IO) {
+                        val files = file.listFiles()?.toList() ?: emptyList<File>()
+                        files
                     }
-                ).map { file ->
-                    convertFileToTauRepoItem(file)
+                    result
                 }
+            ).map { file ->
+                convertFileToTauRepoItem(file)
+            }
 
-            } catch (ex: SecurityException) {
-                Log.d(
-                    "files",
-                    "SecurityException error in DiskDataSource/getFolderContent: ${ex.message}"
-                )
-                emptyList<TauRepoItem>()
-            }.filterNotNull()
+        } catch (ex: SecurityException) {
+            Log.d(
+                "files",
+                "SecurityException error in DiskDataSource/getFolderContent: ${ex.message}"
+            )
+            emptyList<TauRepoItem>()
+        }.filterNotNull()
 
-            return items
-        }
+        return items
+    }
 
     override suspend fun createSnapshotFor(folderPath: TauPath): Snapshot {
         val files = folderPath.toFile().getOrNull()?.listFiles().orEmpty()
         val content = files.associate { f ->
+
+            val filePath = f.path
+            val isFile = f.isFile
+            val capsule = if (isFile) FileCapsuleManager(filePath, useOld = false).getCapsule()
+                else FolderCapsuleManager(filePath.toTauPath(), useOld = false).getCapsule()
+
+            val bitmap = capsule?.initialPicture?.let { base64ToByteArray(it).toBitmap() }
+            val memo = capsule?.memo
+
             f.name to SnapshotElement(
                 name = f.name,
                 isDir = f.isDirectory,
                 size = if (f.isFile) f.length() else 0L,
                 lastModified = f.lastModified(),
-                fileId = spyRepo.getIdOf(f.path.toTauPath())
+                fileId = spyRepo.getIdOf(f.path.toTauPath()),
+                picture = bitmap?.toTauPicture(),
+                memo = memo,
             )
         }
 
@@ -114,8 +133,6 @@ open class FolderRepo(
             null
         }
     }
-
-
 
 
 }

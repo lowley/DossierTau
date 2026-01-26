@@ -56,4 +56,7 @@ interface ISpy {
     val lastSnapshotFlow: StateFlow<Snapshot>
     fun setLastSnapshot(newSnapshot: Snapshot)
     val snapshotAtomic: AtomicReference<Snapshot>
+    val diffNumberFlow: StateFlow<Int>
+    fun incrementDiffNumber()
+    fun resetDiffNumber()
 }

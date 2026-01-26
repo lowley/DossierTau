@@ -31,9 +31,11 @@ import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauPath
 
 import lorry.dossiertau.data.intelligenceService.utils.TauFileObserverInside.INACTIVE
+import lorry.dossiertau.data.intelligenceService.utils.events.GlobalItem
 import lorry.dossiertau.data.intelligenceService.utils2.events.DebouncedTimer
 import lorry.dossiertau.data.intelligenceService.utils2.events.Snapshot
 import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
+import lorry.dossiertau.support.littleClasses.TauPicture
 import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauDate
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
@@ -146,7 +148,9 @@ open class Spy(
                     path = folderPath.appendToTauPath(item.name),
                     itemType = if (item.isDir) ItemType.FOLDER else ItemType.FILE,
                     modificationDate = item.lastModified.toTauDate(),
-                    itemId = item.fileId
+                    itemId = item.fileId,
+                    picture = item.picture,
+                    memo = item.memo
                 )
             } else
             //création
@@ -155,7 +159,9 @@ open class Spy(
                     path = folderPath.appendToTauPath(item.name),
                     itemType = if (item.isDir) ItemType.FOLDER else ItemType.FILE,
                     modificationDate = item.lastModified.toTauDate(),
-                    itemId = item.fileId
+                    itemId = item.fileId,
+                    picture = item.picture,
+                    memo = item.memo
                 )
         }
 
@@ -172,13 +178,29 @@ open class Spy(
                     path = folderPath.appendToTauPath(item.name),
                     itemType = if (item.isDir) ItemType.FOLDER else ItemType.FILE,
                     modificationDate = item.lastModified.toTauDate(),
-                    itemId = item.fileId
+                    itemId = item.fileId,
+                    picture = item.picture,
+                    memo = item.memo
                 )
             else null
         }
 
         return creationOrModificationSpyLevels + deletionSpyLevels
     }
+
+    private fun makeGlobalSpyLevelFrom(sn2: Snapshot): GlobalSpyLevel = GlobalSpyLevel(
+        path = sn2.folderPath,
+        items = sn2.entries.map { snelem ->
+            GlobalItem(
+                path = sn2.folderPath.appendToTauPath(snelem.name),
+                itemType = if (snelem.isDir) ItemType.FOLDER else ItemType.FILE,
+                modificationDate = snelem.lastModified.toTauDate(),
+                itemId = snelem.fileId,
+                picture = snelem.picture,
+                memo = snelem.memo
+            )
+        },
+    )
 
     ///////////////////////////////////////////////////////////////////////
     // évènements créés par l'espion suite à une opération sur le disque //
@@ -214,7 +236,9 @@ open class Spy(
             path = itemToEmit,
             itemType = itemType,
             modificationDate = modificationDate,
-            itemId = fileId
+            itemId = fileId,
+            picture = TauPicture.NONE,
+            memo = "truc"
         )
 
         emitSpyLevel(fakeEvent)
@@ -230,7 +254,9 @@ open class Spy(
             path = itemToEmit,
             itemType = itemType,
             modificationDate = modificationDate,
-            itemId = FileId.fileIdOf(5L, 8L)
+            itemId = FileId.fileIdOf(5L, 8L),
+            picture = TauPicture.NONE,
+            memo = "truc"
         )
 
         emitSpyLevel(fakeEvent)
@@ -246,7 +272,9 @@ open class Spy(
             path = itemToEmit,
             itemType = itemType,
             modificationDate = modificationDate,
-            itemId = FileId.fileIdOf(5L, 8L)
+            itemId = FileId.fileIdOf(5L, 8L),
+            picture = TauPicture.NONE,
+            memo = "truc"
         )
 
         emitSpyLevel(fakeEvent)
@@ -256,13 +284,38 @@ open class Spy(
         emitSpyLevel(atomicUpdateEvent)
     }
 
+    ///////////////////////
+    // compteur de diffs //
+    ///////////////////////
+    val _diffNumberFlow = MutableStateFlow(0)
+    override val diffNumberFlow: StateFlow<Int> = _diffNumberFlow.asStateFlow()
+
+    override fun incrementDiffNumber() {
+        _diffNumberFlow.update { it + 1 }
+    }
+
+    override fun resetDiffNumber() {
+        _diffNumberFlow.update { 0 }
+    }
+
+    val diffMaxBeforeGlobal = 10
+
     // 0) Action "snapshot + diffs" qui lit TOUJOURS le folder courant au moment de l'exécution
     suspend fun executeSnapshotLogic() {
         println("[SPY $instanceId] entrée dans afterEndOfDelayLatestFolder()")
         val currentFolderPath = observedFolderFlow.value
 
-        val oldSnapshot = snapshotAtomic.get()
         val newSnapshot = fileRepo.createSnapshotFor(currentFolderPath)
+        val diffNumber = diffNumberFlow.value
+
+        if (diffNumber > diffMaxBeforeGlobal) {
+
+            resetDiffNumber()
+            emitSpyLevel(makeGlobalSpyLevelFrom(newSnapshot))
+            return
+        }
+
+        val oldSnapshot = snapshotAtomic.get()
 //        println("from afterEndOfDelayLatestFolder: lastSnapshot[SN ${lastSnapshotFlow.value.instanceId}](${lastSnapshotFlow.value.entries.size})")
         println("from afterEndOfDelayLatestFolder: oldSnapshot[SN ${oldSnapshot.instanceId}](${oldSnapshot.entries.size})")
         println("from afterEndOfDelayLatestFolder: newSnapshot(${newSnapshot.entries.size})")
@@ -332,7 +385,6 @@ open class Spy(
             .drop(1)
             .onEach { (previousFolderPath, currentFolderPath) ->
                 println("[SPY $instanceId] entrée dans bloc exécution folderFlow: ${currentFolderPath.path}")
-                emitSpyLevel(GlobalSpyLevel(path = currentFolderPath))
 
                 if (previousFolderPath != null)
                     scope.launch(dispatcher) {
@@ -348,6 +400,8 @@ open class Spy(
                 val initialSnapshot = fileRepo.createSnapshotFor(currentFolderPath)
                 println("from observedFolderFlow: setLastSnapshot[SN ${initialSnapshot.instanceId}](${initialSnapshot.entries.size})")
                 setLastSnapshot(initialSnapshot)
+                emitSpyLevel(makeGlobalSpyLevelFrom(initialSnapshot))
+
             }
             .launchIn(scope)
     }

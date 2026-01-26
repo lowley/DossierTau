@@ -1,6 +1,8 @@
 package lorry.dossiertau.data.dbModel
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Ignore
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
@@ -21,42 +23,102 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Base64
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-@Entity(
-    tableName = "file_diffs",
-    indices = [Index(value = ["full_path", "op_type"], unique = false)]
-)
-data class Diff(
-    @PrimaryKey(autoGenerate = true) val diffId: Long = 0L,
-    val correlationId: String?,               // optionnel: TauIdentifier.toString()
-    val op_type: String,                      // "CREATE_FILE" (plus tard: DELETE/RENAME…)
-    val full_path: String,                    // TauPath normalisé (sans slash final)
-    val modifiedAtIso: Instant?,           // TauDate
-    val item_type: String,
-    val parentPath: String, // "FILE" / "DIR" (ItemType)
-    val fileId: FileId = FileId.EMPTY,
-    val pictureData: ByteArray? = null
-){
+sealed class TauEntity() {
 
-    fun display(): String{
-        return "⏵ $op_type ↈ $item_type ↈ $full_path ↈ $modifiedAtIso ↈ \uD83D\uDDBD ${pictureData!= null} ⏴"
+    @Entity(
+        tableName = "file_diffs",
+        indices = [Index(value = ["full_path", "op_type"], unique = false)]
+    )
+    data class Diff(
+        @PrimaryKey(autoGenerate = true) val diffId: Long = 0L,
+        val correlationId: String?,               // optionnel: TauIdentifier.toString()
+        val op_type: String,                      // "CREATE_FILE" (plus tard: DELETE/RENAME…)
+        val full_path: String,                    // TauPath normalisé (sans slash final)
+        val modifiedAtIso: Instant?,           // TauDate
+        val item_type: String,
+        val parentPath: String, // "FILE" / "DIR" (ItemType)
+        val fileId: FileId = FileId.EMPTY,
+        val pictureData: ByteArray? = null
+    ) : TauEntity() {
+
+        fun display(): String {
+            return "⏵ $op_type ↈ $item_type ↈ $full_path ↈ $modifiedAtIso ↈ \uD83D\uDDBD ${pictureData != null} ⏴"
+        }
     }
+
+    @Entity(tableName = "folder_content")
+    data class Content(
+        @PrimaryKey(autoGenerate = true) val contentId: Long = 0L,
+        val correlationId: String?,
+        val full_path: String,
+        val modifiedAtIso: Instant?
+    ) : TauEntity() {
+
+        // On place 'items' en dehors du constructeur principal
+        // Room l'ignorera totalement lors de la création de la table
+        @Ignore
+        var items: List<ContentItem> = emptyList()
+
+        @Ignore
+        constructor(
+            contentId: Long = 0L,
+            correlationId: String?,
+            full_path: String,
+            modifiedAtIso: Instant?,
+            items: List<ContentItem>
+        ) : this(contentId, correlationId, full_path, modifiedAtIso) {
+            this.items = items
+        }
+
+        fun display(): String {
+            return "⏵ $full_path ↈ $modifiedAtIso ↈ ⌸ {${items.size} ⏴"
+        }
+    }
+
+    @Entity(
+        tableName = "content_items",
+        foreignKeys = [
+            ForeignKey(
+                entity = Content::class,
+                parentColumns = ["contentId"],
+                childColumns = ["parentContentId"],
+                onDelete = ForeignKey.CASCADE
+            )
+        ],
+        indices = [Index("parentContentId")]
+    )
+    data class ContentItem(
+        @PrimaryKey(autoGenerate = true) val itemId: Long = 0L,
+        //lien inter-tables
+        val parentContentId: Long,
+        val id: String?,
+        val name: String,
+        val picture: ByteArray? = null,
+        val memo: String?,
+        val modificationDate: Instant?,
+        val fileId: FileId = FileId.EMPTY
+    ) : TauEntity()
 }
 
 @OptIn(ExperimentalUuidApi::class)
-suspend fun DbCommand.toFileDiffEntity(correlationId: String? = null): Diff {
+suspend fun DbCommand.toDiff(correlationId: String? = null): TauEntity.Diff? {
+
+    assert(this !is DbCommand.GlobalRefresh)
 
     val result = when (this) {
         is DbCommand.CreateItem -> suspend {
-            val capsule = if (item.type == ItemType.FILE) FileCapsuleManager(item.fullPath.path, useOld = false).getCapsule()
+            val capsule = if (item.type == ItemType.FILE) FileCapsuleManager(
+                item.fullPath.path,
+                useOld = false
+            ).getCapsule()
             else FolderCapsuleManager(item.fullPath, useOld = false).getCapsule()
 
             val pictureBytes = capsule?.croppedPicture?.let { base64ToByteArray(it) }
 
-            Diff(
+            TauEntity.Diff(
                 correlationId = correlationId ?: item.id.value.toString(),
                 op_type = OpType.CreateItem.text,
                 full_path = item.fullPath.path,
@@ -68,7 +130,7 @@ suspend fun DbCommand.toFileDiffEntity(correlationId: String? = null): Diff {
             )
         }.invoke()
 
-        is DbCommand.DeleteItem -> Diff(
+        is DbCommand.DeleteItem -> TauEntity.Diff(
             correlationId = correlationId ?: item.id.value.toString(),
             op_type = OpType.DeleteItem.text,
             full_path = item.fullPath.path,
@@ -80,12 +142,15 @@ suspend fun DbCommand.toFileDiffEntity(correlationId: String? = null): Diff {
 
         is DbCommand.ModifyItem -> suspend {
 
-            val capsule = if (item.type == ItemType.FILE) FileCapsuleManager(item.fullPath.path, useOld = false).getCapsule()
-                else FolderCapsuleManager(item.fullPath, useOld = false).getCapsule()
+            val capsule = if (item.type == ItemType.FILE) FileCapsuleManager(
+                item.fullPath.path,
+                useOld = false
+            ).getCapsule()
+            else FolderCapsuleManager(item.fullPath, useOld = false).getCapsule()
 
             val pictureBytes = capsule?.croppedPicture?.let { base64ToByteArray(it) }
 
-            Diff(
+            TauEntity.Diff(
                 correlationId = correlationId ?: item.id.value.toString(),
                 op_type = OpType.ModifyItem.text,
                 full_path = item.fullPath.path,
@@ -97,22 +162,34 @@ suspend fun DbCommand.toFileDiffEntity(correlationId: String? = null): Diff {
             )
         }.invoke()
 
-        is DbCommand.GlobalRefresh -> Diff(
-            correlationId = correlationId,
-            op_type = OpType.FolderRefresh.text,
-            full_path = path.path,
-            modifiedAtIso = Instant.ofEpochMilli(refreshDate.value),
-            item_type = ItemType.FOLDER.name,
-            parentPath = path.parentPath.path,
-        )
+//        is DbCommand.GlobalRefresh -> TauEntity.Content(
+//            correlationId = correlationId,
+//            full_path = path.path,
+//            modifiedAtIso = Instant.ofEpochMilli(refreshDate.value),
+//            items = this.items.map { it.toContentItem(0L) },
+//        )
+
+        else -> null
     }
 
-    println ("SQL: va être envoyé Diff type ${result.op_type} avec path ${result.full_path}")
     return result
 }
 
 @OptIn(ExperimentalUuidApi::class)
-fun Diff.toTauItem(): TauItem {
+suspend fun DbCommand.GlobalRefresh.toEntity(correlationId: String? = null): TauEntity.Content {
+
+    val result = TauEntity.Content(
+        correlationId = correlationId,
+        full_path = this.path.path,
+        modifiedAtIso = Instant.ofEpochMilli(this.refreshDate.value),
+        items = this.items.map { it.toContentItem(0L) },
+    )
+
+    return result
+}
+
+@OptIn(ExperimentalUuidApi::class)
+fun TauEntity.Diff.toTauItem(): TauItem {
 
     val item = when (this.op_type) {
         OpType.CreateItem.text,
@@ -160,7 +237,7 @@ enum class OpType(val text: String) {
 }
 
 val dateTimePattern = "dd/MM/yyyy HH:mm:ss + AAAA"
-fun Long.epochMillisToDateTime(zone: ZoneId = ZoneId.systemDefault()): String{
+fun Long.epochMillisToDateTime(zone: ZoneId = ZoneId.systemDefault()): String {
     val fmt = DateTimeFormatter.ofPattern(dateTimePattern)
     return Instant.ofEpochMilli(this).atZone(zone).format(fmt)
 }
@@ -172,6 +249,3 @@ fun String.dateTimetoEpochMillis(zone: ZoneId = ZoneId.systemDefault()): Long {
     return ldt.atZone(zone).toInstant().toEpochMilli()
 }
 
-fun base64ToByteArray(base64String: String): ByteArray {
-    return Base64.getDecoder().decode(base64String)
-}

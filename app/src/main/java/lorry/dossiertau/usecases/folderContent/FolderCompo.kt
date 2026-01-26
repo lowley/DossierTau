@@ -22,9 +22,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import lorry.dossiertau.data.dbModel.Diff
 import lorry.dossiertau.data.dbModel.FileDiffDao
 import lorry.dossiertau.data.dbModel.OpType
+import lorry.dossiertau.data.dbModel.TauEntity
 import lorry.dossiertau.data.dbModel.toTauItem
 import lorry.dossiertau.data.model.computeParentFolderDate
 import lorry.dossiertau.data.diskTransfer.toTauItems
@@ -191,8 +191,8 @@ open class FolderCompo(
                     emit(null)
                 }
 
-                is Diff -> {
-                    val diff = diffOrPath as Diff
+                is TauEntity.Diff -> {
+                    val diff = diffOrPath as TauEntity.Diff
                     val path = folderFlow.value.getOrElse { TauFolder.EMPTY }.fullPath
 
                     when (diffOrPath.op_type) {

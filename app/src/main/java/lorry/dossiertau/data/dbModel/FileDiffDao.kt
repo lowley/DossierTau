@@ -8,10 +8,19 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface FileDiffDao {
     @Insert
-    suspend fun insert(diff: Diff): Long
+    suspend fun insertDiff(diff: TauEntity.Diff): Long
 
     @Insert
-    suspend fun insertAll(diffs: List<Diff>): List<Long>
+    suspend fun insertContent(entity: TauEntity.Content): Long
+
+    @Insert
+    suspend fun insertContentItem(item: TauEntity.ContentItem): Long
+
+    @Insert
+    suspend fun insertAllContentItems(items: List<TauEntity.ContentItem>): List<Long>
+
+    @Insert
+    suspend fun insertAllDiffs(diffs: List<TauEntity.Diff>): List<Long>
 
     // Pour l’écran : liste des diffs CREATE_FILE d’un dossier
     @Query(
@@ -23,7 +32,7 @@ interface FileDiffDao {
           limit 1
   """
     )
-    fun diffsForFolder(folder: String): Flow<List<Diff>>
+    fun diffsForFolder(folder: String): Flow<List<TauEntity.Diff>>
 
     // Pour l’écran : liste des diffs CREATE_FILE d’un dossier
     @Query(
@@ -36,7 +45,7 @@ interface FileDiffDao {
 
   """
     )
-    fun diffsInParent(folder: String): Flow<List<Diff>>
+    fun diffsInParent(folder: String): Flow<List<TauEntity.Diff>>
 
 
     @Query(
@@ -46,5 +55,5 @@ interface FileDiffDao {
     limit 1
   """
     )
-    fun diffFlow(): Flow<Diff?>
+    fun diffFlow(): Flow<TauEntity.Diff?>
 }

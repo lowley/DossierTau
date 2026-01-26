@@ -414,14 +414,14 @@ class FileListDisplayTests : KoinTest {
             val airForce = spyk<AirForce>(airForceOne)
             val dbCommand = DbCommand.CreateItem(toto.toDbFile())
 
-            coEvery { mockDiffDao.insertAll(any()) } returns listOf(1L)
+            coEvery { mockDiffDao.insertAllContentItems(any()) } returns listOf(1L)
 
             //act
             airForce.modifyDatabaseByAll(listOf(dbCommand))
             advanceUntilIdle()
 
             //assert
-            coVerify(exactly = 1) { mockDiffDao.insertAll(listOf(dbCommand.toFileDiffEntity())) }
+            coVerify(exactly = 1) { mockDiffDao.insertAllContentItems(listOf(dbCommand.toDiff())) }
         }
     }
 
@@ -456,7 +456,7 @@ class FileListDisplayTests : KoinTest {
             val initial = awaitItem()
 
             val dbCommand = DbCommand.CreateItem(toto.toDbFile())
-            dbDao!!.insert(dbCommand.toFileDiffEntity())
+            dbDao!!.insertDiff(dbCommand.toDiff())
             advanceUntilIdle()
 
             val entry = awaitItem()  // [diff]
@@ -515,7 +515,7 @@ class FileListDisplayTests : KoinTest {
 
                     //1. transite dans DB
                     //2. lu et traité par folderCompo
-                    dbDao.insert(dbCommand.toFileDiffEntity())
+                    dbDao.insertDiff(dbCommand.toDiff())
                     advanceUntilIdle()
 
                     val item2 = awaitItem()

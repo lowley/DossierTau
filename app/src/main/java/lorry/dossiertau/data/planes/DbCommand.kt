@@ -1,7 +1,7 @@
 package lorry.dossiertau.data.planes
 
 import kotlinx.serialization.Serializable
-import lorry.dossiertau.data.dbModel.ContentItem
+import lorry.dossiertau.data.dbModel.TauEntity
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.data.model.TauItem
@@ -9,7 +9,10 @@ import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauIdentifier
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
+import lorry.dossiertau.support.littleClasses.name
+import lorry.dossiertau.usecases.generateHTMLs.toByteArray
 import java.time.Instant
+import kotlin.uuid.ExperimentalUuidApi
 
 sealed class DbCommand {
     data class CreateItem(
@@ -27,19 +30,9 @@ sealed class DbCommand {
 
     data class GlobalRefresh(
         val path: TauPath,
-        val refreshDate: TauDate
-    ): DbCommand()
-
-    data class FolderWithContent(
-        val correlationId: String?,               // optionnel: TauIdentifier.toString()
-        val full_path: TauPath,                    // TauPath normalisé (sans slash final)
-        val modifiedAtIso: TauDate,           // TauDate
+        val refreshDate: TauDate,
         val parentPath: TauPath,
-        val fileId: FileId = FileId.EMPTY,
-        val pictureData: TauPicture.Bitmap? = null,
-        val items: List<TauItem> = emptyList()
-
-
+        val items: List<DbItem> = emptyList()
     ): DbCommand()
 
     override fun equals(other: Any?): Boolean {
@@ -51,8 +44,6 @@ sealed class DbCommand {
     override fun hashCode(): Int {
         return javaClass.hashCode()
     }
-
-
 }
 
 data class DbItem(
@@ -60,7 +51,9 @@ data class DbItem(
     val fullPath: TauPath,
     val modificationDate: TauDate = TauDate.now(),
     val type: ItemType,
-    val fileId: FileId = FileId.EMPTY
+    val fileId: FileId = FileId.EMPTY,
+    val pictureData: TauPicture? = null,
+    val memo: String? = ""
 ){
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -81,6 +74,20 @@ data class DbItem(
         result = 31 * result + modificationDate.hashCode()
         result = 31 * result + type.hashCode()
         return result
+    }
+
+    fun toContentItem(
+        parentContentId: Long
+    ): TauEntity.ContentItem {
+        return TauEntity.ContentItem(
+            parentContentId = parentContentId,
+            id = "",
+            name = this.fullPath.name.value,
+            picture = this.pictureData?.toBitmap()?.toByteArray(),
+            memo = this.memo,
+            modificationDate = Instant.ofEpochMilli(this.modificationDate.value),
+            fileId = this.fileId
+        )
     }
 }
 
@@ -118,4 +125,5 @@ data class DbItemBig(
         result = 37 * result + fileId.hashCode()
         return result
     }
+
 }
