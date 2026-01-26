@@ -56,4 +56,11 @@ interface FileDiffDao {
   """
     )
     fun diffFlow(): Flow<TauEntity.Diff?>
+
+    @Query("""
+        SELECT * FROM folder_content
+        ORDER BY contentId DESC
+        limit 1
+        """)
+    fun getAllContent(): Flow<List<ContentWithItems>>
 }

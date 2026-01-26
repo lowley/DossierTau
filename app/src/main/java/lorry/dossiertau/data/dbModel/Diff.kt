@@ -1,10 +1,12 @@
 package lorry.dossiertau.data.dbModel
 
+import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Ignore
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import androidx.room.Relation
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.data.model.TauFile
@@ -99,7 +101,8 @@ sealed class TauEntity() {
         val picture: ByteArray? = null,
         val memo: String?,
         val modificationDate: Instant?,
-        val fileId: FileId = FileId.EMPTY
+        val fileId: FileId = FileId.EMPTY,
+        val type: ItemType
     ) : TauEntity()
 }
 
@@ -249,3 +252,11 @@ fun String.dateTimetoEpochMillis(zone: ZoneId = ZoneId.systemDefault()): Long {
     return ldt.atZone(zone).toInstant().toEpochMilli()
 }
 
+data class ContentWithItems(
+    @Embedded val content: TauEntity.Content,
+    @Relation(
+        parentColumn = "contentId",
+        entityColumn = "parentContentId"
+    )
+    val items: List<TauEntity.ContentItem>
+)

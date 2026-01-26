@@ -1,10 +1,14 @@
 package lorry.dossiertau.data.intelligenceService
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import lorry.dossiertau.data.dbModel.DiffRepository
 import lorry.dossiertau.data.dbModel.TauEntity
 import lorry.dossiertau.data.intelligenceService.utils.CIALevel
@@ -97,43 +101,45 @@ class AirForce(
     }
 
     fun modifyDatabaseByAll(commands: List<DbCommand>) {
-        scope.launch {
+        scope.launch(Dispatchers.IO) {
             commands.partition { it is DbCommand.CreateItem || it is DbCommand.DeleteItem || it is DbCommand.ModifyItem }.let {
                 val (diffs, contents) = it
                 repo.insertDiffs(diffs)
                 repo.insertContents(contents.toContents())
-
             }
         }
     }
 }
 
 @OptIn(ExperimentalUuidApi::class)
-fun List<DbCommand>.toContents(): List<TauEntity.Content>{
-    assert(this.all { it is DbCommand.GlobalRefresh })
+suspend fun List<DbCommand>.toContents(): List<TauEntity.Content> = withContext(Dispatchers.Default) {
+    assert(this@toContents.all { it is DbCommand.GlobalRefresh })
 
-    val result = this
+    this@toContents
         .map { it as DbCommand.GlobalRefresh }
         .map { globesh ->
-        TauEntity.Content(
-            correlationId = "",
-            full_path = globesh.path.path,
-            modifiedAtIso = Instant.ofEpochMilli(globesh.refreshDate.value),
-            items = globesh.items
-                .map { conti ->
-                TauEntity.ContentItem(
-                    //traitement particulier lors de l'enregistrement: 2 phases
-                    parentContentId = 0L,
-                    id = conti.id.value.toString(),
-                    name = conti.fullPath.name.value,
-                    picture = conti.pictureData?.toBitmap()?.toByteArray(),
-                    memo = conti.memo,
-                    modificationDate = Instant.ofEpochMilli(conti.modificationDate.value),
-                    fileId = conti.fileId
+            async {
+                TauEntity.Content(
+                    correlationId = "",
+                    full_path = globesh.path.path,
+                    modifiedAtIso = Instant.ofEpochMilli(globesh.refreshDate.value),
+                    items = globesh.items
+                        .map { conti ->
+                            async {
+                                TauEntity.ContentItem(
+                                    //traitement particulier lors de l'enregistrement: 2 phases
+                                    parentContentId = 0L,
+                                    id = conti.id.value.toString(),
+                                    name = conti.fullPath.name.value,
+                                    picture = conti.pictureData?.toBitmap()?.toByteArray(),
+                                    memo = conti.memo,
+                                    modificationDate = Instant.ofEpochMilli(conti.modificationDate.value),
+                                    fileId = conti.fileId,
+                                    type = conti.type
+                                )
+                            }
+                        }.awaitAll()
                 )
             }
-        )
-    }
-
-    return result
+        }.awaitAll()
 }

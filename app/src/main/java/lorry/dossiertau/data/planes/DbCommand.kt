@@ -86,7 +86,8 @@ data class DbItem(
             picture = this.pictureData?.toBitmap()?.toByteArray(),
             memo = this.memo,
             modificationDate = Instant.ofEpochMilli(this.modificationDate.value),
-            fileId = this.fileId
+            fileId = this.fileId,
+            type = this.type
         )
     }
 }

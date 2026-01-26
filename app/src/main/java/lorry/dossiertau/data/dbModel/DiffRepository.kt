@@ -29,21 +29,22 @@ class DiffRepository(
 
     @Transaction
     suspend fun insertContent(parent: TauEntity.Content, children: List<TauEntity.ContentItem>) {
-
-        val id = insertParentOnly(parent)
-        val childrenWithId = children.map { it.copy(parentContentId = id) }
-        insertChildren(childrenWithId)
+        val id = dao.insertContent(parent)
+        if (children.isNotEmpty()) {
+            val childrenWithId = children.map { it.copy(parentContentId = id) }
+            dao.insertAllContentItems(childrenWithId)
+        }
     }
 
     @Transaction
     suspend fun insertContents(parents: List<TauEntity.Content>) {
-
         parents.onEach { parent ->
-
-            val id = insertParentOnly(parent)
+            val id = dao.insertContent(parent)
             val children = parent.items
-            val childrenWithId = children.map { it.copy(parentContentId = id) }
-            insertChildren(childrenWithId)
+            if (children.isNotEmpty()) {
+                val childrenWithId = children.map { it.copy(parentContentId = id) }
+                dao.insertAllContentItems(childrenWithId)
+            }
         }
     }
 }

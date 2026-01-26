@@ -29,8 +29,6 @@ open class TauViewModel(
 ): ViewModel() {
 
     var translator: Translator? = null
-
-
     val _selectedItem = MutableStateFlow<TauItem?>(null)
     val selectedItem: StateFlow<TauItem?> = _selectedItem.asStateFlow()
 
@@ -40,7 +38,6 @@ open class TauViewModel(
 
     fun setTauFolder(folderPath: TauPath){
         folderCompo.setFolderFlow(folderPath)
-        spy.setObservedFolder(folderPath)
         if (!spy.enabledFlow.value)
             spy.startSurveillance()
     }

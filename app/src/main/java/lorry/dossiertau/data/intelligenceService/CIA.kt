@@ -4,6 +4,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.os.Handler
+import android.os.Looper
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
@@ -11,6 +13,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -28,6 +31,7 @@ import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauDate
 import org.koin.core.context.GlobalContext
 import java.time.Clock
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 
 class CIA() : LifecycleService() {
@@ -39,6 +43,10 @@ class CIA() : LifecycleService() {
     val airForce: AirForce = koin.get()
     private var eventsJob: Job? = null
 
+    private var lastActivityTime = System.currentTimeMillis()
+    private val inactivityTimeout = 30.seconds
+    private var inactivityJob: Job? = null
+
     /////////////////////////////////////////////////////////////////////////////////////////
     // la production de la Cia: informer TauFolder des changements dans le disque via Room //
     /////////////////////////////////////////////////////////////////////////////////////////
@@ -46,14 +54,35 @@ class CIA() : LifecycleService() {
     val ciaDecisions: SharedFlow<List<CIALevel>> = _ciaDecisions.asSharedFlow()
 
     fun emitCIALevel(decision: CIALevel) {
+        updateActivity()
         scope.launch(dispatcher) {
             _ciaDecisions.emit(listOf(decision))
         }
     }
 
     fun emitCIALevels(decisions: List<CIALevel>) {
+        updateActivity()
         scope.launch(dispatcher) {
             _ciaDecisions.emit(decisions)
+        }
+    }
+
+    private fun updateActivity() {
+        lastActivityTime = System.currentTimeMillis()
+    }
+
+    private fun startInactivityTimer() {
+        inactivityJob?.cancel()
+        inactivityJob = lifecycleScope.launch {
+            while (true) {
+                delay(5000)
+                if (System.currentTimeMillis() - lastActivityTime > inactivityTimeout.inWholeMilliseconds) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    // On ne stopSelf() pas forcément si on veut garder le service "vivant" en arrière plan simple
+                    // mais pour dataSync, si on n'a plus rien à faire, autant s'arrêter.
+                    // Cependant, LifecycleService pourrait être redémarré par d'autres composants.
+                }
+            }
         }
     }
 
@@ -62,6 +91,7 @@ class CIA() : LifecycleService() {
 
         scope.launch(dispatcher) {
             spy.observedFolderFlow.collect { folder ->
+                updateActivity()
                 startForegroundServiceWithNotification(folder = folder)
             }
         }
@@ -72,10 +102,13 @@ class CIA() : LifecycleService() {
         if (eventsJob?.isActive != true) {
             eventsJob = spy.spyLevelFlow
                 .onEach { event ->
+                    updateActivity()
                     manageUpdateEvents(event).let { emitCIALevels(it) }
                 }
                 .launchIn(lifecycleScope) // LifecycleService fournit lifecycleScope
         }
+
+        startInactivityTimer()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

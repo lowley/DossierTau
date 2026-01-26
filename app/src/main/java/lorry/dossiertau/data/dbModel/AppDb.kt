@@ -17,7 +17,7 @@ import lorry.dossiertau.data.dbModel.converters.FileIdConverter
         TauEntity.Diff::class,
         TauEntity.Content::class,
         TauEntity.ContentItem::class
-    ], version = 4
+    ], version = 5
 )
 abstract class AppDb : RoomDatabase() {
     abstract fun fileDiffDao(): FileDiffDao

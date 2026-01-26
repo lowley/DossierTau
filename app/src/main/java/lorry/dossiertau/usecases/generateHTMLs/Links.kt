@@ -522,7 +522,7 @@ suspend fun log(text: String) {
 
 fun Bitmap.toByteArray(): ByteArray {
     val stream = ByteArrayOutputStream()
-    this.compress(Bitmap.CompressFormat.PNG, 100, stream)
+    this.compress(Bitmap.CompressFormat.JPEG, 80, stream)
     return stream.toByteArray()
 }
 
