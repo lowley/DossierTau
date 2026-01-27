@@ -258,5 +258,5 @@ data class ContentWithItems(
         parentColumn = "contentId",
         entityColumn = "parentContentId"
     )
-    val items: List<TauEntity.ContentItem>?
+    val items: List<TauEntity.ContentItem>
 )

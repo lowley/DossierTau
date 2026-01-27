@@ -218,7 +218,7 @@ open class FolderCompo(
                         .sortedBy { it.content.modifiedAtIso?.toEpochMilli() }
                         .last()
 
-                    if (content.items?.isEmpty() == true) {
+                    if (content.items.isEmpty() == true) {
                         // Le répertoire est vide, mais c'est une émission valide
                         println("COLLECTDIFFS: content.items est vide, répertoire considéré comme vide.")
                     }
@@ -231,8 +231,8 @@ open class FolderCompo(
                         modificationDate = content.component1().modifiedAtIso?.toEpochMilli().toTauDate(),
                         fileId = FileId.EMPTY,
                         children = content.items
-                            ?.filter { !it.name.startsWith(".") }
-                            ?.map { item ->
+                            .filter { !it.name.startsWith(".") }
+                            .map { item ->
                             when (item.type) {
                                 ItemType.FILE ->
                                     TauFile.Data(
