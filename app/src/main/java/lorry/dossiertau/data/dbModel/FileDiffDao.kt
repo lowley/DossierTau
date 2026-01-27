@@ -3,6 +3,8 @@ package lorry.dossiertau.data.dbModel
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Transaction
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -12,6 +14,9 @@ interface FileDiffDao {
 
     @Insert
     suspend fun insertContent(entity: TauEntity.Content): Long
+
+    @Update
+    suspend fun updateContent(entity: TauEntity.Content)
 
     @Insert
     suspend fun insertContentItem(item: TauEntity.ContentItem): Long
@@ -57,10 +62,12 @@ interface FileDiffDao {
     )
     fun diffFlow(): Flow<TauEntity.Diff?>
 
+    @Transaction
     @Query("""
         SELECT * FROM folder_content
+        WHERE modifiedAtIso <> '1970-01-01T00:00:00Z'
         ORDER BY contentId DESC
         limit 1
         """)
-    fun getAllContent(): Flow<List<ContentWithItems>>
+    fun getAllContentFlow(): Flow<List<ContentWithItems>>
 }

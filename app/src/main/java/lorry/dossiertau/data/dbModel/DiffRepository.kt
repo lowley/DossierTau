@@ -1,11 +1,14 @@
 package lorry.dossiertau.data.dbModel
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.room.Insert
 import androidx.room.Transaction
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import lorry.dossiertau.data.planes.DbCommand
+import java.time.Instant
 
 class DiffRepository(
     private val dao: FileDiffDao,
@@ -27,24 +30,33 @@ class DiffRepository(
     suspend fun insertChildren(children: List<TauEntity.ContentItem>) =
         withContext(io) { dao.insertAllContentItems(children) }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     @Transaction
     suspend fun insertContent(parent: TauEntity.Content, children: List<TauEntity.ContentItem>) {
-        val id = dao.insertContent(parent)
+        val contentInProgress = parent.copy(modifiedAtIso = Instant.ofEpochSecond(0L))
+        val id = dao.insertContent(contentInProgress)
         if (children.isNotEmpty()) {
             val childrenWithId = children.map { it.copy(parentContentId = id) }
             dao.insertAllContentItems(childrenWithId)
         }
+
+        val finalContent = parent.copy(contentId = id)
+        dao.updateContent(finalContent)
     }
 
     @Transaction
     suspend fun insertContents(parents: List<TauEntity.Content>) {
         parents.onEach { parent ->
-            val id = dao.insertContent(parent)
+            val contentInProgress = parent.copy(modifiedAtIso = Instant.ofEpochSecond(0L))
+            val id = dao.insertContent(contentInProgress)
             val children = parent.items
             if (children.isNotEmpty()) {
                 val childrenWithId = children.map { it.copy(parentContentId = id) }
                 dao.insertAllContentItems(childrenWithId)
             }
+
+            val finalContent = parent.copy(contentId = id)
+            dao.updateContent(finalContent)
         }
     }
 }

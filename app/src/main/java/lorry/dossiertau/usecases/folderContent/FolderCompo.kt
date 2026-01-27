@@ -8,12 +8,11 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
@@ -27,23 +26,14 @@ import lorry.dossiertau.data.dbModel.FileDiffDao
 import lorry.dossiertau.data.dbModel.OpType
 import lorry.dossiertau.data.dbModel.TauEntity
 import lorry.dossiertau.data.dbModel.toTauItem
-import lorry.dossiertau.data.model.computeParentFolderDate
-import lorry.dossiertau.data.diskTransfer.toTauItems
 import lorry.dossiertau.data.intelligenceService.ISpy
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.data.model.TauFile
 import lorry.dossiertau.data.model.TauFolder
-import lorry.dossiertau.data.model.TauItem
-import lorry.dossiertau.data.model.asDataCommon
 import lorry.dossiertau.data.model.fullPath
-import lorry.dossiertau.data.model.isFile
-import lorry.dossiertau.data.model.isFolder
-import lorry.dossiertau.data.model.name
 import lorry.dossiertau.data.model.parentPath
-import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauIdentifier
-import lorry.dossiertau.support.littleClasses.TauItemName
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
 import lorry.dossiertau.support.littleClasses.name
@@ -53,7 +43,6 @@ import lorry.dossiertau.support.littleClasses.toTauDate
 import lorry.dossiertau.support.littleClasses.toTauFileName
 import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.support.littleClasses.toTauPicture
-import lorry.dossiertau.ui.support.capsule.CapsuleComponent
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 import lorry.dossiertau.usecases.generateHTMLs.toBitmap
 
@@ -192,7 +181,7 @@ open class FolderCompo(
     private suspend fun collectDiffs() {
         merge(
             fileDiffDAO.diffFlow().drop(1).filterNotNull(),
-            folderPathFlow.drop(1), fileDiffDAO.getAllContent().filterNotNull()
+            folderPathFlow.drop(1), fileDiffDAO.getAllContentFlow().distinctUntilChanged().drop(3).filterNotNull()
         ).transform { change ->
             println("COLLECTDIFFS: reçu path: $change")
             when (change) {
@@ -229,7 +218,7 @@ open class FolderCompo(
                         .sortedBy { it.content.modifiedAtIso?.toEpochMilli() }
                         .last()
 
-                    if (content.items.isEmpty()) {
+                    if (content.items?.isEmpty() == true) {
                         // Le répertoire est vide, mais c'est une émission valide
                         println("COLLECTDIFFS: content.items est vide, répertoire considéré comme vide.")
                     }
@@ -241,7 +230,9 @@ open class FolderCompo(
                         picture = TauPicture.NONE,
                         modificationDate = content.component1().modifiedAtIso?.toEpochMilli().toTauDate(),
                         fileId = FileId.EMPTY,
-                        children = content.items.map { item ->
+                        children = content.items
+                            ?.filter { !it.name.startsWith(".") }
+                            ?.map { item ->
                             when (item.type) {
                                 ItemType.FILE ->
                                     TauFile.Data(
@@ -268,7 +259,7 @@ open class FolderCompo(
                                         children = emptyList()
                                     )
                             }
-                        }
+                        } ?: emptyList()
                     ) as TauFolder
 
                     println("DEBUG: setFolderFlow:${result.fullPath}")
