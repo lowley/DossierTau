@@ -8,8 +8,8 @@ import androidx.compose.ui.Modifier
 import lorry.dossiertau.MainActivity
 import lorry.dossiertau.ShortcutMakingEndMessage
 import lorry.dossiertau.data.model.TauItem
-import lorry.dossiertau.ui.bottomSheet.contents.ContentApplication
-import lorry.dossiertau.ui.bottomSheet.contents.ContentItem
+import lorry.dossiertau.ui.bottomSheet.contents.SheetContentLevelGeneral
+import lorry.dossiertau.ui.bottomSheet.contents.SheetContentLevelItem
 import lorry.dossiertau.ui.bottomSheet.support.SheetType
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -20,21 +20,23 @@ fun MainActivity.Sheet(
     item: TauItem?,
     sheetText: MutableState<String>,
     sheetState: SheetState,
+    removeSheetFromUI: () -> Unit
     ) {
 
     when (type) {
         SheetType.APPLICATION -> {
-            ContentApplication(
+            SheetContentLevelGeneral(
                 modifier = modifier,
                 viewModel = viewModel,
                 sheetText = sheetText,
                 sheetState = sheetState,
-                shortcutMakingEndMessage = ShortcutMakingEndMessage
+                shortcutMakingEndMessage = ShortcutMakingEndMessage,
+                removeSheetFromUI = removeSheetFromUI
             )
         }
 
         SheetType.ITEM -> {
-            ContentItem(
+            SheetContentLevelItem(
                 modifier = modifier,
                 item = item,
                 sheetState = sheetState,

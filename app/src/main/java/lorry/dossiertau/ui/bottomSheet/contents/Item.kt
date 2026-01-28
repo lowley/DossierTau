@@ -55,7 +55,7 @@ import org.koin.java.KoinJavaComponent.inject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainActivity.ContentItem(
+fun MainActivity.SheetContentLevelItem(
     item: TauItem?,
     sheetState: SheetState,
     tauvm: TauViewModel,

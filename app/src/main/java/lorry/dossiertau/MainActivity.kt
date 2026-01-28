@@ -220,13 +220,16 @@ class MainActivity() : ComponentActivity() {
                                 ),
                                 contentWindowInsets = { WindowInsets(0) } // Pour le edge-to-edge
                             ) {
-                                 Sheet(
-                                     modifier = Modifier
-                                         .navigationBarsPadding(),
-                                     type = currentType.value,
-                                     item = sheetItem.value,
-                                     sheetText = sheetText,
-                                     sheetState = sheetState,
+                                Sheet(
+                                    modifier = Modifier
+                                        .navigationBarsPadding(),
+                                    type = currentType.value,
+                                    item = sheetItem.value,
+                                    sheetText = sheetText,
+                                    sheetState = sheetState,
+                                    removeSheetFromUI = {
+                                        bsVM.changeType(SheetType.NONE)
+                                    }
                                 )
                             }
                         }

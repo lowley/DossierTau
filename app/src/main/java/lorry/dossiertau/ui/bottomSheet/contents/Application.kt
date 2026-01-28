@@ -47,12 +47,13 @@ import kotlin.getValue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ContentApplication(
+fun SheetContentLevelGeneral(
     viewModel: TauViewModel,
     sheetText: MutableState<String>,
     shortcutMakingEndMessage: String,
     sheetState: SheetState,
-    modifier: Modifier
+    modifier: Modifier,
+    removeSheetFromUI: () -> Unit
 ) {
     val appliFavos: AppliFavos by inject(AppliFavos::class.java)
     val favoris by appliFavos.appliFavorites.collectAsState(emptyList())
@@ -90,6 +91,10 @@ fun ContentApplication(
                             .clickable{
                                 scope.launch {
                                     sheetState.hide()
+                                }.invokeOnCompletion {
+                                    if (!sheetState.isVisible) {
+                                        removeSheetFromUI()
+                                    }
                                 }
 
                                 folderCompo.setFolderFlow(favori.fullPath)
