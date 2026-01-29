@@ -67,7 +67,30 @@ class FileCapsuleManager(
         }
     }
 
-    suspend fun getCapsule(): CapsuleData {
+    suspend fun getFolderBitmap(): Bitmap? {
+        val initialWebp = File(targetPathHere.path
+            .substringBeforeLast("/")
+            .plus("/.sigma/initialPicture.webp")
+        )
+
+        if (initialWebp.exists()) {
+            return withContext(Dispatchers.IO) {
+                try {
+                    FileInputStream(initialWebp).use { inputStream ->
+                        BufferedInputStream(inputStream).use { bufferedInputStream ->
+                            BitmapFactory.decodeStream(bufferedInputStream)
+                        }
+                    }
+                } catch (e: IOException) {
+                    e.printStackTrace()
+                    null
+                }
+            }
+        }
+        return null
+    }
+
+    suspend fun getCapsule(loadBitmaps: Boolean = true): CapsuleData {
         val compositeIO = FileMetadataManager()
 
         val target = targetPathHere.toFile().getOrNull()
@@ -82,6 +105,8 @@ class FileCapsuleManager(
         if (targetPathHere?.path?.endsWith(folderSuffix) != true)
             return firstMelt
 
+        if (!loadBitmaps) return firstMelt
+
         val initialWebp = File(targetPathHere.path
             .substringBeforeLast("/")
             .plus("/.sigma/initialPicture.webp")
@@ -90,16 +115,18 @@ class FileCapsuleManager(
         val initialWebpExists = initialWebp.exists()
         val secondMeltInitial = if (initialWebpExists) try {
             var result: String? = null
-            FileInputStream(initialWebp).use{ inputStream ->
-                BufferedInputStream(inputStream).use{ bufferedInputStream ->
-                    val bmp = BitmapFactory.decodeStream(bufferedInputStream)
-                    result = if (bmp != null) {
-                        val videoInfoEmbedder = VideoInfoEmbedder()
-                        val b64 = videoInfoEmbedder.bitmapToBase64(bmp)
-                        b64
-                    } else null
+            withContext(Dispatchers.IO) {
+                FileInputStream(initialWebp).use { inputStream ->
+                    BufferedInputStream(inputStream).use { bufferedInputStream ->
+                        val bmp = BitmapFactory.decodeStream(bufferedInputStream)
+                        result = if (bmp != null) {
+                            val videoInfoEmbedder = VideoInfoEmbedder()
+                            val b64 = videoInfoEmbedder.bitmapToBase64(bmp)
+                            b64
+                        } else null
 
-                    result
+                        result
+                    }
                 }
             }
         } catch (e: IOException) {
@@ -114,17 +141,19 @@ class FileCapsuleManager(
 
         val croppedWebpExists = croppedWebp.exists()
         val secondMeltCropped = if (croppedWebpExists) try {
-            var result: String?
-            FileInputStream(croppedWebp).use{ inputStream ->
-                BufferedInputStream(inputStream).use{ bufferedInputStream ->
-                    val bmp = BitmapFactory.decodeStream(bufferedInputStream)
-                    result = if (bmp != null) {
-                        val videoInfoEmbedder = VideoInfoEmbedder()
-                        val b64 = videoInfoEmbedder.bitmapToBase64(bmp)
-                        b64
-                    } else null
+            var result: String? = null
+            withContext(Dispatchers.IO) {
+                FileInputStream(croppedWebp).use { inputStream ->
+                    BufferedInputStream(inputStream).use { bufferedInputStream ->
+                        val bmp = BitmapFactory.decodeStream(bufferedInputStream)
+                        result = if (bmp != null) {
+                            val videoInfoEmbedder = VideoInfoEmbedder()
+                            val b64 = videoInfoEmbedder.bitmapToBase64(bmp)
+                            b64
+                        } else null
 
-                    result
+                        result
+                    }
                 }
             }
         } catch (e: IOException) {

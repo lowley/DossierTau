@@ -1,11 +1,12 @@
 package lorry.folder.items.dossiersigma.external.userPreferences
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import lorry.dossiertau.usecases.applicationFavorites.support.Favorite
 
 interface IPrefsAppliFavo {
 
-    val appliFavosFlow: Flow<List<Favorite>>
+    val appliFavosFlow: StateFlow<List<Favorite>>
 
     suspend fun appliFavos(): List<Favorite>
 

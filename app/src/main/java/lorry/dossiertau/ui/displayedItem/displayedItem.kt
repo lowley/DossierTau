@@ -37,6 +37,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.graphics.asImageBitmap
+import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import kotlinx.coroutines.Dispatchers
@@ -50,6 +53,7 @@ import lorry.dossiertau.data.model.isFolder
 import lorry.dossiertau.data.model.name
 import lorry.dossiertau.data.model.picture
 import lorry.dossiertau.support.littleClasses.TauPath
+import lorry.dossiertau.support.littleClasses.TauPicture
 import lorry.dossiertau.ui.displayedItem.support.DisplayItemRepo
 import org.koin.android.ext.android.get
 import org.koin.android.ext.android.inject
@@ -87,13 +91,20 @@ fun MainActivity.DisplayedItem(
         ////////////////
         // zone image //
         ////////////////
-        var imageSize by remember { mutableStateOf<IntSize?>(null) }
-        var containerSize = IntSize(borderSize, borderSize)
+        var imageSize by remember(item) { mutableStateOf<IntSize?>(null) }
+        var containerSize by remember { mutableStateOf(IntSize(borderSize, borderSize)) }
+
+        // On essaie de déterminer si on a besoin du maillage dès le début si le bitmap est déjà là
+        val initialImageSize = remember(item.picture) {
+            (item.picture as? TauPicture.Bitmap)?.bitmap?.let {
+                IntSize(it.width, it.height)
+            }
+        }
 
         // Le calcul reste le même, il sera relancé quand imageSize changera
-        val shouldShowMesh = remember(imageSize /*, scale */) {
-            val size = imageSize
-            if (size != null) {
+        val shouldShowMesh = remember(imageSize, initialImageSize, containerSize) {
+            val size = imageSize ?: initialImageSize
+            if (size != null && containerSize.width > 0 && containerSize.height > 0) {
                 !doesImageFillBox(
                     containerWidth = containerSize.width,
                     containerHeight = containerSize.height,
@@ -116,6 +127,8 @@ fun MainActivity.DisplayedItem(
 
         ) {
 
+            // Si on connaît déjà la taille de l'image (via le bitmap initial), on peut décider
+            // d'afficher le maillage immédiatement pour éviter le clignotement.
             if (shouldShowMesh) {
                 Icon(
                     painter = painterResource(id = R.drawable.diagos),
@@ -149,30 +162,25 @@ fun MainActivity.DisplayedItem(
                             shape = RoundedCornerShape(8.dp)
                         ) else Modifier
                     ),
-                loading = { /*affiche un loader*/ },
-                success = { successState ->
+                loading = {
+                    // Si on a déjà un bitmap initial, on l'affiche pendant le chargement Coil
+                    // pour éviter que l'image disparaisse si Coil décide de vider le slot
+                    item.picture.toBitmap()?.let {
+                        Image(
+                            bitmap = it.asImageBitmap(),
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                },
+                onSuccess = { successState ->
                     val drawable = successState.result.drawable
                     imageSize = IntSize(
                         drawable.intrinsicWidth,
                         drawable.intrinsicHeight
                     )
-
-                    Box(
-                        modifier = Modifier.matchParentSize()
-
-                    ) {
-                        Image(
-                            painter = successState.painter,
-                            contentDescription = "Miniature",
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier
-                                .matchParentSize(),
-                            colorFilter = null
-                        )
-                    }
-
-                },
-                error = { /* fallback en cas d'erreur */ }
+                }
             )
 
             CornerSupplement(

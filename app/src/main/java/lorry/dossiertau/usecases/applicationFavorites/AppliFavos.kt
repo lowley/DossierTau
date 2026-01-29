@@ -3,12 +3,17 @@ package lorry.dossiertau.usecases.applicationFavorites
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.any
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.last
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import lorry.dossiertau.data.model.TauItem
@@ -32,27 +37,40 @@ class AppliFavos {
 
     val appliFavorites = prefsAppliFavo.appliFavosFlow
 
+    val _addedFavorite = MutableSharedFlow<Favorite?>()
+    val addedFavorite = _addedFavorite.asSharedFlow()
+
     fun addFavorite(favorite: Favorite) {
         scope.launch {
             prefsAppliFavo.addAppliFavo(favorite)
+            _addedFavorite.emit(favorite)
         }
     }
+
+    val _removedFavorite = MutableSharedFlow<Favorite?>()
+    val removedFavorite = _removedFavorite.asSharedFlow()
 
     fun removeFavorite(favorite: Favorite) {
         scope.launch {
             prefsAppliFavo.removeAppliFavo(favorite)
+            _removedFavorite.emit(favorite)
         }
     }
 
     fun toggleApplicationFavorite(item: TauItem) {
         scope.launch {
             val favorite = item.toFavorite()
-            val isApplicationfavorite = appliFavorites.first().any { it.fullPath == item.fullPath }
+            val isApplicationfavorite = appliFavorites.value.any { it.fullPath == item.fullPath }
 
             if (isApplicationfavorite)
                 removeFavorite(favorite)
             else addFavorite(favorite)
         }
+    }
+
+    fun isApplicationFavorite(item: TauItem): Boolean {
+        val result = appliFavorites.value.any { it.fullPath == item.fullPath }
+        return result
     }
 }
 

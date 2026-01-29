@@ -1075,7 +1075,7 @@ class FileListDisplayTests : KoinTest {
         val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
 
         turbineScope {
-            val lastSnapshotFlow = spy.lastSnapshotFlow.drop(1).testIn(this)
+            val lastSnapshotFlow = spy.storedSnapshotsFlow.drop(1).testIn(this)
 
             //arrange
             everySuspend { repo.createSnapshotFor(PATH) } returns FAKE_SNAPSHOT
@@ -1178,7 +1178,7 @@ class FileListDisplayTests : KoinTest {
         val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
 
         turbineScope {
-            val lastSnapshotFlow = spy.lastSnapshotFlow.drop(1).testIn(this)
+            val lastSnapshotFlow = spy.storedSnapshotsFlow.drop(1).testIn(this)
 
             val calls = AtomicInteger(0)
             //arrange
@@ -1276,7 +1276,7 @@ class FileListDisplayTests : KoinTest {
         expect(calls.get()).toEqual(2)
 
         expect(minTimer.isRunning()).toEqual(false)
-        expect(spy.lastSnapshotFlow.value).toEqual(FAKE_SNAPSHOT)
+        expect(spy.storedSnapshotsFlow.value).toEqual(FAKE_SNAPSHOT)
 
 //        Les 3 briques utiles
 //
@@ -1337,7 +1337,7 @@ class FileListDisplayTests : KoinTest {
             runCurrent()
             expect(minTimer.isRunning()).toEqual(false)
 
-            expect(spy.lastSnapshotFlow.value).toEqual(FAKE_SNAPSHOT)
+            expect(spy.storedSnapshotsFlow.value).toEqual(FAKE_SNAPSHOT)
             expectNoEvents()
 
 //            verify { spy.computeDiffsBetween(FAKE_SNAPSHOT, FAKE_SNAPSHOT) }
@@ -1398,7 +1398,7 @@ class FileListDisplayTests : KoinTest {
             spy.tick()
             runCurrent()
 
-            expect(spy.lastSnapshotFlow.value).toEqual(INITIAL_SNAPSHOT)
+            expect(spy.storedSnapshotsFlow.value).toEqual(INITIAL_SNAPSHOT)
 
             val oneDiff = awaitItem()
             expect(oneDiff).notToBeEmpty()
@@ -1565,7 +1565,7 @@ class FileListDisplayTests : KoinTest {
 //        expect(calls.get()).toEqual(2)
 
         //TODO vérifier désarmement
-        expect(spy.lastSnapshotFlow.value).toEqual(FAKE_SNAPSHOT)
+        expect(spy.storedSnapshotsFlow.value).toEqual(FAKE_SNAPSHOT)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -1615,7 +1615,7 @@ class FileListDisplayTests : KoinTest {
             spy.tick()
             runCurrent()
 
-            expect(spy.lastSnapshotFlow.value).toEqual(INITIAL_SNAPSHOT)
+            expect(spy.storedSnapshotsFlow.value).toEqual(INITIAL_SNAPSHOT)
 
             val oneDiff = awaitItem()
             expect(oneDiff).notToBeEmpty()
@@ -1670,7 +1670,7 @@ class FileListDisplayTests : KoinTest {
             spy.tick()
             runCurrent()
 
-            expect(spy.lastSnapshotFlow.value).toEqual(SNAPSHOT_BEFORE_RENAME)
+            expect(spy.storedSnapshotsFlow.value).toEqual(SNAPSHOT_BEFORE_RENAME)
 
             val firstDiff = awaitItem()
             expect(firstDiff).toHaveSize(1)
@@ -1691,7 +1691,7 @@ class FileListDisplayTests : KoinTest {
             runCurrent()
             advanceUntilIdle()
 
-            expect(spy.lastSnapshotFlow.value).toEqual(SNAPSHOT_AFTER_RENAME1)
+            expect(spy.storedSnapshotsFlow.value).toEqual(SNAPSHOT_AFTER_RENAME1)
             expectNoEvents()
         }
     }

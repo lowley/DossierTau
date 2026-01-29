@@ -5,10 +5,16 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.serializer
 import lorry.dossiertau.json
@@ -22,12 +28,13 @@ open class PrefsAppliFavo(
 ) : IPrefsAppliFavo {
 
     private val dataStore = context.applicationContext.dataStore
+    val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     companion object {
         private val APPLI_FAVORITES_FOLDERS_KEY = stringSetPreferencesKey("appli_favorites_folders")
     }
 
-    override val appliFavosFlow: Flow<List<Favorite>> = dataStore.data
+    override val appliFavosFlow: StateFlow<List<Favorite>> = dataStore.data
         .map { preferences ->
             val rawSet = preferences[APPLI_FAVORITES_FOLDERS_KEY] ?: emptySet()
             val favoritesSet = rawSet.map { data ->
@@ -36,7 +43,11 @@ open class PrefsAppliFavo(
             }
 
             favoritesSet
-        }
+        }.stateIn(
+            scope = scope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
     override suspend fun appliFavos(): List<Favorite> {
         return withContext(Dispatchers.IO) {

@@ -451,35 +451,36 @@ class MainActivity() : ComponentActivity() {
                 columns = GridCells.Adaptive(150.dp)
 //        userScrollEnabled = true,
             ) {
-                items(allItems.size) { index ->
+                items(
+                    count = allItems.size,
+                    key = { index -> allItems[index].fullPath.path } // On garde la clé unique par chemin
+                ) { index ->
                     val item = allItems[index]
 
-                    key(item.fullPath, item.picture) {
-                        DisplayedItem(
-                            item = item,
-                            setCurrentFolder = setCurrentFolder,
-                            onClick = { filePath ->
-                                viewModel.viewModelScope.launch(Dispatchers.IO) {
-                                    if (filePath.path.endsWith("html"))
-                                        viewModel.playingFile.playFile(
-                                            filePath,
-                                            "text/html",
-                                            this@MainActivity
-                                        )
-                                    else
-                                        viewModel.playingFile.playFile(
-                                            filePath,
-                                            "video/mp4",
-                                            this@MainActivity
-                                        )
-                                }
-                            },
-                            onLongClick = { item ->
-                                viewModel.setSelectedItem(item)
-                                setSheetVisible(item)
-                            },
-                        )
-                    }
+                    DisplayedItem(
+                        item = item,
+                        setCurrentFolder = setCurrentFolder,
+                        onClick = { filePath ->
+                            viewModel.viewModelScope.launch(Dispatchers.IO) {
+                                if (filePath.path.endsWith("html"))
+                                    viewModel.playingFile.playFile(
+                                        filePath,
+                                        "text/html",
+                                        this@MainActivity
+                                    )
+                                else
+                                    viewModel.playingFile.playFile(
+                                        filePath,
+                                        "video/mp4",
+                                        this@MainActivity
+                                    )
+                            }
+                        },
+                        onLongClick = { item ->
+                            viewModel.setSelectedItem(item)
+                            setSheetVisible(item)
+                        },
+                    )
                 }
             }
         }

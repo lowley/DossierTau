@@ -33,29 +33,36 @@ import lorry.dossiertau.data.model.TauFile
 import lorry.dossiertau.data.model.TauFolder
 import lorry.dossiertau.data.model.fullPath
 import lorry.dossiertau.data.model.parentPath
+import lorry.dossiertau.data.model.children
+import lorry.dossiertau.data.model.sameContentAs
+import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauIdentifier
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
 import lorry.dossiertau.support.littleClasses.name
-import lorry.dossiertau.support.littleClasses.parentPath
+import lorry.dossiertau.support.littleClasses.parentPath as tauPathParentPath
 import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauDate
 import lorry.dossiertau.support.littleClasses.toTauFileName
 import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.support.littleClasses.toTauPicture
+import lorry.dossiertau.usecases.applicationFavorites.AppliFavos
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 import lorry.dossiertau.usecases.generateHTMLs.toBitmap
+import org.koin.java.KoinJavaComponent.inject
 
 open class FolderCompo(
     open val folderRepo: IFolderRepo,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
     val fileDiffDAO: FileDiffDao,
-    private val spy: ISpy
+    private val spy: ISpy,
 ) : IFolderCompo {
 
     companion object {
         var collectFillLaunched = false
     }
+
+    val appliFavos: AppliFavos by inject(AppliFavos::class.java)
 
     private val scope = CoroutineScope(dispatcher + SupervisorJob())
 
@@ -75,85 +82,6 @@ open class FolderCompo(
         //#[[coroutine longue]]
         scope.launch(dispatcher) {
             spy.setObservedFolder(folderFullPath)
-//            val repoItems = folderRepo.getItemsInFullPath(folderFullPath)
-//            val compoItems = repoItems.toTauItems()
-//                .filter { !it.name.value.startsWith('.') }
-//                .sortedBy { it.isFile().toString() + it.name.value }
-//
-//            //TODO tester si children contient déjà item
-//            val folderDate = compoItems.computeParentFolderDate()
-//
-//            val compoItemsWithPictures = compoItems.map { item ->
-//                async {
-//
-//                    val path = item.fullPath
-//                    val i = item.asDataCommon ?: return@async TauFolder.EMPTY
-//
-//                    val image = if (path.path.endsWith(".html")) {
-//                        val bitmap = folderRepo.extractImageFromHtml(path)
-//                        bitmap
-//
-//                    } else if (
-//                        path.path.endsWith(".mp4") ||
-//                        path.path.endsWith(".mpg") ||
-//                        path.path.endsWith(".mkv") ||
-//                        path.path.endsWith(".ts") ||
-//                        path.path.endsWith(".avi") ||
-//                        item.isFolder()
-//                    ) {
-//                        val newCapsuleMgr = CapsuleComponent()
-//                        val newCapsule = newCapsuleMgr.getCapsule(path)
-//
-//                        val newCropped = newCapsule?.getCroppedPicture()
-//                        val newInitial = newCapsule?.getInitialPicture()
-//                        var image = newCropped ?: newInitial
-//                        image
-//                    }
-//                    else null
-//
-//                    val result = if (item.isFile()) {
-//                        //file
-////                        image = image ?: R.drawable.fichier
-//
-//                        TauFile.Data(
-//                            id = i.id,
-//                            parentPath = i.parentPath,
-//                            name = i.name,
-//                            picture = image?.let { TauPicture.fromBitmap(it) } ?: TauPicture.NONE,
-//                            modificationDate = i.modificationDate,
-//                            size = 0L,
-//                            fileId = i.fileId
-//                        ) as TauFile
-//                    } else {
-//                        //folder
-//                        TauFolder.Data(
-//                            id = i.id,
-//                            parentPath = i.parentPath,
-//                            name = i.name,
-//                            picture = image?.let { TauPicture.fromBitmap(it) } ?: TauPicture.NONE,
-//                            modificationDate = i.modificationDate,
-//                            fileId = i.fileId,
-//                            children = emptyList()
-//                        ) as TauFolder
-//                    }
-//
-//                    result
-//                }
-//            }.awaitAll()
-//
-//            val result = TauFolder.Data(
-//                id = TauIdentifier.random(),
-//                parentPath = folderFullPath.parentPath,
-//                name = folderFullPath.name,
-//                picture = TauPicture.NONE,
-//                modificationDate = folderDate,
-//                fileId = FileId.EMPTY,
-//                children = compoItemsWithPictures
-//            ) as TauFolder
-//
-//            println("DEBUG: setFolderFlow:${result.fullPath}")
-//            val res2 = result.toOption()
-//            changeFolderFlow(res2)
         }
     }
 
@@ -181,14 +109,12 @@ open class FolderCompo(
     private suspend fun collectDiffs() {
         merge(
             fileDiffDAO.diffFlow().drop(1).filterNotNull(),
-            folderPathFlow.drop(1), fileDiffDAO.getAllContentFlow().distinctUntilChanged().drop(3).filterNotNull()
+            folderPathFlow.drop(1),
+            fileDiffDAO.getAllContentFlow().distinctUntilChanged().filterNotNull()
         ).transform { change ->
-            println("COLLECTDIFFS: reçu path: $change")
             when (change) {
                 //folderPathFlow
                 is TauPath -> {
-//                    setFolderFlow(diffOrPath)
-                    emit(null)
                 }
 
                 //fileDiffDAO.diffFlow
@@ -213,26 +139,24 @@ open class FolderCompo(
                 is List<*> -> {
                     val allContents = change as List<ContentWithItems>
                     if (allContents.isEmpty()) return@transform
-                    
+
                     val content = allContents
                         .sortedBy { it.content.modifiedAtIso?.toEpochMilli() }
                         .last()
 
-                    if (content.items.isEmpty() == true) {
-                        // Le répertoire est vide, mais c'est une émission valide
-                        println("COLLECTDIFFS: content.items est vide, répertoire considéré comme vide.")
+                    val currentFolderPath = folderFlow.value.getOrNull()?.fullPath
+                    val contentPath = content.content.full_path.toTauPath()
+                    val observedPath = spy.observedFolderFlow.value
+
+                    if (currentFolderPath != null && currentFolderPath != contentPath && contentPath != observedPath) {
+                        println("COLLECTDIFFS: Ignoré car le répertoire stocké ($contentPath) ne correspond ni au répertoire actuel ($currentFolderPath) ni au répertoire observé ($observedPath)")
+                        return@transform
                     }
 
-                    val result = TauFolder.Data(
-                        id = TauIdentifier.random(),
-                        parentPath = content.component1().full_path.toTauPath().parentPath ?: TauPath.EMPTY,
-                        name = content.component1().full_path.toTauPath().name,
-                        picture = TauPicture.NONE,
-                        modificationDate = content.component1().modifiedAtIso?.toEpochMilli().toTauDate(),
-                        fileId = FileId.EMPTY,
-                        children = content.items
-                            .filter { !it.name.startsWith(".") }
-                            .map { item ->
+                    val newChildren = content.items
+                        .filter { !it.name.startsWith(".") }
+                        .map { item ->
+                            val itemPicture = item.picture?.toBitmap()?.toTauPicture() ?: TauPicture.NONE
                             when (item.type) {
                                 ItemType.FILE ->
                                     TauFile.Data(
@@ -240,8 +164,9 @@ open class FolderCompo(
                                         id = TauIdentifier.random(),
                                         parentPath = content.content.full_path.toTauPath(),
                                         name = item.name.toTauFileName(),
-                                        picture = item.picture?.toBitmap()?.toTauPicture() ?: TauPicture.NONE,
-                                        modificationDate = item.modificationDate?.toEpochMilli().toTauDate(),
+                                        picture = itemPicture,
+                                        modificationDate = item.modificationDate?.toEpochMilli()
+                                            .toTauDate(),
 //                                        memo = item.memo,
                                         fileId = item.fileId,
                                         size = 0L,
@@ -252,14 +177,31 @@ open class FolderCompo(
                                         id = TauIdentifier.random(),
                                         parentPath = content.content.full_path.toTauPath(),
                                         name = item.name.toTauFileName(),
-                                        picture = item.picture?.toBitmap()?.toTauPicture() ?: TauPicture.NONE,
-                                        modificationDate = item.modificationDate?.toEpochMilli().toTauDate(),
+                                        picture = itemPicture,
+                                        modificationDate = item.modificationDate?.toEpochMilli()
+                                            .toTauDate(),
 //                                        memo = item.memo,
                                         fileId = item.fileId,
                                         children = emptyList()
                                     )
                             }
                         } ?: emptyList()
+
+                    if (folderFlow.value.getOrNull()?.children?.sameContentAs(newChildren) == true) {
+                        println("COLLECTDIFFS: Ignoré car le contenu est identique.")
+                        return@transform
+                    }
+
+                    val result = TauFolder.Data(
+                        id = TauIdentifier.random(),
+                        parentPath = content.content.full_path.toTauPath().tauPathParentPath
+                            ?: TauPath.EMPTY,
+                        name = content.component1().full_path.toTauPath().name,
+                        picture = TauPicture.NONE,
+                        modificationDate = content.component1().modifiedAtIso?.toEpochMilli()
+                            .toTauDate(),
+                        fileId = FileId.EMPTY,
+                        children = newChildren
                     ) as TauFolder
 
                     println("DEBUG: setFolderFlow:${result.fullPath}")

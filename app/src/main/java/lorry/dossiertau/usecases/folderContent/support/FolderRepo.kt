@@ -4,7 +4,11 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Base64
 import android.util.Log
+import android.widget.Toast
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import lorry.dossiertau.data.dbModel.base64ToByteArray
 import lorry.dossiertau.data.diskTransfer.TauRepoFile
@@ -19,6 +23,7 @@ import lorry.dossiertau.data.intelligenceService.utils2.repo.SpyRepo
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
+import lorry.dossiertau.support.littleClasses.name
 import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauFileName
 import lorry.dossiertau.support.littleClasses.toTauPath
@@ -81,32 +86,62 @@ open class FolderRepo(
     }
 
     override suspend fun createSnapshotFor(folderPath: TauPath): Snapshot {
-        val files = folderPath.toFile().getOrNull()?.listFiles().orEmpty()
-        val content = files.associate { f ->
+        val files = Groups.LISTFILES.addTimeOf {
+            folderPath.toFile().getOrNull()?.listFiles().orEmpty()
+        }.toList()
 
-            val filePath = f.path
-            val isFile = f.isFile
-            val capsule = if (isFile) FileCapsuleManager(filePath, useOld = false).getCapsule()
-                else FolderCapsuleManager(filePath.toTauPath(), useOld = false).getCapsule()
-
-            val bitmap = capsule?.initialPicture?.let { base64ToByteArray(it).toBitmap() }
-            val memo = capsule?.memo
-
-            f.name to SnapshotElement(
-                name = f.name,
-                isDir = f.isDirectory,
-                size = if (f.isFile) f.length() else 0L,
-                lastModified = f.lastModified(),
-                fileId = spyRepo.getIdOf(f.path.toTauPath()),
-                picture = bitmap?.toTauPicture(),
-                memo = memo,
-            )
+        val content = Groups.CAPSULE.addTimeOf {
+            getSnapshot(files)
         }
+
+        displayAllTimes(folderPath)
 
         return Snapshot(
             folderPath = folderPath,
             entriesByName = content
         )
+    }
+
+    suspend fun getSnapshot(files: List<File>): Map<String, SnapshotElement> = coroutineScope {
+        files.map { f ->
+            // On lance chaque traitement dans une coroutine séparée
+            async(Dispatchers.Default) {
+                val filePath = f.path
+                val isFile = f.isFile
+
+                val (bitmap, memo) = if (isFile) {
+                    val capsule = FileCapsuleManager(filePath, useOld = false).getCapsule()
+                    val b = capsule.initialPicture?.let { base64ToByteArray(it).toBitmap() }
+                    b to capsule.memo
+                } else {
+                    val fcm = FolderCapsuleManager(filePath.toTauPath(), useOld = false)
+                    // Optimisation: pour les dossiers, on récupère le bitmap directement si possible
+                    val b = fcm.getFolderBitmap()
+                    if (b != null) {
+                        // On a déjà l'image, on récupère juste le mémo sans charger les bitmaps du HTML
+                        val capsule = fcm.getCapsule(loadBitmaps = false)
+                        b to capsule?.memo
+                    } else {
+                        // Fallback si pas d'image directe
+                        val capsule = fcm.getCapsule(loadBitmaps = true)
+                        val b2 = capsule?.initialPicture?.let { base64ToByteArray(it).toBitmap() }
+                        b2 to capsule?.memo
+                    }
+                }
+
+                f.name to SnapshotElement(
+                    name = f.name,
+                    isDir = f.isDirectory,
+                    size = if (isFile) f.length() else 0L,
+                    lastModified = f.lastModified(),
+                    fileId = spyRepo.getIdOf(f.path.toTauPath()),
+                    picture = bitmap?.toTauPicture(),
+                    memo = memo,
+                )
+            }
+        }
+            .awaitAll() // On attend que tout le monde ait fini
+            .toMap()    // On convertit la liste de paires en Map
     }
 
     override suspend fun extractImageFromHtml(html: TauPath): Bitmap? {
@@ -133,8 +168,44 @@ open class FolderRepo(
             null
         }
     }
-
-
 }
+
+sealed class Groups(var time: Long) {
+    object LISTFILES : Groups(0L)
+    object CAPSULE : Groups(0L)
+}
+
+fun displayAllTimes(path: TauPath) {
+    println("***")
+    println("Groupe - ${path.name}")
+
+    listOf(Groups.LISTFILES, Groups.CAPSULE).forEach { group ->
+        val ligne = "Groupe: ${group.javaClass.simpleName}, temps total: ${group.time}ms"
+        println(ligne)
+    }
+}
+
+suspend fun <T> Groups.addTimeOf(block: suspend () -> T): T {
+
+    val start = System.currentTimeMillis()
+    val result = block()
+    val time = System.currentTimeMillis() - start
+    this.time += time
+    return result
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

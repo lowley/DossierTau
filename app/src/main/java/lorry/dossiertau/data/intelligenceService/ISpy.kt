@@ -31,11 +31,9 @@ interface ISpy {
     // interrupteur de fonctionnement //
     ////////////////////////////////////
     val enabledFlow : StateFlow<Boolean>
-
     fun startSurveillance()
     fun stopSurveillance()
     fun setSurveillance(enabled: Boolean)
-
 
     ////////////////////////
     // répertoire observé //
@@ -53,9 +51,9 @@ interface ISpy {
     fun tick()
     fun computeDiffsBetween(sn1: Snapshot, snapshot2: Snapshot): List<ISpyLevel>
     fun emitSpyLevels(events: List<ISpyLevel>)
-    val lastSnapshotFlow: StateFlow<Snapshot>
-    fun setLastSnapshot(newSnapshot: Snapshot)
-    val snapshotAtomic: AtomicReference<Snapshot>
+    val storedSnapshotsFlow: StateFlow<Map<TauPath, Snapshot>>
+    fun setStoredSnapshot(newSnapshot: Snapshot)
+    val snapshotsAtomic: AtomicReference<Map<TauPath, Snapshot>>
     val diffNumberFlow: StateFlow<Int>
     fun incrementDiffNumber()
     fun resetDiffNumber()

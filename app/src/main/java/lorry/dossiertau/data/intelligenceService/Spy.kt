@@ -1,5 +1,6 @@
 package lorry.dossiertau.data.intelligenceService
 
+import androidx.compose.animation.core.snap
 import io.github.irgaly.kfswatch.KfsDirectoryWatcher
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -16,6 +17,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.runningFold
@@ -38,7 +42,9 @@ import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.support.littleClasses.TauPicture
 import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauDate
+import lorry.dossiertau.usecases.applicationFavorites.AppliFavos
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
+import org.koin.java.KoinJavaComponent.inject
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.time.ExperimentalTime
@@ -52,8 +58,10 @@ open class Spy(
     private val scope: CoroutineScope = CoroutineScope(dispatcher + SupervisorJob())
 ) : ISpy {
     val watcher = KfsDirectoryWatcher(scope)
+    val appliFavos: AppliFavos by inject(AppliFavos::class.java)
 
     private val instanceId = System.identityHashCode(this).toString(16).uppercase().take(5)
+
 
     ////////////////////////////////////
     // interrupteur de fonctionnement //
@@ -99,14 +107,17 @@ open class Spy(
     // Le canal pour recevoir les demandes de snapshot
     // Capacity = UNLIMITED pour ne rater aucune modif disque
     private val commandChannel = Channel<Unit>(Channel.UNLIMITED)
-    override val snapshotAtomic = AtomicReference<Snapshot>(Snapshot.EMPTY(TauPath.EMPTY))
-    private val _lastSnapshot = MutableStateFlow(snapshotAtomic.get())
-    override val lastSnapshotFlow: StateFlow<Snapshot> = _lastSnapshot.asStateFlow()
+    override val snapshotsAtomic =
+        AtomicReference<Map<TauPath, Snapshot>>(mapOf(TauPath.EMPTY to Snapshot.EMPTY(TauPath.EMPTY)))
+    private val _storedSnapshots = MutableStateFlow(snapshotsAtomic.get())
+    override val storedSnapshotsFlow: StateFlow<Map<TauPath, Snapshot>> =
+        _storedSnapshots.asStateFlow()
 
-    override fun setLastSnapshot(newSnapshot: Snapshot) {
+    override fun setStoredSnapshot(newSnapshot: Snapshot) {
         println("from setLastSnapshot: ${newSnapshot.entries.size}")
-        snapshotAtomic.set(newSnapshot)
-        _lastSnapshot.value = newSnapshot
+        val oldAtomic = snapshotsAtomic.get()
+        snapshotsAtomic.set(oldAtomic.plus(newSnapshot.folderPath to newSnapshot))
+        _storedSnapshots.value = snapshotsAtomic.get()
     }
 
     ////////////////////////////
@@ -315,14 +326,15 @@ open class Spy(
             return
         }
 
-        val oldSnapshot = snapshotAtomic.get()
+        val oldSnapshot =
+            snapshotsAtomic.get().get(currentFolderPath) ?: Snapshot(currentFolderPath, emptyMap())
 //        println("from afterEndOfDelayLatestFolder: lastSnapshot[SN ${lastSnapshotFlow.value.instanceId}](${lastSnapshotFlow.value.entries.size})")
         println("from afterEndOfDelayLatestFolder: oldSnapshot[SN ${oldSnapshot.instanceId}](${oldSnapshot.entries.size})")
         println("from afterEndOfDelayLatestFolder: newSnapshot(${newSnapshot.entries.size})")
         val diffs = computeDiffsBetween(oldSnapshot, newSnapshot)
 
         println("from afterEndOfDelayLatestFolder: setLastSnapshot[SN ${newSnapshot.instanceId}](${newSnapshot.entries.size})")
-        setLastSnapshot(newSnapshot)
+        setStoredSnapshot(newSnapshot)
         if (diffs.isNotEmpty()) emitSpyLevels(diffs)
     }
 
@@ -369,7 +381,7 @@ open class Spy(
             }
         }
 
-        // 3) Le flow "folder changé" ne fait plus que : watcher add/remove + snapshot initial + event global
+        // 3) Le flow "folder changé" ne fait plus que: watcher add/remove + snapshot initial + event global
         observedFolderFlow
             .onEach { println("nouvelle valeur de folderFlow: ${it.path}") }
             .filter { it != TauPath.EMPTY }     // ✅ on ignore le “dossier” EMPTY comme cible
@@ -386,7 +398,7 @@ open class Spy(
             .onEach { (previousFolderPath, currentFolderPath) ->
                 println("[SPY $instanceId] entrée dans bloc exécution folderFlow: ${currentFolderPath.path}")
 
-                if (previousFolderPath != null)
+                if (previousFolderPath?.value?.isRight() == true)
                     scope.launch(dispatcher) {
                         watcher.remove(previousFolderPath.path)
                     }
@@ -395,14 +407,49 @@ open class Spy(
                     watcher.add(currentFolderPath.path)
                 }
 
-                // snapshot initial du folder courant
-                println("[SPY ${Thread.currentThread().name}] appel à createSnapshotFor (${currentFolderPath.path})")
-                val initialSnapshot = fileRepo.createSnapshotFor(currentFolderPath)
-                println("from observedFolderFlow: setLastSnapshot[SN ${initialSnapshot.instanceId}](${initialSnapshot.entries.size})")
-                setLastSnapshot(initialSnapshot)
-                emitSpyLevel(makeGlobalSpyLevelFrom(initialSnapshot))
+                val favoris = appliFavos.appliFavorites.value
+                val sn = snapshotsAtomic.get()[currentFolderPath]
+                if (currentFolderPath.path in favoris.map { it.fullPath.path } &&
+                    sn != null) {
+
+                    emitSpyLevel(makeGlobalSpyLevelFrom(sn))
+                } else {
+
+                    // snapshot initial du folder courant
+                    println("[SPY ${Thread.currentThread().name}] appel à createSnapshotFor (${currentFolderPath.path})")
+                    val initialSnapshot = fileRepo.createSnapshotFor(currentFolderPath)
+                    println("from observedFolderFlow: setLastSnapshot[SN ${initialSnapshot.instanceId}](${initialSnapshot.entries.size})")
+                    setStoredSnapshot(initialSnapshot)
+                    emitSpyLevel(makeGlobalSpyLevelFrom(initialSnapshot))
+                }
 
             }
             .launchIn(scope)
+
+        //////////////////////////////////////////////////////////
+        // les favoris sont à tout moment suivis par le watcher //
+        //////////////////////////////////////////////////////////
+
+        //on ajoute tous les favoris au watcher au début de l'app
+        val currentFavorites = appliFavos.appliFavorites
+        scope.launch(dispatcher) {
+            currentFavorites.first().forEach { favorite ->
+                watcher.add(favorite.fullPath.path)
+            }
+        }
+
+        //suivi des favoris ajoutés pendant la vie de l'app
+        scope.launch(dispatcher) {
+            appliFavos.addedFavorite.filterNotNull().collect { favorite ->
+                watcher.add(favorite.fullPath.path)
+            }
+        }
+
+        //suivi des favoris supprimés pendant la vie de l'app
+        scope.launch(dispatcher) {
+            appliFavos.removedFavorite.filterNotNull().collect { favorite ->
+                watcher.remove(favorite.fullPath.path)
+            }
+        }
     }
 }

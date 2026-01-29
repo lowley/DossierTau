@@ -8,7 +8,6 @@ import ch.tutteli.atrium.api.fluent.en_GB.toEqual
 import ch.tutteli.atrium.api.fluent.en_GB.toHaveSize
 import ch.tutteli.atrium.api.verbs.expect
 import dev.mokkery.answering.returns
-import dev.mokkery.every
 import dev.mokkery.everySuspend
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.drop
@@ -20,7 +19,6 @@ import kotlinx.coroutines.test.runTest
 import lorry.dossiertau.data.dbModel.AppDb
 import lorry.dossiertau.data.dbModel.Content
 import lorry.dossiertau.data.dbModel.ContentItem
-import lorry.dossiertau.data.dbModel.Diff
 import lorry.dossiertau.data.dbModel.DiffRepository
 import lorry.dossiertau.data.dbModel.FileDiffDao
 import lorry.dossiertau.data.intelligenceService.AirForce
@@ -37,7 +35,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.koin.test.KoinTest
 import org.robolectric.RobolectricTestRunner
-import kotlin.collections.listOf
 import lorry.dossiertau.usecases.generateHTMLs.toBitmap
 import lorry.dossiertau.usecases.generateHTMLs.toByteArray
 import java.time.Instant
@@ -94,7 +91,7 @@ class GlobalScanWithContentTest : KoinTest {
             val downloads = "/storage/emulated/0/Download".toTauPath()
 
             //l'ancien snapshot
-            spy.snapshotAtomic.set(
+            spy.snapshotsAtomic.set(
                 Snapshot(
                     folderPath = downloads,
                     entriesByName = mapOf()
