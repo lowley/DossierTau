@@ -111,7 +111,10 @@ open class FolderRepo(
 
                 val (bitmap, memo) = if (isFile) {
                     val capsule = FileCapsuleManager(filePath, useOld = false).getCapsule()
-                    val b = capsule.initialPicture?.let { base64ToByteArray(it).toBitmap() }
+                    var b = capsule.initialPicture?.let { base64ToByteArray(it).toBitmap() }
+                    if (b == null && f.extension.lowercase() == "html") {
+                        b = extractImageFromHtml(filePath.toTauPath())
+                    }
                     b to capsule.memo
                 } else {
                     val fcm = FolderCapsuleManager(filePath.toTauPath(), useOld = false)
