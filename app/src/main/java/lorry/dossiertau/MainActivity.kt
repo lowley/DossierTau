@@ -2,10 +2,12 @@ package lorry.dossiertau
 
 import android.app.Activity
 import android.content.Intent
+import android.graphics.Paint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -18,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -25,9 +28,11 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ripple.RippleAlpha
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RippleConfiguration
@@ -46,9 +51,12 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -57,6 +65,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -85,7 +94,6 @@ import lorry.dossiertau.SchortcutMakingState.*
 
 import lorry.dossiertau.data.model.TauFolder
 import lorry.dossiertau.data.model.TauItem
-import lorry.dossiertau.data.model.picture
 import lorry.dossiertau.ui.AppBus
 import lorry.dossiertau.ui.bottomSheet.SheetVM
 import lorry.dossiertau.ui.bottomSheet.Sheet
@@ -443,8 +451,24 @@ class MainActivity() : ComponentActivity() {
             )
 
             val allItems = currentFolder.getOrNull()!!.children
-                .sortedBy { it.isFile().toString() + it.name }
 
+//            LaunchedEffect(allItems) {
+//                if (allItems.isNotEmpty()) {
+//                    state.scrollToItem(0)
+//                    // Ou pour un effet plus fluide :
+//                    // gridState.animateScrollToItem(0)`
+//                    // state.scrollToItem(0)
+//                }
+//            }
+
+            var ordering = folderCompo.ordering.collectAsState()
+            val currentFolder by folderCompo.folderFlow.collectAsState()
+
+            // On recrée un nouvel état de scroll dès que le chemin du dossier change
+            // Cela garantit de repartir de zéro (en haut)
+            val state = rememberLazyGridState(
+                initialFirstVisibleItemIndex = 0
+            )
             LazyVerticalGrid(
                 modifier = modifier,
                 state = state,
@@ -453,7 +477,7 @@ class MainActivity() : ComponentActivity() {
             ) {
                 items(
                     count = allItems.size,
-                    key = { index -> allItems[index].fullPath.path } // On garde la clé unique par chemin
+                    //key = { index -> allItems[index].fullPath.path } // On garde la clé unique par chemin
                 ) { index ->
                     val item = allItems[index]
 
@@ -515,6 +539,54 @@ class MainActivity() : ComponentActivity() {
                         setSheetVisible()
                     }
                 )
+
+            var ordering = folderCompo.ordering.collectAsState()
+
+            Spacer(
+                modifier = Modifier.weight(10f))
+
+            Icon(
+                painter = painterResource(id = R.drawable.pluma_0),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(50.dp)
+                    .align(Alignment.CenterVertically)
+                    .padding(end = 10.dp)
+                    .clickable {
+                        folderCompo.setOrdering(true)
+                        folderCompo.setFolderOrdering(ordering.value)
+                    },
+                tint = if (!ordering.value) Color.DarkGray else Color.Unspecified
+            )
+
+            Icon(
+                painter = painterResource(id = R.drawable.sortbydate),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(50.dp)
+                    .align(Alignment.CenterVertically)
+                    .padding(end = 10.dp)
+                    .clickable {
+                        folderCompo.setOrdering(true)
+                        folderCompo.setFolderOrdering(ordering.value)
+                    },
+                tint = if (!ordering.value) Color.DarkGray else Color.Unspecified
+            )
+
+            Icon(
+                painter = painterResource(id = R.drawable.sortbyalpha2),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(45.dp)
+                    .align(Alignment.CenterVertically)
+                    .padding(end = 10.dp)
+                    .clickable {
+                        folderCompo.setOrdering(false)
+                        folderCompo.setFolderOrdering(ordering.value)
+                    },
+                tint = if (ordering.value) Color.DarkGray else Color.Unspecified
+
+            )
         }
 
     }

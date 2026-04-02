@@ -10,6 +10,6 @@ dependencyResolutionManagement { }
 rootProject.name = "Dossier Tau"
 include(":app")
 
-includeBuild("../../IdeaProjects/Périscope")
+//includeBuild("../../IdeaProjects/Périscope")
 
  

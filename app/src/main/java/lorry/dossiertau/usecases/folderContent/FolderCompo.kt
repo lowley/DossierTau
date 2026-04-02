@@ -1,8 +1,14 @@
 package lorry.dossiertau.usecases.folderContent
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.datastore.preferences.protobuf.LazyStringArrayList.emptyList
 import arrow.core.None
 import arrow.core.Option
 import arrow.core.getOrElse
+import arrow.core.raise.fold
 import arrow.core.toOption
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -12,11 +18,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.flow.update
@@ -31,9 +39,13 @@ import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.data.model.TauFile
 import lorry.dossiertau.data.model.TauFolder
+import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.data.model.fullPath
 import lorry.dossiertau.data.model.parentPath
 import lorry.dossiertau.data.model.children
+import lorry.dossiertau.data.model.copy
+import lorry.dossiertau.data.model.modificationDate
+import lorry.dossiertau.data.model.name
 import lorry.dossiertau.data.model.sameContentAs
 import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauIdentifier
@@ -50,6 +62,7 @@ import lorry.dossiertau.usecases.applicationFavorites.AppliFavos
 import lorry.dossiertau.usecases.folderContent.support.IFolderRepo
 import lorry.dossiertau.usecases.generateHTMLs.toBitmap
 import org.koin.java.KoinJavaComponent.inject
+import kotlin.collections.emptyList
 
 open class FolderCompo(
     open val folderRepo: IFolderRepo,
@@ -65,10 +78,47 @@ open class FolderCompo(
     val appliFavos: AppliFavos by inject(AppliFavos::class.java)
 
     private val scope = CoroutineScope(dispatcher + SupervisorJob())
+    private var _orderingFlow = MutableStateFlow(false)
+    val orderingFlow = _orderingFlow.asStateFlow()
+
+    val _ordering = MutableStateFlow(true)
+    override val ordering = _ordering.asStateFlow()
+
+    override fun setOrdering(value: Boolean){
+        _ordering.update { value }
+    }
+
 
     //#[[folderFlowDeclaration]]
     private val _folderFlow = MutableStateFlow<Option<TauFolder>>(None)
-    override val folderFlow = _folderFlow.asStateFlow()
+    override val folderFlow = combine(_folderFlow, orderingFlow) { folders, isOrderingActive ->
+        folders.map { folder ->
+            val result = folder.copy(
+                items = folder.children.sortedBy { item ->
+                    if (isOrderingActive) {
+                        item.name.value
+                    } else {
+                        item.modificationDate.value.toTauDate().toString()
+                    }
+                }
+            ) as TauFolder
+
+            result
+        }
+    }
+        .onEach { folder ->
+            val text = "DEBUG: Nouvelle émission vers l'UI, ${folder.getOrNull()?.children?.firstOrNull()?.modificationDate?.value?.toTauDate()?.toddMMyyyyHHmmss()}"
+            println(text)
+        }
+        .stateIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            initialValue = null.toOption()
+        )
+
+    override fun setFolderOrdering(ordering: Boolean){
+        _orderingFlow.update { ordering }
+    }
 
     override fun changeFolderFlow(folder: Option<TauFolder>) {
         println("DEBUG: changeFolderFlow: ${folder.display()}")
@@ -182,10 +232,10 @@ open class FolderCompo(
                                             .toTauDate(),
 //                                        memo = item.memo,
                                         fileId = item.fileId,
-                                        children = emptyList()
+                                        children = emptyList<TauItem>()
                                     )
                             }
-                        } ?: emptyList()
+                        } ?: emptyList<TauItem>()
 
                     if (folderFlow.value.getOrNull()?.children?.sameContentAs(newChildren) == true) {
                         println("COLLECTDIFFS: Ignoré car le contenu est identique.")

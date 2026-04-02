@@ -9,9 +9,10 @@ interface IFolderCompo {
 
     val folderFlow: StateFlow<Option<TauFolder>>
     fun setFolderFlow(folder: TauPath)
-
+    fun setFolderOrdering(ordering: Boolean)
     val folderPathFlow: StateFlow<Option<TauPath>>
 
-
     fun changeFolderFlow(folder: Option<TauFolder>)
+    val ordering: StateFlow<Boolean>
+    fun setOrdering(value: Boolean)
 }

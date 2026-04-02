@@ -1,6 +1,7 @@
 package lorry.folder.items.dossiersigma.external.userPreferences
 
 import android.content.Context
+import androidx.datastore.dataStore
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -20,14 +21,15 @@ import kotlinx.serialization.builtins.serializer
 import lorry.dossiertau.json
 import lorry.dossiertau.usecases.applicationFavorites.support.Favorite
 import javax.inject.Singleton
-
+import kotlin.collections.map
+/*
 val Context.dataStore by preferencesDataStore(name = "prefs_applifavos")
 
-open class PrefsAppliFavo(
+open class PrefsLocalFavo(
     private val context: Context
 ) : IPrefsAppliFavo {
 
-    private val dataStore = context.applicationContext.dataStore
+    //private val dataStore = context.applicationContext.dataStore
     val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     companion object {
@@ -87,3 +89,4 @@ open class PrefsAppliFavo(
         saveAppliFavos(newOnes.toList())
     }
 }
+ */

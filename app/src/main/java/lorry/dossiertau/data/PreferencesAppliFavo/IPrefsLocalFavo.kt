@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import lorry.dossiertau.usecases.applicationFavorites.support.Favorite
 
-interface IPrefsAppliFavo {
+interface IPrefsLocalFavo {
 
     val appliFavosFlow: StateFlow<List<Favorite>>
 

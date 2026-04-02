@@ -59,9 +59,7 @@ open class Spy(
 ) : ISpy {
     val watcher = KfsDirectoryWatcher(scope)
     val appliFavos: AppliFavos by inject(AppliFavos::class.java)
-
     private val instanceId = System.identityHashCode(this).toString(16).uppercase().take(5)
-
 
     ////////////////////////////////////
     // interrupteur de fonctionnement //

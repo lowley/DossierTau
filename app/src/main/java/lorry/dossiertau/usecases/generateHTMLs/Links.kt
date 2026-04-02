@@ -182,15 +182,16 @@ class Links(
         return newName
     }
 
+    //2 trucs ligne 189 & 194
     suspend fun getHtmlPackets(): Set<Pair<HtmlPacket, IsNewPacket>> {
 
         val fileNames = nasRepo.getVideoNames()
+            //.filter { it.value.startsWith("A") }
         val result = mutableSetOf<Pair<HtmlPacket, IsNewPacket>>()
         AppBus.lines.tryEmit("Récupération des htmls, actrices et fantasmes ...")
 
         fileNames.onEachIndexed { index, videoName ->
-
-            if (ftpDS.exists(
+            if (false && ftpDS.exists(
                     localFilePath = "/annexes/${videoName.value}".toTauPath(),
                     fileName = "packet.txt".toTauFileName()
                 )
@@ -199,6 +200,10 @@ class Links(
                 val text = ftpDS.downloadText(
                     nasFullPath = "/annexes/${videoName.value}/packet.txt".toTauPath(),
                 )
+
+                val truc = videoName.value
+                if (truc.contains("abigma"))
+                    println("ok")
 
                 val packet = Gson().fromJson(text, HtmlPacket::class.java)
                 result.add(packet to false)

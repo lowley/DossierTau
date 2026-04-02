@@ -73,7 +73,7 @@ val TauInjections = module {
     single { Dispatchers.IO }
     single { DiffRepository(get()) }
     single { SpyRepo() }
-
+    single { AFRepo() }
     single<BreadcrumbComponent> { BreadcrumbComponent() }
 
     single { FileCapsuleIO() }
