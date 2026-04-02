@@ -26,7 +26,7 @@ class Base64DataSource: IBase64DataSource {
             withContext(Dispatchers.Default) {
                 val imageBytes = Base64.decode(base64Image, Base64.DEFAULT)
                 BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-            }
+            }///Users/olivier/Library/Application Support/JetBrains/IntelliJIdea2025.3
 
         } catch (e: Exception) {
             println("Erreur lors du décodage de l'image : ${e.message}")

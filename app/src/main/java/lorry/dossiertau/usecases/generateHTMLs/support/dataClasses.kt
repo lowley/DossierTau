@@ -21,7 +21,7 @@ data class Actress(
 
         other as Actress
 
-        return name == other.name
+        return name == other.name || shortcuts.any { it in other.shortcuts }
     }
 
     override fun hashCode(): Int {
@@ -41,7 +41,8 @@ data class Subject(
 
         other as Subject
 
-        return name.equals(other.name, ignoreCase = true)
+        return name.equals(other.name, ignoreCase = true) ||
+                shortcuts.any { it in other.shortcuts }
     }
 
     override fun hashCode(): Int {

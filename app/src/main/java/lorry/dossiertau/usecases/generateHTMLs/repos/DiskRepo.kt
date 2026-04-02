@@ -44,6 +44,7 @@ class DiskRepo() : IDiskRepo {
             "/storage/emulated/0/Movies/sexe/filles".toTauPath().toFile()
                 .getOrNull()
                 ?.listFiles()?.filter { it.isDirectory }
+                ?.sortedBy { it.name }
         }
 
         val result = mutableMapOf<Actress, TauItemName>()

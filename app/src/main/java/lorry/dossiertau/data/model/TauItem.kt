@@ -47,13 +47,15 @@ fun List<TauItem>.sameContentAs(other: List<TauItem>): Boolean {
     if (this.size != other.size)
         return false
 
-    val mine = this.sortedBy { item -> item.name.value }
-    val theirs = other.sortedBy { item -> item.name.value }
+    val mine = this //.sortedBy { item -> item.name.value }
+    val theirs = other //.sortedBy { item -> item.name.value }
     val pairs = mine.zip(theirs)
 
-    return pairs.all { (item1, item2) ->
+    val same = pairs.all { (item1, item2) ->
         item1.sameAs(item2)
     }
+
+    return same
 }
 
 @OptIn(ExperimentalUuidApi::class)
