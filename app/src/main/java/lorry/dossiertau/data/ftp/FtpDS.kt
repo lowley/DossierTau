@@ -30,7 +30,7 @@ import java.util.Base64
 
 open class FtpDS : IFtpDS {
 
-    private suspend fun <T : Any?> doWithNASAccess(
+    open suspend fun <T : Any?> doWithNASAccess(
         parent: String,
         doWithFtpClient: suspend (FTPClient) -> Result<T?>
     ): T? {
@@ -314,7 +314,7 @@ open class FtpDS : IFtpDS {
         } == true
     }
 
-    suspend fun insideExists(
+    open suspend fun insideExists(
         ftp: FTPClient,
         localFilePath: TauPath,
         fileName: TauItemName
@@ -362,7 +362,7 @@ open class FtpDS : IFtpDS {
         } == true
     }
 
-    suspend fun createPath(path: TauPath): Boolean {
+    open suspend fun createPath(path: TauPath): Boolean {
         return doWithNASAccess<Boolean>(parent = path.path) { ftp ->
             try {
                 // Découper le chemin pour créer chaque dossier manquant un par un

@@ -6,7 +6,7 @@ import lorry.dossiertau.usecases.generateHTMLs.support.Subject
 
 interface IDiskRepo {
 
-    suspend fun getLocalActresses(): List<Actress>
-    suspend fun getLocalSubjects(): List<Subject>
+    suspend fun getVideoActresses(): List<Actress>
+    suspend fun getVideoSubjects(): List<Subject>
     suspend fun deleteAllHtmlsIn(root: TauPath)
 }

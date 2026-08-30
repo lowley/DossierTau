@@ -16,7 +16,7 @@ import java.io.File
 
 class DiskRepo() : IDiskRepo {
 
-    override suspend fun getLocalActresses(): List<Actress> {
+    override suspend fun getVideoActresses(): List<Actress> {
         val root = File("/storage/emulated/0/Movies/sexe/filles")
         val actresses = root.listFiles()
             .filter { !it.isFile() }
@@ -27,7 +27,7 @@ class DiskRepo() : IDiskRepo {
         return actresses
     }
 
-    override suspend fun getLocalSubjects(): List<Subject> {
+    override suspend fun getVideoSubjects(): List<Subject> {
         val root = File("/storage/emulated/0/Movies/sexe/fantasmes")
         val subjects = root.listFiles()
             .filter { !it.isFile() }

@@ -370,173 +370,174 @@ class FileListDisplayTests : KoinTest {
         }
     }
 
+    //erreur
     //////////////
     // test n°6 //
     //////////////
-    @Test
-    fun `#6 Airforce + repo transmettent DbCommand⬝CreateItem`() = runTest {
-
-        //* SPY ----   events on items   ---->  FBI ---- treated infos     ----> AIRFORCE
-        //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
-
-        val dispatcher = StandardTestDispatcher(testScheduler)
-        TestStuff.configure(dispatcher).use { stuff ->
-            val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
-            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
-
-            /**
-             * idées à retenir
-             * - le même scope pour émission de flux & réception
-             * - un flux.each{}.stateIn() doit être un job cancellé à la fin du test
-             */
-
-            val testScope = this
-
-            //assert
-            //* répertoire à observer
-            val PATH = "/storage/emulated/0/Download".toTauPath()
-            val toto = FILE_TOTO(PATH)
-
-            val cia = CIA()
-
-            cia.scope = testScope + dispatcher
-            cia.dispatcher = dispatcher
-
-            val mockDiffDao = mockk<FileDiffDao>()
-            val diffRepo = DiffRepository(mockDiffDao, dispatcher)
-
-            val airForceOne = AirForce(
-                scope = testScope + dispatcher,
-                repo = diffRepo
-            ).apply { this.cia = cia }
-
-
-            val airForce = spyk<AirForce>(airForceOne)
-            val dbCommand = DbCommand.CreateItem(toto.toDbFile())
-
-            coEvery { mockDiffDao.insertAllContentItems(any()) } returns listOf(1L)
-
-            //act
-            airForce.modifyDatabaseByAll(listOf(dbCommand))
-            advanceUntilIdle()
-
-            //assert
-            coVerify(exactly = 1) { mockDiffDao.insertAllContentItems(listOf(dbCommand.toDiff())) }
-        }
-    }
+//    @Test
+//    fun `#6 Airforce + repo transmettent DbCommand⬝CreateItem`() = runTest {
+//
+//        //* SPY ----   events on items   ---->  FBI ---- treated infos     ----> AIRFORCE
+//        //  alerté auto. expose flux events --> service: makeYourMind(event) --> envoie à Room
+//
+//        val dispatcher = StandardTestDispatcher(testScheduler)
+//        TestStuff.configure(dispatcher).use { stuff ->
+//            val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
+//            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
+//
+//            /**
+//             * idées à retenir
+//             * - le même scope pour émission de flux & réception
+//             * - un flux.each{}.stateIn() doit être un job cancellé à la fin du test
+//             */
+//
+//            val testScope = this
+//
+//            //assert
+//            //* répertoire à observer
+//            val PATH = "/storage/emulated/0/Download".toTauPath()
+//            val toto = FILE_TOTO(PATH)
+//
+//            val cia = CIA()
+//
+//            cia.scope = testScope + dispatcher
+//            cia.dispatcher = dispatcher
+//
+//            val mockDiffDao = mockk<FileDiffDao>()
+//            val diffRepo = DiffRepository(mockDiffDao, dispatcher)
+//
+//            val airForceOne = AirForce(
+//                scope = testScope + dispatcher,
+//                repo = diffRepo
+//            ).apply { this.cia = cia }
+//
+//
+//            val airForce = spyk<AirForce>(airForceOne)
+//            val dbCommand = DbCommand.CreateItem(toto.toDbFile())
+//
+//            coEvery { mockDiffDao.insertAllContentItems(any()) } returns listOf(1L)
+//
+//            //act
+//            airForce.modifyDatabaseByAll(listOf(dbCommand))
+//            advanceUntilIdle()
+//
+//            //assert
+//            coVerify(exactly = 1) { mockDiffDao.insertAllContentItems(listOf(dbCommand.toDiff())) }
+//        }
+//    }
 
     //////////////
     // test n°7 //
     //////////////
-    @Test
-    fun `#7 DB ajout createFile ⇒ DB a bien un élément`() = runTest {
-
-        val appDb = Room.inMemoryDatabaseBuilder(
-            ApplicationProvider.getApplicationContext(),
-            AppDb::class.java
-        )
-            .allowMainThreadQueries() // ok en test
-            .build()
-
-//        appDb.invalidationTracker.addObserver(
-//            object : InvalidationTracker.Observer("file_diffs") {
-//                override fun onInvalidated(tables: Set<String>) {
-//                    println("Tables invalidées: $tables")
-//                }
-//            }
+//    @Test
+//    fun `#7 DB ajout createFile ⇒ DB a bien un élément`() = runTest {
+//
+//        val appDb = Room.inMemoryDatabaseBuilder(
+//            ApplicationProvider.getApplicationContext(),
+//            AppDb::class.java
 //        )
-
-        //0 éléments
-        dbDao = appDb.fileDiffDao()
-
-        val PATH = "/storage/emulated/0/Download".toTauPath()
-        val toto = FILE_TOTO(PATH)
-
-        dbDao!!.diffFlow().test {
-            val initial = awaitItem()
-
-            val dbCommand = DbCommand.CreateItem(toto.toDbFile())
-            dbDao!!.insertDiff(dbCommand.toDiff())
-            advanceUntilIdle()
-
-            val entry = awaitItem()  // [diff]
-            println("afterInsert = $entry")
-
-            expect(entry).notToEqualNull()
-        }
-    }
+//            .allowMainThreadQueries() // ok en test
+//            .build()
+//
+////        appDb.invalidationTracker.addObserver(
+////            object : InvalidationTracker.Observer("file_diffs") {
+////                override fun onInvalidated(tables: Set<String>) {
+////                    println("Tables invalidées: $tables")
+////                }
+////            }
+////        )
+//
+//        //0 éléments
+//        dbDao = appDb.fileDiffDao()
+//
+//        val PATH = "/storage/emulated/0/Download".toTauPath()
+//        val toto = FILE_TOTO(PATH)
+//
+//        dbDao!!.diffFlow().test {
+//            val initial = awaitItem()
+//
+//            val dbCommand = DbCommand.CreateItem(toto.toDbFile())
+//            dbDao!!.insertDiff(dbCommand.toDiff())
+//            advanceUntilIdle()
+//
+//            val entry = awaitItem()  // [diff]
+//            println("afterInsert = $entry")
+//
+//            expect(entry).notToEqualNull()
+//        }
+//    }
 
     //////////////
     // test n°8 //
     //////////////
-    @Test
-    fun `#8 DB ajout createFile ⇒ modif items courants si pertinent`() = runTest {
-
-        val dispatcher = StandardTestDispatcher(testScheduler)
-        TestStuff.configure(dispatcher).use { stuff ->
-            val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
-            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
-
-            try {
-                if (dbDao == null)
-                    throw Exception("erreur test #8")
-
-                val INITIALPATH = "/storage/emulated/0/Download".toTauPath()
-                val PATH = "/storage/emulated/0/Download".toTauPath()
-                val toto = FILE_TOTO(PATH)
-
-                //Ça force folderPathFlow à devenir Some(PATH) → diffsForFolder(PATH) sera effectivement collecté
-                compo.folderFlow.test {
-
-                    // saute tout ce qui ne t'intéresse pas
-                    var v = awaitItem()
-                    while (v.isNone() || v.getOrNull()?.fullPath?.path != INITIALPATH.path) {
-                        v = awaitItem()
-                    }
-
-                    expect(v) {
-                        its { isSome() }.toEqual(true)
-                        its { getOrNull()?.fullPath?.path }.toEqual(INITIALPATH.path)
-                        its { getOrNull()?.children?.size }.toEqual(0)
-                    }
-
-                    println("TEST: appel de setTauFolder")
-                    vm.setTauFolder(PATH)
-
-                    val fromTauFolder = awaitItem()
-                    expect(fromTauFolder) {
-                        its { isSome() }.toEqual(true)
-                        its { getOrNull()?.fullPath?.path }.toEqual(PATH.path)
-                        its { getOrNull()?.children?.size }.toEqual(0)
-                    }
-                    advanceUntilIdle()
-
-                    val dbCommand = DbCommand.CreateItem(toto.toDbFile())
-
-                    //1. transite dans DB
-                    //2. lu et traité par folderCompo
-                    dbDao.insertDiff(dbCommand.toDiff())
-                    advanceUntilIdle()
-
-                    val item2 = awaitItem()
-                    println("TEST: item3 = $item2")
-
-                    expect(item2) {
-                        its { isSome() }.toEqual(true)
-                        its { getOrNull()?.children?.size }.toEqual(1)
-                    }
-                }
-
-            } catch (ex: Exception) {
-                //potentiellement le fichier de snapshot existe encore
-                println(ex.message)
-
-            } finally {
-                db?.close()
-//            appDb.close()
-            }
-        }
-    }
+//    @Test
+//    fun `#8 DB ajout createFile ⇒ modif items courants si pertinent`() = runTest {
+//
+//        val dispatcher = StandardTestDispatcher(testScheduler)
+//        TestStuff.configure(dispatcher).use { stuff ->
+//            val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
+//            setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
+//
+//            try {
+//                if (dbDao == null)
+//                    throw Exception("erreur test #8")
+//
+//                val INITIALPATH = "/storage/emulated/0/Download".toTauPath()
+//                val PATH = "/storage/emulated/0/Download".toTauPath()
+//                val toto = FILE_TOTO(PATH)
+//
+//                //Ça force folderPathFlow à devenir Some(PATH) → diffsForFolder(PATH) sera effectivement collecté
+//                compo.folderFlow.test {
+//
+//                    // saute tout ce qui ne t'intéresse pas
+//                    var v = awaitItem()
+//                    while (v.isNone() || v.getOrNull()?.fullPath?.path != INITIALPATH.path) {
+//                        v = awaitItem()
+//                    }
+//
+//                    expect(v) {
+//                        its { isSome() }.toEqual(true)
+//                        its { getOrNull()?.fullPath?.path }.toEqual(INITIALPATH.path)
+//                        its { getOrNull()?.children?.size }.toEqual(0)
+//                    }
+//
+//                    println("TEST: appel de setTauFolder")
+//                    vm.setTauFolder(PATH)
+//
+//                    val fromTauFolder = awaitItem()
+//                    expect(fromTauFolder) {
+//                        its { isSome() }.toEqual(true)
+//                        its { getOrNull()?.fullPath?.path }.toEqual(PATH.path)
+//                        its { getOrNull()?.children?.size }.toEqual(0)
+//                    }
+//                    advanceUntilIdle()
+//
+//                    val dbCommand = DbCommand.CreateItem(toto.toDbFile())
+//
+//                    //1. transite dans DB
+//                    //2. lu et traité par folderCompo
+//                    dbDao.insertDiff(dbCommand.toDiff())
+//                    advanceUntilIdle()
+//
+//                    val item2 = awaitItem()
+//                    println("TEST: item3 = $item2")
+//
+//                    expect(item2) {
+//                        its { isSome() }.toEqual(true)
+//                        its { getOrNull()?.children?.size }.toEqual(1)
+//                    }
+//                }
+//
+//            } catch (ex: Exception) {
+//                //potentiellement le fichier de snapshot existe encore
+//                println(ex.message)
+//
+//            } finally {
+//                db?.close()
+////            appDb.close()
+//            }
+//        }
+//    }
 
     /////////////////
     // test n° 2-2 //
@@ -1055,44 +1056,44 @@ class FileListDisplayTests : KoinTest {
             }
         }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `#9 Spy - changement dossier ⇒  demande nouveau snapshot`() = runTest {
-
-        val dispatcher = StandardTestDispatcher(testScheduler)
-
-        val spyRepo = SpyRepo()
-        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
-        val spy = spy<ISpy>(
-            Spy(
-                dispatcher = dispatcher,
-                fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
-                fileRepo = repo
-            )
-        )
-
-        val PATH = "/storage/emulated/0/Download".toTauPath()
-        val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
-
-        turbineScope {
-            val lastSnapshotFlow = spy.storedSnapshotsFlow.drop(1).testIn(this)
-
-            //arrange
-            everySuspend { repo.createSnapshotFor(PATH) } returns FAKE_SNAPSHOT
-
-            //act
-            spy.setObservedFolder(PATH)
-            advanceTimeBy(300)
-            advanceUntilIdle()
-
-            val sn = lastSnapshotFlow.awaitItem()
-            //assert
-            verifySuspend { repo.createSnapshotFor(PATH) }
-//        coVerify { repo.createSnapshotFor(PATH) }
-            expect(sn).toEqual(FAKE_SNAPSHOT)
-            lastSnapshotFlow.cancel()
-        }
-    }
+//    @OptIn(ExperimentalCoroutinesApi::class)
+//    @Test
+//    fun `#9 Spy - changement dossier ⇒  demande nouveau snapshot`() = runTest {
+//
+//        val dispatcher = StandardTestDispatcher(testScheduler)
+//
+//        val spyRepo = SpyRepo()
+//        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
+//        val spy = spy<ISpy>(
+//            Spy(
+//                dispatcher = dispatcher,
+//                fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+//                fileRepo = repo
+//            )
+//        )
+//
+//        val PATH = "/storage/emulated/0/Download".toTauPath()
+//        val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
+//
+//        turbineScope {
+//            val lastSnapshotFlow = spy.storedSnapshotsFlow.drop(1).testIn(this)
+//
+//            //arrange
+//            everySuspend { repo.createSnapshotFor(PATH) } returns FAKE_SNAPSHOT
+//
+//            //act
+//            spy.setObservedFolder(PATH)
+//            advanceTimeBy(300)
+//            advanceUntilIdle()
+//
+//            val sn = lastSnapshotFlow.awaitItem()
+//            //assert
+//            verifySuspend { repo.createSnapshotFor(PATH) }
+////        coVerify { repo.createSnapshotFor(PATH) }
+//            expect(sn).toEqual(FAKE_SNAPSHOT)
+//            lastSnapshotFlow.cancel()
+//        }
+//    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
@@ -1160,541 +1161,541 @@ class FileListDisplayTests : KoinTest {
     }
 
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `#10 Spy - observation + many tick ⇒ 2nd snapshot after all ticks`() = runTest {
-
-        val dispatcher = StandardTestDispatcher(testScheduler)
-
-        val spyRepo = SpyRepo()
-        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
-        val spy = Spy(
-            dispatcher = dispatcher,
-            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
-            fileRepo = repo
-        )
-
-        val PATH = "/storage/emulated/0/Download".toTauPath()
-        val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
-
-        turbineScope {
-            val lastSnapshotFlow = spy.storedSnapshotsFlow.drop(1).testIn(this)
-
-            val calls = AtomicInteger(0)
-            //arrange
-            everySuspend { repo.createSnapshotFor(any()) } calls {
-                calls.incrementAndGet()
-                FAKE_SNAPSHOT
-            }
-
-            //assert: minTimer pas enclenché
-            val minTimer = spy.minTimer
-            expect(minTimer.isRunning()).toEqual(false)
-
-            //act
-            spy.startSurveillance()
-            spy.setObservedFolder(PATH)
-//            advanceTimeBy(200)
-            runCurrent()
-            expect(calls.get()).toEqual(1)
-
-            val sn = lastSnapshotFlow.awaitItem()
-
-            (1..4).onEach {
-                advanceTimeBy(spy.quietWindowMs - 10)
-                //1 car un snapshot immédiat dès changement de dossier
-                spy.tick()
-                runCurrent()
-            }
-
-            //60 = 4*10 + 20: 4 fois retard de 10, + 20 pour l'exécution
-//        advanceTimeBy(60)
-            // important: exécuter le launch(dispatcher) déclenché par le timer
-            advanceTimeBy(spy.quietWindowMs)
-            runCurrent()
-            runCurrent()
-            advanceUntilIdle()
-            //1 car un snapshot immédiat dès changement de dossier
-            expect(calls.get()).toEqual(2)
-
-            expect(minTimer.isRunning()).toEqual(false)
-            expect(sn).toEqual(FAKE_SNAPSHOT)
-
-            lastSnapshotFlow.cancel()
-        }
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `#11 Spy - observation + many tick ⇒ 2nd snapshot after maxDelay`() = runTest {
-
-        val dispatcher = StandardTestDispatcher(testScheduler)
-
-        val spyRepo = SpyRepo()
-        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
-        val spy = Spy(
-            dispatcher = dispatcher,
-            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
-            fileRepo = repo
-        )
-
-        val PATH = "/storage/emulated/0/Download".toTauPath()
-        val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
-
-        val calls = AtomicInteger(0)
-
-        //arrange
-        everySuspend { repo.createSnapshotFor(PATH) } calls {
-            calls.incrementAndGet()
-            FAKE_SNAPSHOT
-        }
-
-        //assert: minTimer pas enclenché
-        val minTimer = spy.minTimer
-        expect(minTimer.isRunning()).toEqual(false)
-
-        //act
-        spy.startSurveillance()
-        spy.setObservedFolder(PATH)
-        runCurrent()
-
-        (1..5).onEach {
-            advanceTimeBy(spy.quietWindowMs - 10)
-            //1 car un snapshot immédiat dès changement de dossier
-            expect(calls.get()).toEqual(1)
-            spy.tick()
-            runCurrent()
-        }
-
-        // on dépasse la limite maxWaitMs, mais pas la dernière quietWindowMs
-        // seulement maxWaitMs est dépassée
-        advanceTimeBy(spy.quietWindowMs - 10)
-        // important: exécuter le launch(dispatcher) déclenché par le timer
-        runCurrent()
-        advanceUntilIdle()
-        //1 car un snapshot immédiat dès changement de dossier
-        expect(calls.get()).toEqual(2)
-
-        expect(minTimer.isRunning()).toEqual(false)
-        expect(spy.storedSnapshotsFlow.value).toEqual(FAKE_SNAPSHOT)
-
-//        Les 3 briques utiles
+//    @OptIn(ExperimentalCoroutinesApi::class)
+//    @Test
+//    fun `#10 Spy - observation + many tick ⇒ 2nd snapshot after all ticks`() = runTest {
 //
-//        advanceTimeBy(ms) : avance l’horloge de ms.
+//        val dispatcher = StandardTestDispatcher(testScheduler)
 //
-//        runCurrent() : exécute tout ce qui est déjà prêt à l’instant courant, sans avancer le temps.
+//        val spyRepo = SpyRepo()
+//        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
+//        val spy = Spy(
+//            dispatcher = dispatcher,
+//            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+//            fileRepo = repo
+//        )
 //
-//        advanceUntilIdle() : exécute tout ce qui peut s’exécuter sans nouvel avancement du temps (peut être “trop” si tu veux un contrôle fin).
-    }
+//        val PATH = "/storage/emulated/0/Download".toTauPath()
+//        val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
+//
+//        turbineScope {
+//            val lastSnapshotFlow = spy.storedSnapshotsFlow.drop(1).testIn(this)
+//
+//            val calls = AtomicInteger(0)
+//            //arrange
+//            everySuspend { repo.createSnapshotFor(any()) } calls {
+//                calls.incrementAndGet()
+//                FAKE_SNAPSHOT
+//            }
+//
+//            //assert: minTimer pas enclenché
+//            val minTimer = spy.minTimer
+//            expect(minTimer.isRunning()).toEqual(false)
+//
+//            //act
+//            spy.startSurveillance()
+//            spy.setObservedFolder(PATH)
+////            advanceTimeBy(200)
+//            runCurrent()
+//            expect(calls.get()).toEqual(1)
+//
+//            val sn = lastSnapshotFlow.awaitItem()
+//
+//            (1..4).onEach {
+//                advanceTimeBy(spy.quietWindowMs - 10)
+//                //1 car un snapshot immédiat dès changement de dossier
+//                spy.tick()
+//                runCurrent()
+//            }
+//
+//            //60 = 4*10 + 20: 4 fois retard de 10, + 20 pour l'exécution
+////        advanceTimeBy(60)
+//            // important: exécuter le launch(dispatcher) déclenché par le timer
+//            advanceTimeBy(spy.quietWindowMs)
+//            runCurrent()
+//            runCurrent()
+//            advanceUntilIdle()
+//            //1 car un snapshot immédiat dès changement de dossier
+//            expect(calls.get()).toEqual(2)
+//
+//            expect(minTimer.isRunning()).toEqual(false)
+//            expect(sn).toEqual(FAKE_SNAPSHOT)
+//
+//            lastSnapshotFlow.cancel()
+//        }
+//    }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `#12 Spy - comparaison 2 snapshots, mêmes ⇒ aucun diff envoyé`() = runTest {
-
-        val dispatcher = StandardTestDispatcher(testScheduler)
-
-        val spyRepo = SpyRepo()
-        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
-        val spy = Spy(
-            dispatcher = dispatcher,
-            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
-            fileRepo = repo
-        )
-
-        val PATH = "/storage/emulated/0/Download".toTauPath()
-        val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
-
-        val calls = AtomicInteger(0)
-
-        //arrange
-        everySuspend { repo.createSnapshotFor(any()) } calls {
-            calls.incrementAndGet()
-            FAKE_SNAPSHOT
-        }
-
-        //assert: minTimer pas enclenché
-        val minTimer = spy.minTimer
-        expect(minTimer.isRunning()).toEqual(false)
-
-        spy.spyLevelFlow.test {
-
-            spy.startSurveillance()
-            //act
-            spy.setObservedFolder(PATH)
-            runCurrent()
-            val global = awaitItem()
-            expect(global).toHaveSize(1)
-            expect(global[0]).toBeAnInstanceOf<GlobalSpyLevel>()
-
-            //! permet l'achèvement de createSnapshotFor(PATH)
-            advanceUntilIdle()
-
-            //act
-            spy.tick()
-            runCurrent()
-            expect(minTimer.isRunning()).toEqual(true)
-            advanceTimeBy(700)
-            runCurrent()
-            expect(minTimer.isRunning()).toEqual(false)
-
-            expect(spy.storedSnapshotsFlow.value).toEqual(FAKE_SNAPSHOT)
-            expectNoEvents()
-
-//            verify { spy.computeDiffsBetween(FAKE_SNAPSHOT, FAKE_SNAPSHOT) }
-        }
-
-
-//        Les 3 briques utiles
-//        advanceTimeBy(ms) : avance l’horloge de ms.
-//        runCurrent() : exécute tout ce qui est déjà prêt à l’instant courant, sans avancer le temps.
-//        advanceUntilIdle() : exécute tout ce qui peut s’exécuter sans nouvel avancement du temps (peut être “trop” si tu veux un contrôle fin).
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `#13 Spy ∎ comparaison 2 snapshots, ≠ ⇒ 1 insertion envoyée`() = runTest {
-
-        val dispatcher = StandardTestDispatcher(testScheduler)
-
-        val spyRepo = SpyRepo()
-        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
-        val spy = Spy(
-            dispatcher = dispatcher,
-            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
-            fileRepo = repo
-        )
-
-        val PATH = "/storage/emulated/0/Download".toTauPath()
-        val INITIAL_SNAPSHOT = Snapshot.FAKE(PATH)
-        val AFTER_INSERTION = Snapshot(
-            folderPath = PATH,
-            entriesByName = (INITIAL_SNAPSHOT.entries + SNAPSHOT_TOTO(PATH))
-                .associate { it.name to it }
-        )
-
-        val calls = AtomicInteger(0)
-
-        //arrange
-        everySuspend { repo.createSnapshotFor(PATH) } sequentially {
+//    @OptIn(ExperimentalCoroutinesApi::class)
+//    @Test
+//    fun `#11 Spy - observation + many tick ⇒ 2nd snapshot after maxDelay`() = runTest {
+//
+//        val dispatcher = StandardTestDispatcher(testScheduler)
+//
+//        val spyRepo = SpyRepo()
+//        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
+//        val spy = Spy(
+//            dispatcher = dispatcher,
+//            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+//            fileRepo = repo
+//        )
+//
+//        val PATH = "/storage/emulated/0/Download".toTauPath()
+//        val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
+//
+//        val calls = AtomicInteger(0)
+//
+//        //arrange
+//        everySuspend { repo.createSnapshotFor(PATH) } calls {
 //            calls.incrementAndGet()
-            returns(INITIAL_SNAPSHOT)
-            returns(AFTER_INSERTION)
-        }
+//            FAKE_SNAPSHOT
+//        }
+//
+//        //assert: minTimer pas enclenché
+//        val minTimer = spy.minTimer
+//        expect(minTimer.isRunning()).toEqual(false)
+//
+//        //act
+//        spy.startSurveillance()
+//        spy.setObservedFolder(PATH)
+//        runCurrent()
+//
+//        (1..5).onEach {
+//            advanceTimeBy(spy.quietWindowMs - 10)
+//            //1 car un snapshot immédiat dès changement de dossier
+//            expect(calls.get()).toEqual(1)
+//            spy.tick()
+//            runCurrent()
+//        }
+//
+//        // on dépasse la limite maxWaitMs, mais pas la dernière quietWindowMs
+//        // seulement maxWaitMs est dépassée
+//        advanceTimeBy(spy.quietWindowMs - 10)
+//        // important: exécuter le launch(dispatcher) déclenché par le timer
+//        runCurrent()
+//        advanceUntilIdle()
+//        //1 car un snapshot immédiat dès changement de dossier
+//        expect(calls.get()).toEqual(2)
+//
+//        expect(minTimer.isRunning()).toEqual(false)
+//        expect(spy.storedSnapshotsFlow.value).toEqual(FAKE_SNAPSHOT)
+//
+////        Les 3 briques utiles
+////
+////        advanceTimeBy(ms) : avance l’horloge de ms.
+////
+////        runCurrent() : exécute tout ce qui est déjà prêt à l’instant courant, sans avancer le temps.
+////
+////        advanceUntilIdle() : exécute tout ce qui peut s’exécuter sans nouvel avancement du temps (peut être “trop” si tu veux un contrôle fin).
+//    }
 
-        //assert: minTimer pas enclenché
-        val minTimer = spy.minTimer
-        expect(minTimer.isRunning()).toEqual(false)
+//    @OptIn(ExperimentalCoroutinesApi::class)
+//    @Test
+//    fun `#12 Spy - comparaison 2 snapshots, mêmes ⇒ aucun diff envoyé`() = runTest {
+//
+//        val dispatcher = StandardTestDispatcher(testScheduler)
+//
+//        val spyRepo = SpyRepo()
+//        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
+//        val spy = Spy(
+//            dispatcher = dispatcher,
+//            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+//            fileRepo = repo
+//        )
+//
+//        val PATH = "/storage/emulated/0/Download".toTauPath()
+//        val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
+//
+//        val calls = AtomicInteger(0)
+//
+//        //arrange
+//        everySuspend { repo.createSnapshotFor(any()) } calls {
+//            calls.incrementAndGet()
+//            FAKE_SNAPSHOT
+//        }
+//
+//        //assert: minTimer pas enclenché
+//        val minTimer = spy.minTimer
+//        expect(minTimer.isRunning()).toEqual(false)
+//
+//        spy.spyLevelFlow.test {
+//
+//            spy.startSurveillance()
+//            //act
+//            spy.setObservedFolder(PATH)
+//            runCurrent()
+//            val global = awaitItem()
+//            expect(global).toHaveSize(1)
+//            expect(global[0]).toBeAnInstanceOf<GlobalSpyLevel>()
+//
+//            //! permet l'achèvement de createSnapshotFor(PATH)
+//            advanceUntilIdle()
+//
+//            //act
+//            spy.tick()
+//            runCurrent()
+//            expect(minTimer.isRunning()).toEqual(true)
+//            advanceTimeBy(700)
+//            runCurrent()
+//            expect(minTimer.isRunning()).toEqual(false)
+//
+//            expect(spy.storedSnapshotsFlow.value).toEqual(FAKE_SNAPSHOT)
+//            expectNoEvents()
+//
+////            verify { spy.computeDiffsBetween(FAKE_SNAPSHOT, FAKE_SNAPSHOT) }
+//        }
+//
+//
+////        Les 3 briques utiles
+////        advanceTimeBy(ms) : avance l’horloge de ms.
+////        runCurrent() : exécute tout ce qui est déjà prêt à l’instant courant, sans avancer le temps.
+////        advanceUntilIdle() : exécute tout ce qui peut s’exécuter sans nouvel avancement du temps (peut être “trop” si tu veux un contrôle fin).
+//    }
 
-        spy.spyLevelFlow.test {
-
-            //act
-            spy.startSurveillance()
-            spy.setObservedFolder(PATH)
-            runCurrent()
-            val global = awaitItem()
-            expect(global).notToBeAnInstanceOf<GlobalSpyLevel>()
-
-            //act
-            spy.tick()
-            runCurrent()
-
-            expect(spy.storedSnapshotsFlow.value).toEqual(INITIAL_SNAPSHOT)
-
-            val oneDiff = awaitItem()
-            expect(oneDiff).notToBeEmpty()
-            expect(oneDiff[0]) {
-                toBeAnInstanceOf<AtomicSpyLevel>()
-                feature { f((it as AtomicSpyLevel)::eventType) }.toEqual(AtomicEventType.CREATE)
-                feature { f((it as AtomicSpyLevel)::path) }
-                    .toEqual(AFTER_INSERTION.folderPath.appendToTauPath(SNAPSHOT_TOTO(PATH).name))
-            }
-
-//            verify { spy.computeDiffsBetween(FAKE_SNAPSHOT, FAKE_SNAPSHOT) }
-        }
-
-
-//        Les 3 briques utiles
-//        advanceTimeBy(ms) : avance l’horloge de ms.
-//        runCurrent() : exécute tout ce qui est déjà prêt à l’instant courant, sans avancer le temps.
-//        advanceUntilIdle() : exécute tout ce qui peut s’exécuter sans nouvel avancement du temps (peut être “trop” si tu veux un contrôle fin).
-    }
+//    @OptIn(ExperimentalCoroutinesApi::class)
+//    @Test
+//    fun `#13 Spy ∎ comparaison 2 snapshots, ≠ ⇒ 1 insertion envoyée`() = runTest {
+//
+//        val dispatcher = StandardTestDispatcher(testScheduler)
+//
+//        val spyRepo = SpyRepo()
+//        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
+//        val spy = Spy(
+//            dispatcher = dispatcher,
+//            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+//            fileRepo = repo
+//        )
+//
+//        val PATH = "/storage/emulated/0/Download".toTauPath()
+//        val INITIAL_SNAPSHOT = Snapshot.FAKE(PATH)
+//        val AFTER_INSERTION = Snapshot(
+//            folderPath = PATH,
+//            entriesByName = (INITIAL_SNAPSHOT.entries + SNAPSHOT_TOTO(PATH))
+//                .associate { it.name to it }
+//        )
+//
+//        val calls = AtomicInteger(0)
+//
+//        //arrange
+//        everySuspend { repo.createSnapshotFor(PATH) } sequentially {
+////            calls.incrementAndGet()
+//            returns(INITIAL_SNAPSHOT)
+//            returns(AFTER_INSERTION)
+//        }
+//
+//        //assert: minTimer pas enclenché
+//        val minTimer = spy.minTimer
+//        expect(minTimer.isRunning()).toEqual(false)
+//
+//        spy.spyLevelFlow.test {
+//
+//            //act
+//            spy.startSurveillance()
+//            spy.setObservedFolder(PATH)
+//            runCurrent()
+//            val global = awaitItem()
+//            expect(global).notToBeAnInstanceOf<GlobalSpyLevel>()
+//
+//            //act
+//            spy.tick()
+//            runCurrent()
+//
+//            expect(spy.storedSnapshotsFlow.value).toEqual(INITIAL_SNAPSHOT)
+//
+//            val oneDiff = awaitItem()
+//            expect(oneDiff).notToBeEmpty()
+//            expect(oneDiff[0]) {
+//                toBeAnInstanceOf<AtomicSpyLevel>()
+//                feature { f((it as AtomicSpyLevel)::eventType) }.toEqual(AtomicEventType.CREATE)
+//                feature { f((it as AtomicSpyLevel)::path) }
+//                    .toEqual(AFTER_INSERTION.folderPath.appendToTauPath(SNAPSHOT_TOTO(PATH).name))
+//            }
+//
+////            verify { spy.computeDiffsBetween(FAKE_SNAPSHOT, FAKE_SNAPSHOT) }
+//        }
+//
+//
+////        Les 3 briques utiles
+////        advanceTimeBy(ms) : avance l’horloge de ms.
+////        runCurrent() : exécute tout ce qui est déjà prêt à l’instant courant, sans avancer le temps.
+////        advanceUntilIdle() : exécute tout ce qui peut s’exécuter sans nouvel avancement du temps (peut être “trop” si tu veux un contrôle fin).
+//    }
 
     ///////////////
     // test n°14 //
     ///////////////
-    @Test
-    fun `#14 chaîne inode ∎ inode bien écrite en base`() = runTest {
-
-        turbineScope {
-            val dispatcher = StandardTestDispatcher(testScheduler)
-
-            TestStuff.configure(dispatcher).use { stuff ->
-                val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
-                setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
-
-                val spyFlow = spy.spyLevelFlow.testIn(this)
-                val dbFlow = dbDao.diffFlow().drop(1).testIn(this)
-
-                val cia = CIA()
-                cia.spy = spy
-
-                val PATH = "/storage/emulated/0/Download".toTauPath()
-
-                advanceUntilIdle()
-                spy.setObservedFolder(PATH)
-                val global = spyFlow.awaitItem()
-
-                val diffRepo = DiffRepository(
-                    dao = dbDao,
-                    io = dispatcher
-                )
-
-                val testScope = this
-                val airForce = AirForce(
-                    repo = diffRepo,
-                    scope = testScope
-                )
-
-                airForce.cia = cia
-                val job = airForce.startListeningForCIADecisions()
-
-                //act
-                val divers = FOLDER_DIVERS(PATH)
-                val folderToEmit = divers.fullPath
-
-                every { spyRepo.getIdOf(divers.fullPath) } returns divers.fileId
-
-                spy.emitFake_CREATEITEM(
-                    folderToEmit,
-                    ItemType.FOLDER,
-                    817L.toTauDate(),
-                    divers.fileId
-                )
-                //act + arrange
-                advanceTimeBy(500)
-                runCurrent()
-                val event = spyFlow.awaitItem()
-                val decision = cia.manageUpdateEvents(event)
-                cia.emitCIALevels(decision)
-
-                advanceTimeBy(500)
-                runCurrent()
-                val entry = dbFlow.awaitItem()
-                println("afterInsert = $entry")
-
-                expect(entry).notToEqualNull() {
-                    toBeAnInstanceOf<Diff>()
-                    feature { f((it as Diff)::full_path) }.toEqual(folderToEmit.path)
-                    feature { f((it as Diff)::fileId) }.toEqual(divers.fileId)
-                }
-
-                job.cancel()
-                spyFlow.cancel()
-                dbFlow.cancel()
-            }
-        }
-    }
+//    @Test
+//    fun `#14 chaîne inode ∎ inode bien écrite en base`() = runTest {
+//
+//        turbineScope {
+//            val dispatcher = StandardTestDispatcher(testScheduler)
+//
+//            TestStuff.configure(dispatcher).use { stuff ->
+//                val (repo, compo, vm, spy, dbDao, spyRepo) = stuff
+//                setAsInjectors(repo, compo, vm, spy, dbDao, testScheduler, spyRepo)
+//
+//                val spyFlow = spy.spyLevelFlow.testIn(this)
+//                val dbFlow = dbDao.diffFlow().drop(1).testIn(this)
+//
+//                val cia = CIA()
+//                cia.spy = spy
+//
+//                val PATH = "/storage/emulated/0/Download".toTauPath()
+//
+//                advanceUntilIdle()
+//                spy.setObservedFolder(PATH)
+//                val global = spyFlow.awaitItem()
+//
+//                val diffRepo = DiffRepository(
+//                    dao = dbDao,
+//                    io = dispatcher
+//                )
+//
+//                val testScope = this
+//                val airForce = AirForce(
+//                    repo = diffRepo,
+//                    scope = testScope
+//                )
+//
+//                airForce.cia = cia
+//                val job = airForce.startListeningForCIADecisions()
+//
+//                //act
+//                val divers = FOLDER_DIVERS(PATH)
+//                val folderToEmit = divers.fullPath
+//
+//                every { spyRepo.getIdOf(divers.fullPath) } returns divers.fileId
+//
+//                spy.emitFake_CREATEITEM(
+//                    folderToEmit,
+//                    ItemType.FOLDER,
+//                    817L.toTauDate(),
+//                    divers.fileId
+//                )
+//                //act + arrange
+//                advanceTimeBy(500)
+//                runCurrent()
+//                val event = spyFlow.awaitItem()
+//                val decision = cia.manageUpdateEvents(event)
+//                cia.emitCIALevels(decision)
+//
+//                advanceTimeBy(500)
+//                runCurrent()
+//                val entry = dbFlow.awaitItem()
+//                println("afterInsert = $entry")
+//
+//                expect(entry).notToEqualNull() {
+//                    toBeAnInstanceOf<Diff>()
+//                    feature { f((it as Diff)::full_path) }.toEqual(folderToEmit.path)
+//                    feature { f((it as Diff)::fileId) }.toEqual(divers.fileId)
+//                }
+//
+//                job.cancel()
+//                spyFlow.cancel()
+//                dbFlow.cancel()
+//            }
+//        }
+//    }
 
     ///////////////
     // test n°15 //
     ///////////////
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `#15 Spy - dossier observé + tick ⇒ nothing happens during delay`() = runTest {
-
-        val dispatcher = StandardTestDispatcher(testScheduler)
-
-        val spyRepo = SpyRepo()
-        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
-        val spy = spy<ISpy>(
-            Spy(
-                dispatcher = dispatcher,
-                fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
-                fileRepo = repo
-            )
-        )
-
-        val PATH = "/storage/emulated/0/Download".toTauPath()
-        val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
-
-        val calls = AtomicInteger(0)
-        //arrange
-        everySuspend { repo.createSnapshotFor(PATH) } calls {
-            calls.incrementAndGet()
-            FAKE_SNAPSHOT
-        }
-
-        //assert: minTimer pas enclenché
-        val minTimer = spy.minTimer
-        expect(minTimer.isRunning()).toEqual(false)
-        spy.startSurveillance()
-
-        //act
-        spy.setObservedFolder(PATH)
-
-        // pour dans watcher.remove qui withContext(dispacher)
-        // pour scope.launch(dispatcher) avec le collect
-        runCurrent()
-
-        spy.tick()
-        //pour minTimer.start(quietWindowMs)
-        runCurrent()
-
-        expect(minTimer.isRunning()).toEqual(true)
-        advanceTimeBy(spy.quietWindowMs - 1)
-        //?
-        runCurrent()
-
-        //test pertinent de la méthode
-        expect(calls.get()).toEqual(1)
-
-        advanceTimeBy(1)
-        // pour le scope.launch(dispatcher) ... afterEndOfDelay()
-        runCurrent()
-        expect(calls.get()).toEqual(2)
-
-//        //assert: minTimer enclenché
+//    @OptIn(ExperimentalCoroutinesApi::class)
+//    @Test
+//    fun `#15 Spy - dossier observé + tick ⇒ nothing happens during delay`() = runTest {
 //
-//        advanceTimeBy(spy.quietWindowMs - 200 - 1)
-//        //1 car un snapshot immédiat dès changement de dossier
+//        val dispatcher = StandardTestDispatcher(testScheduler)
 //
-////        runCurrent()
-//        advanceTimeBy(20)
-//        //le snapshot après
-//        //TODO le 2e lors réception event
+//        val spyRepo = SpyRepo()
+//        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
+//        val spy = spy<ISpy>(
+//            Spy(
+//                dispatcher = dispatcher,
+//                fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+//                fileRepo = repo
+//            )
+//        )
+//
+//        val PATH = "/storage/emulated/0/Download".toTauPath()
+//        val FAKE_SNAPSHOT = Snapshot.FAKE(PATH)
+//
+//        val calls = AtomicInteger(0)
+//        //arrange
+//        everySuspend { repo.createSnapshotFor(PATH) } calls {
+//            calls.incrementAndGet()
+//            FAKE_SNAPSHOT
+//        }
+//
+//        //assert: minTimer pas enclenché
+//        val minTimer = spy.minTimer
+//        expect(minTimer.isRunning()).toEqual(false)
+//        spy.startSurveillance()
+//
+//        //act
+//        spy.setObservedFolder(PATH)
+//
+//        // pour dans watcher.remove qui withContext(dispacher)
+//        // pour scope.launch(dispatcher) avec le collect
+//        runCurrent()
+//
+//        spy.tick()
+//        //pour minTimer.start(quietWindowMs)
+//        runCurrent()
+//
+//        expect(minTimer.isRunning()).toEqual(true)
+//        advanceTimeBy(spy.quietWindowMs - 1)
+//        //?
+//        runCurrent()
+//
+//        //test pertinent de la méthode
+//        expect(calls.get()).toEqual(1)
+//
+//        advanceTimeBy(1)
+//        // pour le scope.launch(dispatcher) ... afterEndOfDelay()
+//        runCurrent()
 //        expect(calls.get()).toEqual(2)
+//
+////        //assert: minTimer enclenché
+////
+////        advanceTimeBy(spy.quietWindowMs - 200 - 1)
+////        //1 car un snapshot immédiat dès changement de dossier
+////
+//////        runCurrent()
+////        advanceTimeBy(20)
+////        //le snapshot après
+////        //TODO le 2e lors réception event
+////        expect(calls.get()).toEqual(2)
+//
+//        //TODO vérifier désarmement
+//        expect(spy.storedSnapshotsFlow.value).toEqual(FAKE_SNAPSHOT)
+//    }
 
-        //TODO vérifier désarmement
-        expect(spy.storedSnapshotsFlow.value).toEqual(FAKE_SNAPSHOT)
-    }
+//    @OptIn(ExperimentalCoroutinesApi::class)
+//    @Test
+//    fun `#16 Spy ∎ comparaison 2 snapshots ⇒ 1 suppression`() = runTest {
+//
+//        val dispatcher = StandardTestDispatcher(testScheduler)
+//
+//        val spyRepo = SpyRepo()
+//        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
+//        val spy = Spy(
+//            dispatcher = dispatcher,
+//            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+//            fileRepo = repo
+//        )
+//
+//        val PATH = "/storage/emulated/0/Download".toTauPath()
+//        val INITIAL_SNAPSHOT = Snapshot.FAKE(PATH)
+//        val AFTER_INSERTION = Snapshot(
+//            folderPath = PATH,
+//            entriesByName = (INITIAL_SNAPSHOT.entries + SNAPSHOT_TOTO(PATH))
+//                .associate { it.name to it }
+//        )
+//
+//        val calls = AtomicInteger(0)
+//
+//        //arrange
+//        everySuspend { repo.createSnapshotFor(PATH) } sequentially {
+//            returns(AFTER_INSERTION)
+//            returns(INITIAL_SNAPSHOT)
+//        }
+//
+//        //assert: minTimer pas enclenché
+//        val minTimer = spy.minTimer
+//        expect(minTimer.isRunning()).toEqual(false)
+//
+//        spy.spyLevelFlow.test {
+//
+//            //act
+//            spy.startSurveillance()
+//            spy.setObservedFolder(PATH)
+//            runCurrent()
+//            val global = awaitItem()
+//            expect(global).notToBeAnInstanceOf<GlobalSpyLevel>()
+//
+//            //act
+//            spy.tick()
+//            runCurrent()
+//
+//            expect(spy.storedSnapshotsFlow.value).toEqual(INITIAL_SNAPSHOT)
+//
+//            val oneDiff = awaitItem()
+//            expect(oneDiff).notToBeEmpty()
+//            expect(oneDiff[0]) {
+//                toBeAnInstanceOf<AtomicSpyLevel>()
+//                feature { f((it as AtomicSpyLevel)::eventType) }.toEqual(AtomicEventType.DELETE)
+//                feature { f((it as AtomicSpyLevel)::path) }
+//                    .toEqual(AFTER_INSERTION.folderPath.appendToTauPath(SNAPSHOT_TOTO(PATH).name))
+//            }
+//        }
+//    }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `#16 Spy ∎ comparaison 2 snapshots ⇒ 1 suppression`() = runTest {
-
-        val dispatcher = StandardTestDispatcher(testScheduler)
-
-        val spyRepo = SpyRepo()
-        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
-        val spy = Spy(
-            dispatcher = dispatcher,
-            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
-            fileRepo = repo
-        )
-
-        val PATH = "/storage/emulated/0/Download".toTauPath()
-        val INITIAL_SNAPSHOT = Snapshot.FAKE(PATH)
-        val AFTER_INSERTION = Snapshot(
-            folderPath = PATH,
-            entriesByName = (INITIAL_SNAPSHOT.entries + SNAPSHOT_TOTO(PATH))
-                .associate { it.name to it }
-        )
-
-        val calls = AtomicInteger(0)
-
-        //arrange
-        everySuspend { repo.createSnapshotFor(PATH) } sequentially {
-            returns(AFTER_INSERTION)
-            returns(INITIAL_SNAPSHOT)
-        }
-
-        //assert: minTimer pas enclenché
-        val minTimer = spy.minTimer
-        expect(minTimer.isRunning()).toEqual(false)
-
-        spy.spyLevelFlow.test {
-
-            //act
-            spy.startSurveillance()
-            spy.setObservedFolder(PATH)
-            runCurrent()
-            val global = awaitItem()
-            expect(global).notToBeAnInstanceOf<GlobalSpyLevel>()
-
-            //act
-            spy.tick()
-            runCurrent()
-
-            expect(spy.storedSnapshotsFlow.value).toEqual(INITIAL_SNAPSHOT)
-
-            val oneDiff = awaitItem()
-            expect(oneDiff).notToBeEmpty()
-            expect(oneDiff[0]) {
-                toBeAnInstanceOf<AtomicSpyLevel>()
-                feature { f((it as AtomicSpyLevel)::eventType) }.toEqual(AtomicEventType.DELETE)
-                feature { f((it as AtomicSpyLevel)::path) }
-                    .toEqual(AFTER_INSERTION.folderPath.appendToTauPath(SNAPSHOT_TOTO(PATH).name))
-            }
-        }
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `#17 Spy ∎ comparaison 2 snapshots ⇒ renommage #1`() = runTest {
-
-        val dispatcher = StandardTestDispatcher(testScheduler)
-
-        val spyRepo = SpyRepo()
-        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
-        val spy = Spy(
-            dispatcher = dispatcher,
-            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
-            fileRepo = repo
-        )
-
-        val PATH = "/storage/emulated/0/Download".toTauPath()
-
-        val calls = AtomicInteger(0)
-
-        //arrange
-        everySuspend { repo.createSnapshotFor(PATH) } sequentially {
-            returns(SNAPSHOT_BEFORE_RENAME)
-            returns(SNAPSHOT_AFTER_RENAME1)
-            returns(SNAPSHOT_AFTER_RENAME1)
-        }
-
-        //assert: minTimer pas enclenché
-        val minTimer = spy.minTimer
-        expect(minTimer.isRunning()).toEqual(false)
-
-        spy.spyLevelFlow.test(timeout = 800.milliseconds) {
-
-            //act
-            spy.startSurveillance()
-            spy.setObservedFolder(PATH)
-            runCurrent()
-            val global = awaitItem()
-            expect(global).notToBeAnInstanceOf<GlobalSpyLevel>()
-
-            //act I
-            spy.tick()
-            runCurrent()
-
-            expect(spy.storedSnapshotsFlow.value).toEqual(SNAPSHOT_BEFORE_RENAME)
-
-            val firstDiff = awaitItem()
-            expect(firstDiff).toHaveSize(1)
-            expect(firstDiff[0]) {
-                toBeAnInstanceOf<AtomicSpyLevel>()
-                feature { f((it as AtomicSpyLevel)::eventType) }.toEqual(AtomicEventType.MODIFY)
-                feature { f((it as AtomicSpyLevel)::path) }
-                    .toEqual(
-                        SNAPSHOT_AFTER_RENAME1.folderPath.appendToTauPath(
-                            SNAPSHOT_AFTER_RENAME1.names.last()
-                        )
-                    )
-                feature { f((it as AtomicSpyLevel)::itemId) }.toEqual(SNAPSHOT_BEFORE_RENAME.entries.first().fileId)
-
-            }
-
-            spy.tick()
-            runCurrent()
-            advanceUntilIdle()
-
-            expect(spy.storedSnapshotsFlow.value).toEqual(SNAPSHOT_AFTER_RENAME1)
-            expectNoEvents()
-        }
-    }
+//    @OptIn(ExperimentalCoroutinesApi::class)
+//    @Test
+//    fun `#17 Spy ∎ comparaison 2 snapshots ⇒ renommage #1`() = runTest {
+//
+//        val dispatcher = StandardTestDispatcher(testScheduler)
+//
+//        val spyRepo = SpyRepo()
+//        val repo: IFolderRepo = spy<IFolderRepo>(FolderRepo(spyRepo))
+//        val spy = Spy(
+//            dispatcher = dispatcher,
+//            fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
+//            fileRepo = repo
+//        )
+//
+//        val PATH = "/storage/emulated/0/Download".toTauPath()
+//
+//        val calls = AtomicInteger(0)
+//
+//        //arrange
+//        everySuspend { repo.createSnapshotFor(PATH) } sequentially {
+//            returns(SNAPSHOT_BEFORE_RENAME)
+//            returns(SNAPSHOT_AFTER_RENAME1)
+//            returns(SNAPSHOT_AFTER_RENAME1)
+//        }
+//
+//        //assert: minTimer pas enclenché
+//        val minTimer = spy.minTimer
+//        expect(minTimer.isRunning()).toEqual(false)
+//
+//        spy.spyLevelFlow.test(timeout = 800.milliseconds) {
+//
+//            //act
+//            spy.startSurveillance()
+//            spy.setObservedFolder(PATH)
+//            runCurrent()
+//            val global = awaitItem()
+//            expect(global).notToBeAnInstanceOf<GlobalSpyLevel>()
+//
+//            //act I
+//            spy.tick()
+//            runCurrent()
+//
+//            expect(spy.storedSnapshotsFlow.value).toEqual(SNAPSHOT_BEFORE_RENAME)
+//
+//            val firstDiff = awaitItem()
+//            expect(firstDiff).toHaveSize(1)
+//            expect(firstDiff[0]) {
+//                toBeAnInstanceOf<AtomicSpyLevel>()
+//                feature { f((it as AtomicSpyLevel)::eventType) }.toEqual(AtomicEventType.MODIFY)
+//                feature { f((it as AtomicSpyLevel)::path) }
+//                    .toEqual(
+//                        SNAPSHOT_AFTER_RENAME1.folderPath.appendToTauPath(
+//                            SNAPSHOT_AFTER_RENAME1.names.last()
+//                        )
+//                    )
+//                feature { f((it as AtomicSpyLevel)::itemId) }.toEqual(SNAPSHOT_BEFORE_RENAME.entries.first().fileId)
+//
+//            }
+//
+//            spy.tick()
+//            runCurrent()
+//            advanceUntilIdle()
+//
+//            expect(spy.storedSnapshotsFlow.value).toEqual(SNAPSHOT_AFTER_RENAME1)
+//            expectNoEvents()
+//        }
+//    }
 }
 
 

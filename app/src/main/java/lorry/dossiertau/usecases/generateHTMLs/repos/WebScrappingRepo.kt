@@ -38,7 +38,7 @@ class WebScrappingRepo : IWebScrappingRepo {
     var moviesApi: MoviesApi? = null
     val SymbolOfInvertedActressAtTheEndOfShortcut = '-'
 
-    override suspend fun getMovieActresses(
+    override suspend fun getWebPageActresses(
         movieName: TauItemName,
         localActresses: List<Actress>
     ): Pair<MovieHtml, List<ActressName>> {
@@ -222,7 +222,7 @@ class WebScrappingRepo : IWebScrappingRepo {
         return suffixes
     }
 
-    override suspend fun getMovieSubjects(
+    override suspend fun getWebPageSubjects(
         movieName: TauItemName,
         movieHtml: MovieHtml,
         localSubjects: List<Subject>

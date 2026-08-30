@@ -200,6 +200,12 @@ class MainActivity() : ComponentActivity() {
                                     scope.launch {
                                         sheetState.expand()
                                     }
+                                },
+                                setAppliSheetVisible = {
+                                    bsVM.changeType(SheetType.APPLICATION)
+                                    scope.launch {
+                                        sheetState.expand()
+                                    }
                                 }
                             )
                         }
@@ -287,6 +293,7 @@ class MainActivity() : ComponentActivity() {
         modifier: Modifier = Modifier,
         setCurrentFolder: (TauPath) -> Unit,
         setSheetVisible: (TauItem) -> Unit,
+        setAppliSheetVisible: () -> Unit
     ) {
         //faire dans le ViewModel plusieurs State
         //chacun comportant plusieurs valeurs & fonctions fonctionnellement groupées
@@ -386,11 +393,24 @@ class MainActivity() : ComponentActivity() {
                         setSheetVisible = setSheetVisible
                     )
                 } else {
-                    Text(
+                    Column(
                         modifier = Modifier
                             .align(Alignment.Center),
-                        text = "Aucun dossier selectionné"
-                    )
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Aucun dossier selectionné",
+                            color = Color.DarkGray
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = { setAppliSheetVisible() }) {
+                            Text("Choisir un dossier (Favoris)")
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(onClick = { setCurrentFolder("/storage/emulated/0".toTauPath()) }) {
+                            Text("Explorer le stockage interne")
+                        }
+                    }
                 }
             else {
                 ShortcutMakingLogs(lines)
@@ -518,6 +538,19 @@ class MainActivity() : ComponentActivity() {
                 .fillMaxWidth()
                 .height(55.dp)
         ) {
+            Icon(
+                painter = painterResource(id = R.drawable.maison),
+                contentDescription = "Accueil / Favoris",
+                modifier = Modifier
+                    .padding(start = 15.dp)
+                    .size(28.dp)
+                    .align(Alignment.CenterVertically)
+                    .clickable {
+                        setSheetVisible()
+                    },
+                tint = Color.DarkGray
+            )
+
             //faire dans le ViewModel plusieurs State
             //chacun comportant plusieurs valeurs & fonctions fonctionnellement groupées
             val currentFolderItems by folderCompo.folderPathFlow

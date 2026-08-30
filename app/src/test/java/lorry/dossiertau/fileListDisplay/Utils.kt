@@ -44,12 +44,16 @@ import lorry.dossiertau.usecases.generateHTMLs.repos.NasRepo
 import lorry.dossiertau.usecases.generateHTMLs.repos.WebScrappingRepo
 import lorry.dossiertau.usecases.generateHTMLs.support.Actress
 import lorry.dossiertau.usecases.generateHTMLs.support.Subject
+import lorry.folder.items.dossiersigma.external.playing.IPlayingDataSource
+import lorry.folder.items.dossiersigma.external.playing.PlayingDataSource
+import okio.Source
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.GlobalContext.startKoin
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
+import kotlin.coroutines.coroutineContext
 
 fun FileListDisplayTests.prepareKoin(testScheduler: TestCoroutineScheduler) {
 
@@ -74,10 +78,12 @@ fun FileListDisplayTests.prepareKoin(testScheduler: TestCoroutineScheduler) {
                     FolderCompo(
                         folderRepo = get<IFolderRepo>(),
                         dispatcher = StandardTestDispatcher(testScheduler),
-                        fileDiffDAO = get<FileDiffDao>()
+                        fileDiffDAO = get<FileDiffDao>(),
+                        spy = get<ISpy>()
                     )
                 }
-                single<TauViewModel> { TauViewModel(get(), get(), get()) }
+                single<TauViewModel> { TauViewModel(get(), get(), get(),
+                    get()) }
 
                 single<CoroutineDispatcher> { Dispatchers.IO }
 
@@ -259,6 +265,9 @@ class TestStuff : AutoCloseable {
     lateinit var spyRepo: ISpyRepo
     operator fun component6() = spyRepo
 
+    lateinit var playingDataSource: IPlayingDataSource
+    operator fun component7() = playingDataSource
+
     override fun close() {
         // 1) couper Koin si tu l’utilises globalement dans les tests
         GlobalContext.stopKoin()
@@ -294,19 +303,26 @@ class TestStuff : AutoCloseable {
 
                 result.spyRepo = spy<ISpyRepo>(SpyRepo())
 
+
                 result.repo = spy<IFolderRepo>(FolderRepo(result.spyRepo))
                 result.compo = FolderCompo(
                     folderRepo = result.repo,
                     dispatcher = dispatcher,
-                    fileDiffDAO = result.dbDao!!
+                    fileDiffDAO = result.dbDao!!,
+                    spy = result.spy
                 )
-
 
                 result.spy = spy<ISpy>(
                     Spy(
                         dispatcher = dispatcher,
                         fileObserver = TauFileObserver.of(TauFileObserverInside.DISABLED),
                         fileRepo = result.repo
+                    )
+                )
+
+                result.playingDataSource = spy<IPlayingDataSource>(
+                    PlayingDataSource(
+                        context = ApplicationProvider.getApplicationContext()
                     )
                 )
 
@@ -318,8 +334,10 @@ class TestStuff : AutoCloseable {
                         vm = VmLinks(),
                         nasRepo = NasRepo(FtpDS()),
                         diskRepo = DiskRepo(),
-                        webScrappingRepo = WebScrappingRepo()
+                        webScrappingRepo = WebScrappingRepo(),
+                        ftpDS = FtpDS()
                     ),
+                    playingFile = result.playingDataSource
                 )
 
             } catch (ex: Exception) {

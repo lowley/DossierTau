@@ -45,6 +45,9 @@ import lorry.dossiertau.usecases.folderContent.IFolderCompo
 import org.koin.java.KoinJavaComponent.inject
 import kotlin.getValue
 
+import lorry.dossiertau.support.littleClasses.toTauPath
+import lorry.dossiertau.R
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SheetContentLevelGeneral(
@@ -58,6 +61,7 @@ fun SheetContentLevelGeneral(
     val appliFavos: AppliFavos by inject(AppliFavos::class.java)
     val favoris by appliFavos.appliFavorites.collectAsState(emptyList())
     val folderCompo: IFolderCompo by inject(IFolderCompo::class.java)
+    val scope = rememberCoroutineScope()
 
     var text by remember { mutableStateOf("truc") }
     Column(
@@ -113,6 +117,41 @@ fun SheetContentLevelGeneral(
                         fontSize = 10.sp,
                     )
                 }
+            }
+
+            // Bouton pour explorer le stockage interne
+            Column(
+                modifier = Modifier
+                    .wrapContentSize()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(lerp(Color.DarkGray, Color.LightGray, 0.4f))
+                    .border(1.dp, Color.DarkGray, RoundedCornerShape(8.dp))
+                    .clickable {
+                        scope.launch {
+                            sheetState.hide()
+                        }.invokeOnCompletion {
+                            if (!sheetState.isVisible) {
+                                removeSheetFromUI()
+                            }
+                        }
+                        folderCompo.setFolderFlow("/storage/emulated/0".toTauPath())
+                    }
+            ) {
+                AsyncImage(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .padding(8.dp),
+                    model = R.drawable.ic_launcher_foreground,
+                    contentDescription = "Explorer le stockage",
+                )
+                Text(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(4.dp),
+                    text = "Stockage",
+                    color = Color.Black,
+                    fontSize = 10.sp,
+                )
             }
         }
 

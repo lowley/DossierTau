@@ -46,6 +46,18 @@ typealias PictureUrl = String
 typealias MovieDescription = String
 typealias IsNewPacket = Boolean
 
+/**
+ * RECUPERATION METADONNEES
+ *  * liste videos sur le NAS, pour chacune
+ *  * liste actrices + sujets
+ *  * cache dans packet.txt
+ * RENOMMAGE
+ *  * renomme dans le serveur avec nom + actrices + sujets
+ *  NAS: /annexes/
+ *  * enregistre description + cover de la video
+ *  GENERATION fichiers HTML
+ *  * génère fichiers .html dans /filles, /fantasmes
+ */
 class Links(
     val vm: VmLinks,
     val nasRepo: INasRepo,
@@ -190,7 +202,7 @@ class Links(
         val result = mutableSetOf<Pair<HtmlPacket, IsNewPacket>>()
         AppBus.lines.tryEmit("Récupération des htmls, actrices et fantasmes ...")
 
-        fileNames.onEachIndexed { index, videoName ->
+        for ((videoName: TauItemName, index: Int) in fileNames.zip(1..Int.MAX_VALUE)){
             if (false && ftpDS.exists(
                     localFilePath = "/annexes/${videoName.value}".toTauPath(),
                     fileName = "packet.txt".toTauFileName()
@@ -207,18 +219,18 @@ class Links(
 
                 val packet = Gson().fromJson(text, HtmlPacket::class.java)
                 result.add(packet to false)
-                return@onEachIndexed
+                continue
             }
 
             AppBus.lines.tryEmit(" INTERNET pour ${index + 1}/${fileNames.size} (${videoName.value})")
 
-            val movieActresses = webScrappingRepo.getMovieActresses(
+            val movieActresses = webScrappingRepo.getWebPageActresses(
                 name = videoName,
                 localActresses = LocalActressesAndSubjects.actressesFlow.first()
             )
 
             val movieSubjects = if (!movieActresses.first.isEmpty())
-                webScrappingRepo.getMovieSubjects(
+                webScrappingRepo.getWebPageSubjects(
                     name = videoName,
                     movieHtml = movieActresses.first,
                     localSubjects = LocalActressesAndSubjects.subjectsFlow.first()
@@ -368,7 +380,7 @@ class Links(
         picture64: String? = null,
         description: String? = null
     ): MovieHtml {
-        var nas = "smb://olivier:37-2lematin@192.168.1.20/videos/${videoName.value}?player=vlc"
+        var nas = "smb://olivier:37-2lematin@10.0.0.1/videos/${videoName.value}?player=vlc"
 
         val imageSection = picture64?.let {
             """<img src="data:image/jpeg;base64,$it" alt="cover" style="max-width:100%;height:auto;"/><br>"""
