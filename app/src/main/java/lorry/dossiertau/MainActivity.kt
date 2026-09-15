@@ -2,6 +2,8 @@ package lorry.dossiertau
 
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.webkit.MimeTypeMap
 import android.graphics.Paint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -71,6 +73,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
+import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewModelScope
 import arrow.core.None
@@ -90,6 +93,7 @@ import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.ui.theme.DossierTauTheme
 import lorry.dossiertau.usecases.generateHTMLs.Links
 import org.koin.android.ext.android.inject
+import java.io.File
 import lorry.dossiertau.SchortcutMakingState.*
 
 import lorry.dossiertau.data.model.TauFolder
@@ -505,19 +509,28 @@ class MainActivity() : ComponentActivity() {
                         item = item,
                         setCurrentFolder = setCurrentFolder,
                         onClick = { filePath ->
-                            viewModel.viewModelScope.launch(Dispatchers.IO) {
-                                if (filePath.path.endsWith("html"))
+                            val extension = filePath.path
+                                .substringAfterLast('.', "")
+                                .lowercase()
+
+                            if (extension == "html" || extension == "htm") {
+                                viewModel.viewModelScope.launch(Dispatchers.IO) {
                                     viewModel.playingFile.playFile(
                                         filePath,
                                         "text/html",
                                         this@MainActivity
                                     )
-                                else
-                                    viewModel.playingFile.playFile(
-                                        filePath,
-                                        "video/mp4",
-                                        this@MainActivity
-                                    )
+                                }
+                            } else if (!openWithAndroidDefaultApp(filePath)) {
+                                if (extension in listOf("avi", "mp4", "mkv", "ts", "mpg", "mpeg")) {
+                                    viewModel.viewModelScope.launch(Dispatchers.IO) {
+                                        viewModel.playingFile.playFile(
+                                            filePath,
+                                            "video/mp4",
+                                            this@MainActivity
+                                        )
+                                    }
+                                }
                             }
                         },
                         onLongClick = { item ->
@@ -528,6 +541,51 @@ class MainActivity() : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun openWithAndroidDefaultApp(filePath: TauPath): Boolean {
+        val file = File(filePath.path)
+        if (!file.exists() || !file.isFile) return false
+
+        val extension = file.extension.lowercase()
+        val mimeType = MimeTypeMap.getSingleton()
+            .getMimeTypeFromExtension(extension)
+            ?: "*/*"
+
+        val uri = runCatching {
+            FileProvider.getUriForFile(
+                this,
+                "${BuildConfig.APPLICATION_ID}.provider",
+                file,
+            )
+        }.getOrNull() ?: return false
+
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, mimeType)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+        val candidates = packageManager.queryIntentActivities(
+            intent,
+            PackageManager.MATCH_DEFAULT_ONLY,
+        )
+
+        val resolved = packageManager.resolveActivity(
+            intent,
+            PackageManager.MATCH_DEFAULT_ONLY,
+        ) ?: return false
+
+        val resolvedIsCandidate = candidates.any { candidate ->
+            candidate.activityInfo.packageName == resolved.activityInfo.packageName &&
+                candidate.activityInfo.name == resolved.activityInfo.name
+        }
+
+        if (!resolvedIsCandidate) return false
+
+        return runCatching {
+            startActivity(intent)
+            true
+        }.getOrDefault(false)
     }
 
     @Composable
