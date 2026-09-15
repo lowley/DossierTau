@@ -79,10 +79,7 @@ fun MainActivity.DisplayedItem(
                 onClick = {
                     if (item.isFolder())
                         setCurrentFolder(item.fullPath)
-                    else if (
-                        item.name.value.substringAfterLast('.') in
-                        listOf("avi", "mp4", "mkv", "ts", "mpg", "html")
-                    )
+                    else
                         onClick(item.fullPath)
                 },
                 onLongClick = { onLongClick(item) }
