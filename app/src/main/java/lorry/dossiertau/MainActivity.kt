@@ -650,7 +650,8 @@ class MainActivity() : ComponentActivity() {
             modifier = Modifier
                 .statusBarsPadding()
                 .fillMaxWidth()
-                .height(55.dp)
+                .height(55.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.maison),
@@ -658,26 +659,25 @@ class MainActivity() : ComponentActivity() {
                 modifier = Modifier
                     .padding(start = 15.dp)
                     .size(28.dp)
-                    .align(Alignment.CenterVertically)
                     .clickable {
                         setSheetVisible()
                     },
                 tint = Color.DarkGray
             )
 
-            //faire dans le ViewModel plusieurs State
-            //chacun comportant plusieurs valeurs & fonctions fonctionnellement groupées
             val currentFolderItems by folderCompo.folderPathFlow
                 .map {
                     it.getOrNull()?.path?.split("/")?.filter { it.isNotEmpty() } ?: emptyList()
                 }
                 .collectAsState(emptyList())
 
-            if (currentFolderItems.isNotEmpty())
+            // Le breadcrumb reçoit uniquement l'espace restant. Les boutons de tri
+            // gardent ainsi toujours leur place à droite.
+            if (currentFolderItems.isNotEmpty()) {
                 breadcrumbComponent.Breadcrumb(
                     modifier = Modifier
-                        .align(Alignment.CenterVertically)
-                        .padding(start = 20.dp),
+                        .weight(1f)
+                        .padding(start = 12.dp, end = 6.dp),
                     path = currentFolderItems,
                     onClick = {
                         folderCompo.setFolderFlow(it)
@@ -686,56 +686,55 @@ class MainActivity() : ComponentActivity() {
                         setSheetVisible()
                     }
                 )
+            } else {
+                Spacer(modifier = Modifier.weight(1f))
+            }
 
-            var ordering = folderCompo.ordering.collectAsState()
+            val ordering by folderCompo.ordering.collectAsState()
+            val foldersFirst by folderCompo.foldersFirst.collectAsState()
 
-            Spacer(
-                modifier = Modifier.weight(10f))
-
+            // Position des dossiers : par défaut après les fichiers.
             Icon(
                 painter = painterResource(id = R.drawable.pluma_0),
-                contentDescription = null,
+                contentDescription = if (foldersFirst) {
+                    "Dossiers en premier"
+                } else {
+                    "Dossiers après les fichiers"
+                },
                 modifier = Modifier
-                    .size(50.dp)
-                    .align(Alignment.CenterVertically)
-                    .padding(end = 10.dp)
+                    .size(46.dp)
+                    .padding(end = 8.dp)
                     .clickable {
-                        folderCompo.setOrdering(true)
-                        folderCompo.setFolderOrdering(ordering.value)
+                        folderCompo.toggleFoldersFirst()
                     },
-                tint = if (!ordering.value) Color.DarkGray else Color.Unspecified
+                tint = if (foldersFirst) Color.Unspecified else Color.DarkGray
             )
 
+            // Date décroissante : le fichier le plus récent apparaît en premier.
             Icon(
                 painter = painterResource(id = R.drawable.sortbydate),
-                contentDescription = null,
+                contentDescription = "Trier par date décroissante",
                 modifier = Modifier
-                    .size(50.dp)
-                    .align(Alignment.CenterVertically)
-                    .padding(end = 10.dp)
+                    .size(46.dp)
+                    .padding(end = 8.dp)
                     .clickable {
                         folderCompo.setOrdering(true)
-                        folderCompo.setFolderOrdering(ordering.value)
                     },
-                tint = if (!ordering.value) Color.DarkGray else Color.Unspecified
+                tint = if (ordering) Color.Unspecified else Color.DarkGray
             )
 
             Icon(
                 painter = painterResource(id = R.drawable.sortbyalpha2),
-                contentDescription = null,
+                contentDescription = "Trier par ordre alphabétique",
                 modifier = Modifier
-                    .size(45.dp)
-                    .align(Alignment.CenterVertically)
-                    .padding(end = 10.dp)
+                    .size(42.dp)
+                    .padding(end = 8.dp)
                     .clickable {
                         folderCompo.setOrdering(false)
-                        folderCompo.setFolderOrdering(ordering.value)
                     },
-                tint = if (ordering.value) Color.DarkGray else Color.Unspecified
-
+                tint = if (!ordering) Color.Unspecified else Color.DarkGray
             )
         }
-
     }
 
     @Composable
