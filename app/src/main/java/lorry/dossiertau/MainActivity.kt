@@ -548,9 +548,13 @@ class MainActivity() : ComponentActivity() {
         if (!file.exists() || !file.isFile) return false
 
         val extension = file.extension.lowercase()
-        val mimeType = MimeTypeMap.getSingleton()
-            .getMimeTypeFromExtension(extension)
-            ?: "*/*"
+        val mimeType = when (extension) {
+            "m3u8" -> "application/vnd.apple.mpegurl"
+            "m3u" -> "audio/x-mpegurl"
+            else -> MimeTypeMap.getSingleton()
+                .getMimeTypeFromExtension(extension)
+                ?: "*/*"
+        }
 
         val uri = runCatching {
             FileProvider.getUriForFile(
