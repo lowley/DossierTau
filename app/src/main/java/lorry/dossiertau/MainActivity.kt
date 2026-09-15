@@ -558,15 +558,22 @@ class MainActivity() : ComponentActivity() {
         }
 
         val extension = file.extension.lowercase()
-        val mimeType = when (extension) {
-            "m3u8" -> "application/vnd.apple.mpegurl"
-            "m3u" -> "audio/x-mpegurl"
-            else -> MimeTypeMap.getSingleton()
-                .getMimeTypeFromExtension(extension)
-                ?: "*/*"
+        val mimeTypes = when (extension) {
+            "m3u8" -> listOf(
+                "application/vnd.apple.mpegurl",
+                "application/x-mpegURL",
+                "audio/x-mpegurl",
+            )
+            "m3u" -> listOf(
+                "audio/x-mpegurl",
+                "application/x-mpegURL",
+            )
+            else -> listOf(
+                MimeTypeMap.getSingleton()
+                    .getMimeTypeFromExtension(extension)
+                    ?: "*/*"
+            )
         }
-
-        Log.d(tag, "extension=$extension, mimeType=$mimeType")
 
         val uri = runCatching {
             FileProvider.getUriForFile(
@@ -580,38 +587,38 @@ class MainActivity() : ComponentActivity() {
 
         Log.d(tag, "uri=$uri")
 
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, mimeType)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        for (mimeType in mimeTypes) {
+            Log.d(tag, "Essai mimeType=$mimeType")
+
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, mimeType)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+
+            val resolved = packageManager.resolveActivity(
+                intent,
+                MATCH_DEFAULT_ONLY,
+            )
+
+            Log.d(
+                tag,
+                "resolveActivity($mimeType)=${resolved?.activityInfo?.packageName}/${resolved?.activityInfo?.name}"
+            )
+
+            if (resolved == null) continue
+            if (resolved.activityInfo.packageName == "android") continue
+
+            return runCatching {
+                startActivity(intent)
+                Log.d(tag, "startActivity OK avec $mimeType")
+                true
+            }.onFailure {
+                Log.e(tag, "Erreur startActivity avec $mimeType", it)
+            }.getOrDefault(false)
         }
 
-        val resolved = packageManager.resolveActivity(
-            intent,
-            MATCH_DEFAULT_ONLY,
-        )
-
-        Log.d(
-            tag,
-            "resolveActivity=${resolved?.activityInfo?.packageName}/${resolved?.activityInfo?.name}"
-        )
-
-        if (resolved == null) {
-            Log.d(tag, "Abandon: aucune activité résolue")
-            return false
-        }
-
-        if (resolved.activityInfo.packageName == "android") {
-            Log.d(tag, "Abandon: Android ResolverActivity, pas d'application par défaut")
-            return false
-        }
-
-        return runCatching {
-            startActivity(intent)
-            Log.d(tag, "startActivity OK")
-            true
-        }.onFailure {
-            Log.e(tag, "Erreur startActivity", it)
-        }.getOrDefault(false)
+        Log.d(tag, "Abandon: aucun MIME n'a résolu une application par défaut")
+        return false
     }
 
     @Composable
