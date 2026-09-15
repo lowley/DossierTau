@@ -2,6 +2,7 @@ package lorry.dossiertau
 
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager.MATCH_DEFAULT_ONLY
 import android.webkit.MimeTypeMap
 import android.graphics.Paint
 import android.os.Bundle
@@ -566,7 +567,7 @@ class MainActivity() : ComponentActivity() {
 
         val resolved = packageManager.resolveActivity(
             intent,
-            PackageManager.MATCH_DEFAULT_ONLY,
+            MATCH_DEFAULT_ONLY,
         ) ?: return false
 
         // Si Android renvoie son ResolverActivity, aucune application

@@ -30,9 +30,8 @@ typealias Invert = Boolean
 
 class WebScrappingRepo : IWebScrappingRepo {
 
-    val login = "Pvc7NXwy6y7r33YurTuDoZ89"
-    val password = "gKVRhVNy7gfjejv6qbrTVX4R"
-    val server = "se.socks.nordhold.net"
+    // Proxy SOCKS5 sur le NAS (via tunnel WireGuard)
+    val server = "10.0.0.1"
     val port = 1080
 
     var moviesApi: MoviesApi? = null
@@ -312,11 +311,8 @@ class WebScrappingRepo : IWebScrappingRepo {
         }
 
     private suspend fun generateApi(): MoviesApi = withContext(Dispatchers.IO) {
-        Authenticator.setDefault(object : Authenticator() {
-            override fun getPasswordAuthentication(): PasswordAuthentication {
-                return PasswordAuthentication(login, password.toCharArray())
-            }
-        })
+        // Mullvad n'utilise pas d'Authenticator login/pass pour son proxy SOCKS5 interne
+        Authenticator.setDefault(null)
 
         val proxy = Proxy(Proxy.Type.SOCKS, InetSocketAddress(server, port))
         val client = OkHttpClient.Builder()

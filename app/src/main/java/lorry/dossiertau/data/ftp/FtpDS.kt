@@ -43,7 +43,7 @@ open class FtpDS : IFtpDS {
         var answer: T? = null
 
         try {
-            val server = "192.168.1.20"
+            val server = "10.0.0.1"
             ftp.connect(server)
 
 
