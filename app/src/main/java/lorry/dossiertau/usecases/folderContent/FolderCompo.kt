@@ -41,6 +41,7 @@ import lorry.dossiertau.data.model.TauFile
 import lorry.dossiertau.data.model.TauFolder
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.data.model.fullPath
+import lorry.dossiertau.data.model.isFolder
 import lorry.dossiertau.data.model.parentPath
 import lorry.dossiertau.data.model.children
 import lorry.dossiertau.data.model.copy
@@ -78,32 +79,46 @@ open class FolderCompo(
     val appliFavos: AppliFavos by inject(AppliFavos::class.java)
 
     private val scope = CoroutineScope(dispatcher + SupervisorJob())
-    private var _orderingFlow = MutableStateFlow(false)
-    val orderingFlow = _orderingFlow.asStateFlow()
 
-    val _ordering = MutableStateFlow(true)
+    // true = date décroissante, false = ordre alphabétique
+    private val _ordering = MutableStateFlow(true)
     override val ordering = _ordering.asStateFlow()
 
-    override fun setOrdering(value: Boolean){
-        _ordering.update { value }
+    // Par défaut les dossiers sont placés après les fichiers.
+    private val _foldersFirst = MutableStateFlow(false)
+    override val foldersFirst = _foldersFirst.asStateFlow()
+
+    override fun setOrdering(value: Boolean) {
+        _ordering.value = value
     }
 
+    override fun toggleFoldersFirst() {
+        _foldersFirst.value = !_foldersFirst.value
+    }
 
     //#[[folderFlowDeclaration]]
     private val _folderFlow = MutableStateFlow<Option<TauFolder>>(None)
-    override val folderFlow = combine(_folderFlow, orderingFlow) { folders, isOrderingActive ->
+    override val folderFlow = combine(
+        _folderFlow,
+        _ordering,
+        _foldersFirst
+    ) { folders, sortByDate, foldersFirst ->
         folders.map { folder ->
-            val result = folder.copy(
-                items = folder.children.sortedBy { item ->
-                    if (isOrderingActive) {
-                        item.name.value
-                    } else {
-                        item.modificationDate.value.toTauDate().toString()
-                    }
-                }
-            ) as TauFolder
+            val sortedItems = folder.children.sortedWith { a, b ->
+                val aFolderRank = if (a.isFolder() == foldersFirst) 0 else 1
+                val bFolderRank = if (b.isFolder() == foldersFirst) 0 else 1
 
-            result
+                if (aFolderRank != bFolderRank) {
+                    aFolderRank.compareTo(bFolderRank)
+                } else if (sortByDate) {
+                    // Le plus récent en premier.
+                    b.modificationDate.value.compareTo(a.modificationDate.value)
+                } else {
+                    a.name.value.compareTo(b.name.value, ignoreCase = true)
+                }
+            }
+
+            folder.copy(items = sortedItems) as TauFolder
         }
     }
         .onEach { folder ->
@@ -116,8 +131,8 @@ open class FolderCompo(
             initialValue = null.toOption()
         )
 
-    override fun setFolderOrdering(ordering: Boolean){
-        _orderingFlow.update { ordering }
+    override fun setFolderOrdering(ordering: Boolean) {
+        _ordering.value = ordering
     }
 
     override fun changeFolderFlow(folder: Option<TauFolder>) {
