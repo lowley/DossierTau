@@ -555,7 +555,7 @@ class MainActivity() : ComponentActivity() {
         val uri = runCatching {
             FileProvider.getUriForFile(
                 this,
-                "${BuildConfig.APPLICATION_ID}.provider",
+                "${packageName}.provider",
                 file,
             )
         }.getOrNull() ?: return false
