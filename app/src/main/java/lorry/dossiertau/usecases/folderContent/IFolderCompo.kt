@@ -15,4 +15,7 @@ interface IFolderCompo {
     fun changeFolderFlow(folder: Option<TauFolder>)
     val ordering: StateFlow<Boolean>
     fun setOrdering(value: Boolean)
+
+    val foldersFirst: StateFlow<Boolean>
+    fun toggleFoldersFirst()
 }
