@@ -7,12 +7,16 @@ import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,13 +42,20 @@ fun BreadcrumbComponent.UI(
     if (state == null || state is BreadcrumbState.LOADING)
         return
 
+    val stateData = state as BreadcrumbState.DATA
+    val segs = stateData.currentPath?.split("/")
+    val scrollState = rememberScrollState()
+
+    // À chaque changement de chemin (ou de largeur du contenu), on revient
+    // automatiquement tout à droite pour garder le dossier courant visible.
+    LaunchedEffect(stateData.currentPath, scrollState.maxValue) {
+        scrollState.scrollTo(scrollState.maxValue)
+    }
+
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val stateData = state as BreadcrumbState.DATA
-        val segs = stateData.currentPath?.split("/")
-
         AsyncImage(
             model = R.drawable.arrow2,
             contentDescription = "Flèche",
@@ -58,43 +69,52 @@ fun BreadcrumbComponent.UI(
             colorFilter = ColorFilter.tint(TauColors.Tertiary)
         )
 
-        // éléments non animés
-        segs?.dropLast(1)?.forEachIndexed { i, seg ->
-            BreadcrumbChip(
-                text = seg,
-            ) {
-                onClick(("/" + segs.slice(0..i).joinToString("/")).toTauPath())
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .horizontalScroll(scrollState),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // éléments non animés
+            segs?.dropLast(1)?.forEachIndexed { i, seg ->
+                BreadcrumbChip(
+                    text = seg,
+                ) {
+                    onClick(("/" + segs.slice(0..i).joinToString("/")).toTauPath())
+                }
+
+                if (i < segs.size - 1) Separator()
             }
 
-            if (i < segs.size - 1) Separator()
-        }
+            // dernier élément animé
+            val lastSeg = segs?.lastOrNull()
 
-        //  dernier élément animé
-        val lastSeg = segs?.lastOrNull()
+            val lastSegIndex = (segs?.size ?: 0) - 1
+            val show = stateData.animation == Animation.APPEAR
+            val visibleState = MutableTransitionState(
+                initialState = !show,
+            )
+            visibleState.targetState = show
 
-        val lastSegIndex = (segs?.size ?: 0) - 1
-        val show = stateData.animation == Animation.APPEAR
-        val visibleState = MutableTransitionState(
-            initialState = !show,
-        )
-        visibleState.targetState = show
-
-        key("$lastSeg-$lastSegIndex") {
-            AnimatedVisibility(
-                visibleState = visibleState, enter = expandHorizontally(
-                    expandFrom = Alignment.Start,
-                    animationSpec = tween(durationMillis = animDuration)
-                ), exit = shrinkHorizontally(
-                    shrinkTowards = Alignment.End,
-                    animationSpec = tween(durationMillis = animDuration)
-                )
-            ) {
-                Row(
-                    modifier = Modifier.wrapContentWidth()
+            key("$lastSeg-$lastSegIndex") {
+                AnimatedVisibility(
+                    visibleState = visibleState,
+                    enter = expandHorizontally(
+                        expandFrom = Alignment.Start,
+                        animationSpec = tween(durationMillis = animDuration)
+                    ),
+                    exit = shrinkHorizontally(
+                        shrinkTowards = Alignment.End,
+                        animationSpec = tween(durationMillis = animDuration)
+                    )
                 ) {
-                    BreadcrumbChip(
-                        text = lastSeg ?: "",
-                    ) { }
+                    Row(
+                        modifier = Modifier.wrapContentWidth()
+                    ) {
+                        BreadcrumbChip(
+                            text = lastSeg ?: "",
+                        ) { }
+                    }
                 }
             }
         }
@@ -112,7 +132,9 @@ fun BreadcrumbChip(
         modifier = modifier.clickable {
             onClick()
         },
-        color = Color.DarkGray
+        color = Color.DarkGray,
+        maxLines = 1,
+        softWrap = false
     )
 }
 
