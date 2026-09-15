@@ -357,41 +357,7 @@ class MainActivity() : ComponentActivity() {
             if (shortcutMakingState.value == GROUND)
                 if (currentFolder.isSome()) {
                     ItemGrid(
-                        modifier = Modifier
-                            .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-                            .drawWithContent {
-                                drawContent() // On dessine le contenu normalement (le carré, le texte, etc.)
-
-                                // On crée un dégradé de transparence
-//                            val fadeHeight = 20.dp.toPx() // Taille de votre "zone tampon"
-                                val fadeHeight =
-                                    20.dp.toPx() // Augmentez un peu la zone pour mieux voir l'effet
-                                val brush = Brush.verticalGradient(
-                                    0.0f to Color.Black,       // 100% opaque au début de la zone tampon
-                                    0.3f to Color.Black.copy(alpha = 0.5f), // Déjà à moitié transparent à 30% de la zone
-                                    1.0f to Color.Transparent, // 100% invisible à la fin
-                                    startY = size.height - fadeHeight,
-                                    endY = size.height
-                                )
-
-                                val brush2 = Brush.verticalGradient(
-                                    0.0f to Color.Black,       // 100% opaque au début de la zone tampon
-                                    0.3f to Color.Black.copy(alpha = 0.5f), // Déjà à moitié transparent à 30% de la zone
-                                    1.0f to Color.Transparent, // 100% invisible à la fin
-                                    startY = fadeHeight,
-                                    endY = 0f
-                                )
-
-                                drawRect(
-                                    brush = brush,
-                                    blendMode = BlendMode.DstIn // C'EST LA CLÉ : garde le contenu uniquement là où le dégradé est noir
-                                )
-
-                                drawRect(
-                                    brush = brush2,
-                                    blendMode = BlendMode.DstIn // C'EST LA CLÉ : garde le contenu uniquement là où le dégradé est noir
-                                )
-                            },
+                        modifier = Modifier,
                         currentFolder = currentFolder,
                         state = state,
                         setCurrentFolder = setCurrentFolder,
