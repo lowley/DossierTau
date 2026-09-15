@@ -2,7 +2,6 @@ package lorry.dossiertau
 
 import android.app.Activity
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.webkit.MimeTypeMap
 import android.graphics.Paint
 import android.os.Bundle
@@ -565,22 +564,14 @@ class MainActivity() : ComponentActivity() {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
 
-        val candidates = packageManager.queryIntentActivities(
-            intent,
-            PackageManager.MATCH_DEFAULT_ONLY,
-        )
-
         val resolved = packageManager.resolveActivity(
             intent,
             PackageManager.MATCH_DEFAULT_ONLY,
         ) ?: return false
 
-        val resolvedIsCandidate = candidates.any { candidate ->
-            candidate.activityInfo.packageName == resolved.activityInfo.packageName &&
-                candidate.activityInfo.name == resolved.activityInfo.name
-        }
-
-        if (!resolvedIsCandidate) return false
+        // Si Android renvoie son ResolverActivity, aucune application
+        // n'est réellement définie par défaut pour ce type de fichier.
+        if (resolved.activityInfo.packageName == "android") return false
 
         return runCatching {
             startActivity(intent)
