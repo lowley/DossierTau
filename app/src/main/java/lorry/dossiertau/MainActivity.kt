@@ -563,6 +563,9 @@ class MainActivity() : ComponentActivity() {
                 "application/vnd.apple.mpegurl",
                 "application/x-mpegURL",
                 "audio/x-mpegurl",
+                "video/*",
+                "application/octet-stream",
+                "*/*",
             )
             "m3u" -> listOf(
                 "audio/x-mpegurl",
