@@ -590,6 +590,9 @@ class MainActivity() : ComponentActivity() {
 
         Log.d(tag, "uri=$uri")
 
+        var resolverIntent: Intent? = null
+        var resolverMimeType: String? = null
+
         for (mimeType in mimeTypes) {
             Log.d(tag, "Essai mimeType=$mimeType")
 
@@ -609,18 +612,35 @@ class MainActivity() : ComponentActivity() {
             )
 
             if (resolved == null) continue
-            if (resolved.activityInfo.packageName == "android") continue
+
+            if (resolved.activityInfo.packageName == "android") {
+                if (resolverIntent == null) {
+                    resolverIntent = intent
+                    resolverMimeType = mimeType
+                }
+                continue
+            }
 
             return runCatching {
                 startActivity(intent)
-                Log.d(tag, "startActivity OK avec $mimeType")
+                Log.d(tag, "startActivity direct OK avec $mimeType")
                 true
             }.onFailure {
                 Log.e(tag, "Erreur startActivity avec $mimeType", it)
             }.getOrDefault(false)
         }
 
-        Log.d(tag, "Abandon: aucun MIME n'a résolu une application par défaut")
+        if (resolverIntent != null) {
+            return runCatching {
+                startActivity(resolverIntent)
+                Log.d(tag, "Resolver Android lancé avec $resolverMimeType")
+                true
+            }.onFailure {
+                Log.e(tag, "Erreur lancement Resolver Android", it)
+            }.getOrDefault(false)
+        }
+
+        Log.d(tag, "Abandon: aucune application ne sait ouvrir ce fichier")
         return false
     }
 
