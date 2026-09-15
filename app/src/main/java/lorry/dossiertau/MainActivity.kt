@@ -6,6 +6,7 @@ import android.content.pm.PackageManager.MATCH_DEFAULT_ONLY
 import android.webkit.MimeTypeMap
 import android.graphics.Paint
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -509,6 +510,7 @@ class MainActivity() : ComponentActivity() {
                         item = item,
                         setCurrentFolder = setCurrentFolder,
                         onClick = { filePath ->
+                            Log.d("DossierTauClick", "Clic fichier: ${filePath.path}")
                             val extension = filePath.path
                                 .substringAfterLast('.', "")
                                 .lowercase()
