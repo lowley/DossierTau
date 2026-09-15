@@ -546,8 +546,16 @@ class MainActivity() : ComponentActivity() {
     }
 
     private fun openWithAndroidDefaultApp(filePath: TauPath): Boolean {
+        val tag = "DossierTauOpen"
         val file = File(filePath.path)
-        if (!file.exists() || !file.isFile) return false
+
+        Log.d(tag, "Début ouverture: path=${file.absolutePath}")
+        Log.d(tag, "exists=${file.exists()}, isFile=${file.isFile}")
+
+        if (!file.exists() || !file.isFile) {
+            Log.d(tag, "Abandon: fichier inexistant ou non régulier")
+            return false
+        }
 
         val extension = file.extension.lowercase()
         val mimeType = when (extension) {
@@ -558,13 +566,19 @@ class MainActivity() : ComponentActivity() {
                 ?: "*/*"
         }
 
+        Log.d(tag, "extension=$extension, mimeType=$mimeType")
+
         val uri = runCatching {
             FileProvider.getUriForFile(
                 this,
                 "${packageName}.provider",
                 file,
             )
+        }.onFailure {
+            Log.e(tag, "Erreur FileProvider", it)
         }.getOrNull() ?: return false
+
+        Log.d(tag, "uri=$uri")
 
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, mimeType)
@@ -574,15 +588,29 @@ class MainActivity() : ComponentActivity() {
         val resolved = packageManager.resolveActivity(
             intent,
             MATCH_DEFAULT_ONLY,
-        ) ?: return false
+        )
 
-        // Si Android renvoie son ResolverActivity, aucune application
-        // n'est réellement définie par défaut pour ce type de fichier.
-        if (resolved.activityInfo.packageName == "android") return false
+        Log.d(
+            tag,
+            "resolveActivity=${resolved?.activityInfo?.packageName}/${resolved?.activityInfo?.name}"
+        )
+
+        if (resolved == null) {
+            Log.d(tag, "Abandon: aucune activité résolue")
+            return false
+        }
+
+        if (resolved.activityInfo.packageName == "android") {
+            Log.d(tag, "Abandon: Android ResolverActivity, pas d'application par défaut")
+            return false
+        }
 
         return runCatching {
             startActivity(intent)
+            Log.d(tag, "startActivity OK")
             true
+        }.onFailure {
+            Log.e(tag, "Erreur startActivity", it)
         }.getOrDefault(false)
     }
 
