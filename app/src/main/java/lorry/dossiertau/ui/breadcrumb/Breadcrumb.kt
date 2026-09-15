@@ -1,25 +1,19 @@
 package lorry.dossiertau.ui.breadcrumb
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.weight
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.key
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
@@ -43,24 +37,31 @@ fun BreadcrumbComponent.UI(
         return
 
     val stateData = state as BreadcrumbState.DATA
-    val segs = stateData.currentPath?.split("/")
+    val segs = stateData.currentPath
+        ?.split("/")
+        ?.filter { it.isNotEmpty() }
+        .orEmpty()
+
     val scrollState = rememberScrollState()
 
-    // À chaque changement de chemin (ou de largeur du contenu), on revient
-    // automatiquement tout à droite pour garder le dossier courant visible.
-    LaunchedEffect(stateData.currentPath, scrollState.maxValue) {
+    // Le contenu doit d'abord être mesuré avant que maxValue soit fiable.
+    // Deux frames suffisent ici et évitent le défilement aléatoire observé
+    // lorsque le chemin change.
+    LaunchedEffect(stateData.currentPath) {
+        withFrameNanos { }
+        withFrameNanos { }
         scrollState.scrollTo(scrollState.maxValue)
     }
 
     Row(
-        modifier = modifier,
+        modifier = modifier.clipToBounds(),
         verticalAlignment = Alignment.CenterVertically
     ) {
         AsyncImage(
             model = R.drawable.arrow2,
             contentDescription = "Flèche",
             modifier = Modifier
-                .padding(end = 15.dp)
+                .padding(end = 10.dp)
                 .size(24.dp)
                 .clickable {
                     onArrowClicked()
@@ -72,49 +73,19 @@ fun BreadcrumbComponent.UI(
         Row(
             modifier = Modifier
                 .weight(1f)
+                .clipToBounds()
                 .horizontalScroll(scrollState),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // éléments non animés
-            segs?.dropLast(1)?.forEachIndexed { i, seg ->
+            segs.forEachIndexed { index, seg ->
                 BreadcrumbChip(
                     text = seg,
                 ) {
-                    onClick(("/" + segs.slice(0..i).joinToString("/")).toTauPath())
+                    onClick(("/" + segs.take(index + 1).joinToString("/")).toTauPath())
                 }
 
-                if (i < segs.size - 1) Separator()
-            }
-
-            // dernier élément animé
-            val lastSeg = segs?.lastOrNull()
-
-            val lastSegIndex = (segs?.size ?: 0) - 1
-            val show = stateData.animation == Animation.APPEAR
-            val visibleState = MutableTransitionState(
-                initialState = !show,
-            )
-            visibleState.targetState = show
-
-            key("$lastSeg-$lastSegIndex") {
-                AnimatedVisibility(
-                    visibleState = visibleState,
-                    enter = expandHorizontally(
-                        expandFrom = Alignment.Start,
-                        animationSpec = tween(durationMillis = animDuration)
-                    ),
-                    exit = shrinkHorizontally(
-                        shrinkTowards = Alignment.End,
-                        animationSpec = tween(durationMillis = animDuration)
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.wrapContentWidth()
-                    ) {
-                        BreadcrumbChip(
-                            text = lastSeg ?: "",
-                        ) { }
-                    }
+                if (index < segs.lastIndex) {
+                    Separator()
                 }
             }
         }
@@ -145,5 +116,3 @@ fun Separator() {
         color = TauColors.Tertiary
     )
 }
-
-
