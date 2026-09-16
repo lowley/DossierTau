@@ -9,7 +9,7 @@ import lorry.dossiertau.support.littleClasses.TauPicture
 interface IFolderRepo {
     suspend fun getItemsInFullPath(tauPath: TauPath): List<TauRepoItem>
     suspend fun createSnapshotFor(folderPath: TauPath): Snapshot
-
+    suspend fun loadThumbnail(itemPath: TauPath): TauPicture?
 
     suspend fun extractImageFromHtml(html: TauPath): Bitmap?
 }
