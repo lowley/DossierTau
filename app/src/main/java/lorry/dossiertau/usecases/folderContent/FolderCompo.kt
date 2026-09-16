@@ -187,11 +187,13 @@ open class FolderCompo(
                     bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
                     output.toByteArray()
                 }
-                fileDiffDAO.updateLatestContentItemPicture(
-                    folderPath = item.parentPath?.path ?: "",
-                    itemName = item.name.value,
-                    picture = bytes,
-                )
+                item.parentPath?.let { parentPath ->
+                    fileDiffDAO.updateLatestContentItemPicture(
+                        folderPath = parentPath.path,
+                        itemName = item.name.value,
+                        picture = bytes,
+                    )
+                }
             }
         }
     }
