@@ -20,7 +20,6 @@ import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
 import lorry.dossiertau.support.littleClasses.name
-import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauFileName
 import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.support.littleClasses.toTauPicture
@@ -79,6 +78,27 @@ open class FolderRepo(
         return Snapshot(folderPath = folderPath, entriesByName = content)
     }
 
+    override suspend fun createStructuralSnapshotFor(folderPath: TauPath): Snapshot =
+        withContext(Dispatchers.IO) {
+            val files = folderPath.toFile().getOrNull()?.listFiles().orEmpty()
+            Snapshot(
+                folderPath = folderPath,
+                entriesByName = files.associate { file ->
+                    file.name to structuralSnapshotElement(file)
+                }
+            )
+        }
+
+    private fun structuralSnapshotElement(file: File) = SnapshotElement(
+        name = file.name,
+        isDir = file.isDirectory,
+        size = if (file.isFile) file.length() else 0L,
+        lastModified = file.lastModified(),
+        fileId = spyRepo.getIdOf(file.path.toTauPath()),
+        picture = null,
+        memo = null,
+    )
+
     private suspend fun loadCapsuleData(file: File): Pair<Bitmap?, String?> {
         val filePath = file.path
         return if (file.isFile) {
@@ -112,12 +132,7 @@ open class FolderRepo(
         files.map { file ->
             async(Dispatchers.Default) {
                 val (bitmap, memo) = loadCapsuleData(file)
-                file.name to SnapshotElement(
-                    name = file.name,
-                    isDir = file.isDirectory,
-                    size = if (file.isFile) file.length() else 0L,
-                    lastModified = file.lastModified(),
-                    fileId = spyRepo.getIdOf(file.path.toTauPath()),
+                file.name to structuralSnapshotElement(file).copy(
                     picture = bitmap?.toTauPicture(),
                     memo = memo,
                 )
