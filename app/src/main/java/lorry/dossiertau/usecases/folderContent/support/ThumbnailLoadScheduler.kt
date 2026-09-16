@@ -3,7 +3,6 @@ package lorry.dossiertau.usecases.folderContent.support
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
@@ -35,7 +34,7 @@ class ThumbnailLoadScheduler(
     private val scope = CoroutineScope(dispatcher + SupervisorJob())
     private val signal = Channel<Unit>(Channel.CONFLATED)
     private val pending = ConcurrentHashMap<String, Request>()
-    private val running = ConcurrentHashMap<String, Job>()
+    private val running = ConcurrentHashMap.newKeySet<String>()
 
     @Volatile
     private var generation = 0L
@@ -62,7 +61,7 @@ class ThumbnailLoadScheduler(
         priority: Priority,
         block: suspend () -> Unit,
     ) {
-        if (running.containsKey(key)) return
+        if (running.contains(key)) return
 
         val request = Request(
             key = key,
@@ -98,16 +97,17 @@ class ThumbnailLoadScheduler(
 
                 if (!pending.remove(next.key, next)) continue
                 if (next.generation != generation) continue
+                if (!running.add(next.key)) continue
 
-                val job = scope.launch {
-                    try {
-                        next.block()
-                    } finally {
-                        running.remove(next.key)
-                        signal.trySend(Unit)
-                    }
+                try {
+                    // Exécution directe dans le worker : le nombre de travaux réellement
+                    // simultanés ne peut donc jamais dépasser le nombre de workers.
+                    next.block()
+                } finally {
+                    running.remove(next.key)
+                    signal.trySend(Unit)
                 }
-                running[next.key] = job
+
                 break
             }
         }
