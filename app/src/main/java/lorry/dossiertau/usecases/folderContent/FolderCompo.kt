@@ -188,7 +188,7 @@ open class FolderCompo(
                     output.toByteArray()
                 }
                 fileDiffDAO.updateLatestContentItemPicture(
-                    folderPath = item.parentPath.path,
+                    folderPath = item.parentPath?.path ?: "",
                     itemName = item.name.value,
                     picture = bytes,
                 )
