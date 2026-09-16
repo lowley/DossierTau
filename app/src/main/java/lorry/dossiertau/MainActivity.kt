@@ -54,7 +54,9 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -81,6 +83,7 @@ import arrow.core.None
 import arrow.core.Option
 import arrow.core.Some
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import lorry.dossiertau.data.intelligenceService.CIA
@@ -120,8 +123,6 @@ class MainActivity() : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-//        enableEdgeToEdge()
-
         val permissionsManager = PermissionsManager()
         if (!permissionsManager.hasExternalStoragePermission())
             permissionsManager.requestExternalStoragePermission(this)
@@ -133,7 +134,6 @@ class MainActivity() : ComponentActivity() {
                 val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
                 val sheetItem = remember { mutableStateOf<TauItem?>(null) }
                 val scope = rememberCoroutineScope()
-
                 val sheetText = remember { mutableStateOf("") }
                 SetBlackBackgroundForNavigationBar(Color.Transparent)
 
@@ -144,19 +144,11 @@ class MainActivity() : ComponentActivity() {
                             TopAppBar(
                                 setSheetVisible = {
                                     bsVM.changeType(SheetType.APPLICATION)
-                                    scope.launch {
-                                        sheetState.expand()
-                                    }
+                                    scope.launch { sheetState.expand() }
                                 }
                             )
                         },
-                        bottomBar = {
-//                            BottomAppBar(
-//                                isSheetVisible = isSheetVisible,
-//                                sheetText = sheetText
-//                            )
-                        },
-//                    floatingActionButton = { /* FAB */ }
+                        bottomBar = {},
                     ) { innerPadding ->
                         val currentType = bsVM.type.collectAsState()
 
@@ -172,50 +164,38 @@ class MainActivity() : ComponentActivity() {
                                 Modifier
                                     .width(20.dp)
                                     .fillMaxHeight()
-                                    .constrainAs(leftPanel) {
-                                        start.linkTo(parent.start)
-                                    }
+                                    .constrainAs(leftPanel) { start.linkTo(parent.start) }
                             )
 
                             StatusBar(
                                 Modifier
                                     .height(45.dp)
                                     .fillMaxWidth()
-                                    .constrainAs(statusBar) {
-                                        bottom.linkTo(parent.bottom)
-                                    }
-//                                .background(Color.LightGray)
+                                    .constrainAs(statusBar) { bottom.linkTo(parent.bottom) }
                             )
 
                             MainPage(
-                                Modifier
-                                    .constrainAs(content) {
-                                        start.linkTo(leftPanel.end)
-                                        end.linkTo(parent.end)
-                                        bottom.linkTo(parent.bottom)
-                                        height = Dimension.matchParent
-                                        width = Dimension.fillToConstraints
-                                    },
-                                setCurrentFolder = { newFolder: TauPath ->
-                                    viewModel.setTauFolder(newFolder)
+                                Modifier.constrainAs(content) {
+                                    start.linkTo(leftPanel.end)
+                                    end.linkTo(parent.end)
+                                    bottom.linkTo(parent.bottom)
+                                    height = Dimension.matchParent
+                                    width = Dimension.fillToConstraints
                                 },
+                                setCurrentFolder = { newFolder -> viewModel.setTauFolder(newFolder) },
                                 setSheetVisible = { item ->
                                     bsVM.changeType(SheetType.ITEM)
                                     sheetItem.value = item
-                                    scope.launch {
-                                        sheetState.expand()
-                                    }
+                                    scope.launch { sheetState.expand() }
                                 },
                                 setAppliSheetVisible = {
                                     bsVM.changeType(SheetType.APPLICATION)
-                                    scope.launch {
-                                        sheetState.expand()
-                                    }
+                                    scope.launch { sheetState.expand() }
                                 }
                             )
                         }
 
-                        val scope = rememberCoroutineScope()
+                        val bottomSheetScope = rememberCoroutineScope()
                         val browser: IBrowser by inject()
 
                         if (currentType.value != null && currentType.value != SheetType.NONE) {
@@ -225,30 +205,23 @@ class MainActivity() : ComponentActivity() {
                                     .padding(start = 10.dp, end = 10.dp, bottom = 0.dp),
                                 onDismissRequest = {
                                     browser.vm.changeState(isOpen = false)
-                                    scope.launch {
+                                    bottomSheetScope.launch {
                                         sheetState.hide()
                                         bsVM.changeType(SheetType.NONE)
                                     }
                                     browser.vm.changeState(target = null)
                                 },
                                 sheetState = sheetState,
-                                containerColor = lerp(
-                                    Color.LightGray,
-                                    Color.DarkGray,
-                                    0.2f
-                                ),
-                                contentWindowInsets = { WindowInsets(0) } // Pour le edge-to-edge
+                                containerColor = lerp(Color.LightGray, Color.DarkGray, 0.2f),
+                                contentWindowInsets = { WindowInsets(0) }
                             ) {
                                 Sheet(
-                                    modifier = Modifier
-                                        .navigationBarsPadding(),
+                                    modifier = Modifier.navigationBarsPadding(),
                                     type = currentType.value,
                                     item = sheetItem.value,
                                     sheetText = sheetText,
                                     sheetState = sheetState,
-                                    removeSheetFromUI = {
-                                        bsVM.changeType(SheetType.NONE)
-                                    }
+                                    removeSheetFromUI = { bsVM.changeType(SheetType.NONE) }
                                 )
                             }
                         }
@@ -259,16 +232,12 @@ class MainActivity() : ComponentActivity() {
     }
 
     @Composable
-    private fun SetBlackBackgroundForNavigationBar(
-        color: Color
-    ) {
+    private fun SetBlackBackgroundForNavigationBar(color: Color) {
         val view = LocalView.current
         SideEffect {
             val window = (view.context as Activity).window
-            window.navigationBarColor = color.toArgb()  // Barre nav NOIRE
-            window.statusBarColor = color.toArgb()      // Bonus : status bar noire
-
-            // Icônes blanches sur fond noir
+            window.navigationBarColor = color.toArgb()
+            window.statusBarColor = color.toArgb()
             WindowCompat.getInsetsController(window, view).apply {
                 isAppearanceLightNavigationBars = false
                 isAppearanceLightStatusBars = false
@@ -278,20 +247,12 @@ class MainActivity() : ComponentActivity() {
     }
 
     @Composable
-    private fun LeftPane(
-        constrainAs: Modifier
-    ) {
-        Box(
-            modifier = constrainAs
-        ) {
-
-        }
+    private fun LeftPane(constrainAs: Modifier) {
+        Box(modifier = constrainAs) {}
     }
 
     @Composable
-    private fun StatusBar(modifier: Modifier) {
-
-    }
+    private fun StatusBar(modifier: Modifier) {}
 
     @Composable
     fun MainPage(
@@ -300,43 +261,17 @@ class MainActivity() : ComponentActivity() {
         setSheetVisible: (TauItem) -> Unit,
         setAppliSheetVisible: () -> Unit
     ) {
-        //faire dans le ViewModel plusieurs State
-        //chacun comportant plusieurs valeurs & fonctions fonctionnellement groupées
         val currentFolderPath by folderCompo.folderPathFlow.collectAsState()
         val state = rememberLazyGridState()
         val currentFolder by folderCompo.folderFlow.collectAsState()
 
+        LaunchedEffect(currentFolderPath) {
+            if (currentFolderPath.isSome()) state.scrollToItem(0)
+        }
+
         Box(
-            modifier = modifier
-                .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-//                .drawWithContent {
-//                    drawContent() // On dessine le contenu normalement (le carré, le texte, etc.)
-//
-//                    // On crée un dégradé de transparence
-//                    val fadeHeight = 20.dp.toPx() // Taille de votre "zone tampon"
-//
-//                    drawRect(
-//                        brush = Brush.verticalGradient(
-//                            0f to Color.Black,             // Totalement opaque en haut de la zone
-//                            1f to Color.Transparent,       // Totalement invisible tout en bas
-//                            startY = size.height - fadeHeight,
-//                            endY = size.height
-//                        ),
-//                        blendMode = BlendMode.DstIn // C'EST LA CLÉ : garde le contenu uniquement là où le dégradé est noir
-//                    )
-//
-//                    drawRect(
-//                        brush = Brush.verticalGradient(
-//                            0f to Color.Black,             // Totalement opaque en haut de la zone
-//                            1f to Color.Transparent,       // Totalement invisible tout en bas
-//                            startY = fadeHeight,
-//                            endY = 0f
-//                        ),
-//                        blendMode = BlendMode.DstIn // C'EST LA CLÉ : garde le contenu uniquement là où le dégradé est noir
-//                    )
-//                }
-        )
-        {
+            modifier = modifier.graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+        ) {
             val lines = remember { mutableStateOf<List<String>>(emptyList()) }
             val shortcutMakingState = remember { mutableStateOf(GROUND) }
 
@@ -344,17 +279,16 @@ class MainActivity() : ComponentActivity() {
                 AppBus.lines.collect { line ->
                     if (shortcutMakingState.value == GROUND) {
                         shortcutMakingState.value = ON_AIR
+                    } else if (line == ShortcutMakingEndMessage) {
+                        shortcutMakingState.value = GROUND
+                        lines.value = emptyList()
                     } else {
-                        if (line == ShortcutMakingEndMessage) {
-                            shortcutMakingState.value = GROUND
-                            lines.value = emptyList<String>()
-                        } else
-                            lines.value = lines.value.plus(line)
+                        lines.value = lines.value.plus(line)
                     }
                 }
             }
 
-            if (shortcutMakingState.value == GROUND)
+            if (shortcutMakingState.value == GROUND) {
                 if (currentFolder.isSome()) {
                     ItemGrid(
                         modifier = Modifier,
@@ -365,14 +299,10 @@ class MainActivity() : ComponentActivity() {
                     )
                 } else {
                     Column(
-                        modifier = Modifier
-                            .align(Alignment.Center),
+                        modifier = Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            text = "Aucun dossier selectionné",
-                            color = Color.DarkGray
-                        )
+                        Text(text = "Aucun dossier selectionné", color = Color.DarkGray)
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(onClick = { setAppliSheetVisible() }) {
                             Text("Choisir un dossier (Favoris)")
@@ -383,24 +313,9 @@ class MainActivity() : ComponentActivity() {
                         }
                     }
                 }
-            else {
+            } else {
                 ShortcutMakingLogs(lines)
             }
-
-//            Box(
-//                modifier = Modifier.height(1.dp).fillMaxWidth()
-//                    .padding(start = 50.dp, end = 50.dp)
-//                    .background(Color.DarkGray)
-//                    .align(Alignment.BottomCenter)
-//
-//            )
-
-//            Box(
-//                modifier = Modifier.height(1.dp).fillMaxWidth()
-//                    .padding(start = 50.dp, end = 50.dp)
-//                    .background(Color.DarkGray)
-//                    .align(Alignment.TopCenter)
-//            )
         }
     }
 
@@ -411,13 +326,10 @@ class MainActivity() : ComponentActivity() {
             items(lines.value.size) { index ->
                 val line = lines.value[index]
                 val notoFont = FontFamily(Font(R.font.segoe_regular))
-
                 Text(
                     text = line,
                     fontFamily = notoFont,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp)
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
                 )
             }
         }
@@ -432,9 +344,7 @@ class MainActivity() : ComponentActivity() {
         setSheetVisible: (TauItem) -> Unit,
         modifier: Modifier
     ) {
-        Column(
-            modifier = Modifier
-        ) {
+        Column(modifier = Modifier) {
             Spacer(
                 modifier = Modifier
                     .height(5.dp)
@@ -442,61 +352,48 @@ class MainActivity() : ComponentActivity() {
             )
 
             val allItems = currentFolder.getOrNull()!!.children
+            val latestItems by rememberUpdatedState(allItems)
+            val itemPaths = remember(allItems) { allItems.map { it.fullPath.path } }
 
-//            LaunchedEffect(allItems) {
-//                if (allItems.isNotEmpty()) {
-//                    state.scrollToItem(0)
-//                    // Ou pour un effet plus fluide :
-//                    // gridState.animateScrollToItem(0)`
-//                    // state.scrollToItem(0)
-//                }
-//            }
+            LaunchedEffect(state, itemPaths) {
+                snapshotFlow {
+                    val visibleItems = state.layoutInfo.visibleItemsInfo
+                    if (visibleItems.isEmpty()) null
+                    else visibleItems.minOf { it.index } to visibleItems.maxOf { it.index }
+                }
+                    .distinctUntilChanged()
+                    .collect { visibleRange ->
+                        visibleRange ?: return@collect
+                        folderCompo.requestThumbnails(
+                            items = latestItems,
+                            firstVisibleIndex = visibleRange.first,
+                            lastVisibleIndex = visibleRange.second,
+                        )
+                    }
+            }
 
-            var ordering = folderCompo.ordering.collectAsState()
-            val currentFolder by folderCompo.folderFlow.collectAsState()
-
-            // On recrée un nouvel état de scroll dès que le chemin du dossier change
-            // Cela garantit de repartir de zéro (en haut)
-            val state = rememberLazyGridState(
-                initialFirstVisibleItemIndex = 0
-            )
             LazyVerticalGrid(
                 modifier = modifier,
                 state = state,
                 columns = GridCells.Adaptive(150.dp)
-//        userScrollEnabled = true,
             ) {
-                items(
-                    count = allItems.size,
-                    //key = { index -> allItems[index].fullPath.path } // On garde la clé unique par chemin
-                ) { index ->
+                items(count = allItems.size) { index ->
                     val item = allItems[index]
-
                     DisplayedItem(
                         item = item,
                         setCurrentFolder = setCurrentFolder,
                         onClick = { filePath ->
                             Log.d("DossierTauClick", "Clic fichier: ${filePath.path}")
-                            val extension = filePath.path
-                                .substringAfterLast('.', "")
-                                .lowercase()
+                            val extension = filePath.path.substringAfterLast('.', "").lowercase()
 
                             if (extension == "html" || extension == "htm") {
                                 viewModel.viewModelScope.launch(Dispatchers.IO) {
-                                    viewModel.playingFile.playFile(
-                                        filePath,
-                                        "text/html",
-                                        this@MainActivity
-                                    )
+                                    viewModel.playingFile.playFile(filePath, "text/html", this@MainActivity)
                                 }
                             } else if (!openWithAndroidDefaultApp(filePath)) {
                                 if (extension in listOf("avi", "mp4", "mkv", "ts", "mpg", "mpeg")) {
                                     viewModel.viewModelScope.launch(Dispatchers.IO) {
-                                        viewModel.playingFile.playFile(
-                                            filePath,
-                                            "video/mp4",
-                                            this@MainActivity
-                                        )
+                                        viewModel.playingFile.playFile(filePath, "video/mp4", this@MainActivity)
                                     }
                                 }
                             }
@@ -533,23 +430,14 @@ class MainActivity() : ComponentActivity() {
                 "application/octet-stream",
                 "*/*",
             )
-            "m3u" -> listOf(
-                "audio/x-mpegurl",
-                "application/x-mpegURL",
-            )
+            "m3u" -> listOf("audio/x-mpegurl", "application/x-mpegURL")
             else -> listOf(
-                MimeTypeMap.getSingleton()
-                    .getMimeTypeFromExtension(extension)
-                    ?: "*/*"
+                MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "*/*"
             )
         }
 
         val uri = runCatching {
-            FileProvider.getUriForFile(
-                this,
-                "${packageName}.provider",
-                file,
-            )
+            FileProvider.getUriForFile(this, "${packageName}.provider", file)
         }.onFailure {
             Log.e(tag, "Erreur FileProvider", it)
         }.getOrNull() ?: return false
@@ -561,22 +449,13 @@ class MainActivity() : ComponentActivity() {
 
         for (mimeType in mimeTypes) {
             Log.d(tag, "Essai mimeType=$mimeType")
-
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, mimeType)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
 
-            val resolved = packageManager.resolveActivity(
-                intent,
-                MATCH_DEFAULT_ONLY,
-            )
-
-            Log.d(
-                tag,
-                "resolveActivity($mimeType)=${resolved?.activityInfo?.packageName}/${resolved?.activityInfo?.name}"
-            )
-
+            val resolved = packageManager.resolveActivity(intent, MATCH_DEFAULT_ONLY)
+            Log.d(tag, "resolveActivity($mimeType)=${resolved?.activityInfo?.packageName}/${resolved?.activityInfo?.name}")
             if (resolved == null) continue
 
             if (resolved.activityInfo.packageName == "android") {
@@ -625,9 +504,7 @@ class MainActivity() : ComponentActivity() {
                 modifier = Modifier
                     .padding(start = 15.dp)
                     .size(28.dp)
-                    .clickable {
-                        setSheetVisible()
-                    },
+                    .clickable { setSheetVisible() },
                 tint = Color.DarkGray
             )
 
@@ -637,20 +514,14 @@ class MainActivity() : ComponentActivity() {
                 }
                 .collectAsState(emptyList())
 
-            // Le breadcrumb reçoit uniquement l'espace restant. Les boutons de tri
-            // gardent ainsi toujours leur place à droite.
             if (currentFolderItems.isNotEmpty()) {
                 breadcrumbComponent.Breadcrumb(
                     modifier = Modifier
                         .weight(1f)
                         .padding(start = 12.dp, end = 6.dp),
                     path = currentFolderItems,
-                    onClick = {
-                        folderCompo.setFolderFlow(it)
-                    },
-                    onArrowClicked = {
-                        setSheetVisible()
-                    }
+                    onClick = { folderCompo.setFolderFlow(it) },
+                    onArrowClicked = { setSheetVisible() }
                 )
             } else {
                 Spacer(modifier = Modifier.weight(1f))
@@ -659,33 +530,23 @@ class MainActivity() : ComponentActivity() {
             val ordering by folderCompo.ordering.collectAsState()
             val foldersFirst by folderCompo.foldersFirst.collectAsState()
 
-            // Position des dossiers : par défaut après les fichiers.
             Icon(
                 painter = painterResource(id = R.drawable.pluma_0),
-                contentDescription = if (foldersFirst) {
-                    "Dossiers en premier"
-                } else {
-                    "Dossiers après les fichiers"
-                },
+                contentDescription = if (foldersFirst) "Dossiers en premier" else "Dossiers après les fichiers",
                 modifier = Modifier
                     .size(46.dp)
                     .padding(end = 8.dp)
-                    .clickable {
-                        folderCompo.toggleFoldersFirst()
-                    },
+                    .clickable { folderCompo.toggleFoldersFirst() },
                 tint = if (foldersFirst) Color.Unspecified else Color.DarkGray
             )
 
-            // Date décroissante : le fichier le plus récent apparaît en premier.
             Icon(
                 painter = painterResource(id = R.drawable.sortbydate),
                 contentDescription = "Trier par date décroissante",
                 modifier = Modifier
                     .size(46.dp)
                     .padding(end = 8.dp)
-                    .clickable {
-                        folderCompo.setOrdering(true)
-                    },
+                    .clickable { folderCompo.setOrdering(true) },
                 tint = if (ordering) Color.Unspecified else Color.DarkGray
             )
 
@@ -695,9 +556,7 @@ class MainActivity() : ComponentActivity() {
                 modifier = Modifier
                     .size(42.dp)
                     .padding(end = 8.dp)
-                    .clickable {
-                        folderCompo.setOrdering(false)
-                    },
+                    .clickable { folderCompo.setOrdering(false) },
                 tint = if (!ordering) Color.Unspecified else Color.DarkGray
             )
         }
@@ -714,17 +573,14 @@ class MainActivity() : ComponentActivity() {
                 .fillMaxWidth()
                 .height(35.dp)
         ) {
-
             val shortcutMakingState = remember { mutableStateOf(GROUND) }
 
             LaunchedEffect(Unit) {
                 AppBus.lines.collect { line ->
                     if (shortcutMakingState.value == GROUND) {
                         shortcutMakingState.value = ON_AIR
-                    } else {
-                        if (line == ShortcutMakingEndMessage) {
-                            shortcutMakingState.value = GROUND
-                        }
+                    } else if (line == ShortcutMakingEndMessage) {
+                        shortcutMakingState.value = GROUND
                     }
                 }
             }
@@ -744,11 +600,7 @@ class MainActivity() : ComponentActivity() {
                 )
             else {
                 val text = AppBus.summary.collectAsState("")
-
-                Text(
-                    modifier = Modifier,
-                    text = text.value
-                )
+                Text(modifier = Modifier, text = text.value)
             }
         }
     }
@@ -766,27 +618,16 @@ fun currentFolderPathText(
     setCurrentFolder: (TauPath) -> Unit,
 ) {
     TextField(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(0.dp),
+        modifier = modifier.fillMaxSize().padding(0.dp),
         value = when (optionCurrentFolder) {
-            is Some<TauPath> -> {
-                val result = when (val path = optionCurrentFolder.value.path) {
-                    "" -> "<aucun chemin sélectionné>"
-                    else -> path
-                }
-
-                result
+            is Some<TauPath> -> when (val path = optionCurrentFolder.value.path) {
+                "" -> "<aucun chemin sélectionné>"
+                else -> path
             }
-
             is None -> "<aucun chemin sélectionné>"
         },
-        onValueChange = {
-            setCurrentFolder(it.toTauPath())
-        },
-        trailingIcon = {
-
-        }
+        onValueChange = { setCurrentFolder(it.toTauPath()) },
+        trailingIcon = {}
     )
 }
 
