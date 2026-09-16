@@ -67,16 +67,10 @@ open class FolderRepo(
         return items
     }
 
-    override suspend fun createSnapshotFor(folderPath: TauPath): Snapshot {
-        val files = Groups.LISTFILES.addTimeOf {
-            folderPath.toFile().getOrNull()?.listFiles().orEmpty()
-        }.toList()
-
-        val content = Groups.CAPSULE.addTimeOf { getSnapshot(files) }
-        displayAllTimes(folderPath)
-
-        return Snapshot(folderPath = folderPath, entriesByName = content)
-    }
+    // Spy utilise ce chemin : le snapshot doit rester très bon marché.
+    // Les images sont enrichies ensuite, à la demande, par loadThumbnail().
+    override suspend fun createSnapshotFor(folderPath: TauPath): Snapshot =
+        createStructuralSnapshotFor(folderPath)
 
     override suspend fun createStructuralSnapshotFor(folderPath: TauPath): Snapshot =
         withContext(Dispatchers.IO) {
@@ -128,6 +122,7 @@ open class FolderRepo(
         loadCapsuleData(file).first?.toTauPicture()
     }
 
+    // Conservé pour les usages qui auraient besoin d'un snapshot entièrement enrichi.
     suspend fun getSnapshot(files: List<File>): Map<String, SnapshotElement> = coroutineScope {
         files.map { file ->
             async(Dispatchers.Default) {
