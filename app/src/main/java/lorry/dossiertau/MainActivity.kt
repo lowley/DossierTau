@@ -491,74 +491,87 @@ class MainActivity() : ComponentActivity() {
 
     @Composable
     private fun TopAppBar(setSheetVisible: () -> Unit) {
-        Row(
+        val currentFolderItems by folderCompo.folderPathFlow
+            .map {
+                it.getOrNull()?.path?.split("/")?.filter { it.isNotEmpty() } ?: emptyList()
+            }
+            .collectAsState(emptyList())
+        val ordering by folderCompo.ordering.collectAsState()
+        val foldersFirst by folderCompo.foldersFirst.collectAsState()
+
+        Column(
             modifier = Modifier
                 .statusBarsPadding()
                 .fillMaxWidth()
-                .height(55.dp),
-            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                painter = painterResource(id = R.drawable.maison),
-                contentDescription = "Accueil / Favoris",
+            Row(
                 modifier = Modifier
-                    .padding(start = 15.dp)
-                    .size(28.dp)
-                    .clickable { setSheetVisible() },
-                tint = Color.DarkGray
-            )
-
-            val currentFolderItems by folderCompo.folderPathFlow
-                .map {
-                    it.getOrNull()?.path?.split("/")?.filter { it.isNotEmpty() } ?: emptyList()
-                }
-                .collectAsState(emptyList())
-
-            if (currentFolderItems.isNotEmpty()) {
-                breadcrumbComponent.Breadcrumb(
+                    .fillMaxWidth()
+                    .height(55.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.maison),
+                    contentDescription = "Accueil / Favoris",
                     modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 12.dp, end = 6.dp),
-                    path = currentFolderItems,
-                    onClick = { folderCompo.setFolderFlow(it) },
-                    onArrowClicked = { setSheetVisible() }
+                        .padding(start = 15.dp)
+                        .size(28.dp)
+                        .clickable { setSheetVisible() },
+                    tint = Color.DarkGray
                 )
-            } else {
-                Spacer(modifier = Modifier.weight(1f))
+
+                if (currentFolderItems.isNotEmpty()) {
+                    breadcrumbComponent.Breadcrumb(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 12.dp, end = 12.dp),
+                        path = currentFolderItems,
+                        onClick = { folderCompo.setFolderFlow(it) },
+                        onArrowClicked = { setSheetVisible() }
+                    )
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
 
-            val ordering by folderCompo.ordering.collectAsState()
-            val foldersFirst by folderCompo.foldersFirst.collectAsState()
-
-            Icon(
-                painter = painterResource(id = R.drawable.pluma_0),
-                contentDescription = if (foldersFirst) "Dossiers en premier" else "Dossiers après les fichiers",
+            Row(
                 modifier = Modifier
-                    .size(46.dp)
-                    .padding(end = 8.dp)
-                    .clickable { folderCompo.toggleFoldersFirst() },
-                tint = if (foldersFirst) Color.Unspecified else Color.DarkGray
-            )
+                    .fillMaxWidth()
+                    .height(46.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Spacer(modifier = Modifier.weight(1f))
 
-            Icon(
-                painter = painterResource(id = R.drawable.sortbydate),
-                contentDescription = "Trier par date décroissante",
-                modifier = Modifier
-                    .size(46.dp)
-                    .padding(end = 8.dp)
-                    .clickable { folderCompo.setOrdering(true) },
-                tint = if (ordering) Color.Unspecified else Color.DarkGray
-            )
+                Icon(
+                    painter = painterResource(id = R.drawable.pluma_0),
+                    contentDescription = if (foldersFirst) "Dossiers en premier" else "Dossiers après les fichiers",
+                    modifier = Modifier
+                        .size(46.dp)
+                        .padding(end = 8.dp)
+                        .clickable { folderCompo.toggleFoldersFirst() },
+                    tint = if (foldersFirst) Color.Unspecified else Color.DarkGray
+                )
 
-            Icon(
-                painter = painterResource(id = R.drawable.sortbyalpha2),
-                contentDescription = "Trier par ordre alphabétique",
-                modifier = Modifier
-                    .size(42.dp)
-                    .padding(end = 8.dp)
-                    .clickable { folderCompo.setOrdering(false) },
-                tint = if (!ordering) Color.Unspecified else Color.DarkGray
-            )
+                Icon(
+                    painter = painterResource(id = R.drawable.sortbydate),
+                    contentDescription = "Trier par date décroissante",
+                    modifier = Modifier
+                        .size(46.dp)
+                        .padding(end = 8.dp)
+                        .clickable { folderCompo.setOrdering(true) },
+                    tint = if (ordering) Color.Unspecified else Color.DarkGray
+                )
+
+                Icon(
+                    painter = painterResource(id = R.drawable.sortbyalpha2),
+                    contentDescription = "Trier par ordre alphabétique",
+                    modifier = Modifier
+                        .size(42.dp)
+                        .padding(end = 8.dp)
+                        .clickable { folderCompo.setOrdering(false) },
+                    tint = if (!ordering) Color.Unspecified else Color.DarkGray
+                )
+            }
         }
     }
 
