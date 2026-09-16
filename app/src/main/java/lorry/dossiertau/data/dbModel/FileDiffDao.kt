@@ -27,6 +27,32 @@ interface FileDiffDao {
     @Insert
     suspend fun insertAllDiffs(diffs: List<TauEntity.Diff>): List<Long>
 
+    /**
+     * Met à jour uniquement l'image de l'item dans le dernier snapshot Room du dossier.
+     *
+     * Cette écriture ciblée est utilisée par le chargement progressif : elle ne crée ni nouveau
+     * Content, ni Diff, et ne modifie donc pas la sémantique du FileObserver/Spy.
+     */
+    @Query(
+        """
+        UPDATE content_items
+        SET picture = :picture
+        WHERE parentContentId = (
+            SELECT contentId FROM folder_content
+            WHERE full_path = :folderPath
+              AND modifiedAtIso <> '1970-01-01T00:00:00Z'
+            ORDER BY contentId DESC
+            LIMIT 1
+        )
+        AND name = :itemName
+        """
+    )
+    suspend fun updateLatestContentItemPicture(
+        folderPath: String,
+        itemName: String,
+        picture: ByteArray
+    ): Int
+
     // Pour l’écran : liste des diffs CREATE_FILE d’un dossier
     @Query(
         """
