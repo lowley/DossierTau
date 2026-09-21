@@ -69,12 +69,38 @@ suspend fun DbCommand.toDiff(correlationId: String? = null): TauEntity.Diff? {
     return when (this) {
         is DbCommand.CreateItem -> {
             val capsule = if (item.type == ItemType.FILE) FileCapsuleManager(item.fullPath.path, useOld = false).getCapsule() else FolderCapsuleManager(item.fullPath, useOld = false).getCapsule()
-            TauEntity.Diff(correlationId ?: item.id.value.toString(), OpType.CreateItem.text, item.fullPath.path, Instant.ofEpochMilli(item.modificationDate.value), item.type.name, item.fullPath.parentPath.path, item.fileId, capsule?.croppedPicture?.let { base64ToByteArray(it) })
+            TauEntity.Diff(
+                correlationId = correlationId ?: item.id.value.toString(),
+                op_type = OpType.CreateItem.text,
+                full_path = item.fullPath.path,
+                modifiedAtIso = Instant.ofEpochMilli(item.modificationDate.value),
+                item_type = item.type.name,
+                parentPath = item.fullPath.parentPath.path,
+                fileId = item.fileId,
+                pictureData = capsule?.croppedPicture?.let { base64ToByteArray(it) }
+            )
         }
-        is DbCommand.DeleteItem -> TauEntity.Diff(correlationId ?: item.id.value.toString(), OpType.DeleteItem.text, item.fullPath.path, Instant.ofEpochMilli(item.modificationDate.value), item.type.name, item.fullPath.parentPath.path, item.fileId)
+        is DbCommand.DeleteItem -> TauEntity.Diff(
+            correlationId = correlationId ?: item.id.value.toString(),
+            op_type = OpType.DeleteItem.text,
+            full_path = item.fullPath.path,
+            modifiedAtIso = Instant.ofEpochMilli(item.modificationDate.value),
+            item_type = item.type.name,
+            parentPath = item.fullPath.parentPath.path,
+            fileId = item.fileId
+        )
         is DbCommand.ModifyItem -> {
             val capsule = if (item.type == ItemType.FILE) FileCapsuleManager(item.fullPath.path, useOld = false).getCapsule() else FolderCapsuleManager(item.fullPath, useOld = false).getCapsule()
-            TauEntity.Diff(correlationId ?: item.id.value.toString(), OpType.ModifyItem.text, item.fullPath.path, Instant.ofEpochMilli(item.modificationDate.value), item.type.name, item.fullPath.parentPath.path, item.fileId, capsule?.croppedPicture?.let { base64ToByteArray(it) })
+            TauEntity.Diff(
+                correlationId = correlationId ?: item.id.value.toString(),
+                op_type = OpType.ModifyItem.text,
+                full_path = item.fullPath.path,
+                modifiedAtIso = Instant.ofEpochMilli(item.modificationDate.value),
+                item_type = item.type.name,
+                parentPath = item.fullPath.parentPath.path,
+                fileId = item.fileId,
+                pictureData = capsule?.croppedPicture?.let { base64ToByteArray(it) }
+            )
         }
         else -> null
     }
