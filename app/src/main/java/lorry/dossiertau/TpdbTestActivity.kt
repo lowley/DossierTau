@@ -29,14 +29,15 @@ class TpdbTestActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val prefs = getSharedPreferences("tpdb", MODE_PRIVATE)
+        val parsed = parseFilename(filename)
         tokenField = EditText(this).apply { hint="Token TPDB"; setText(prefs.getString("api_token", "")); inputType=InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD }
         status=TextView(this); image=ImageView(this).apply{adjustViewBounds=true;scaleType=ImageView.ScaleType.FIT_CENTER}
         val search=Button(this).apply{text="Rechercher l'image dans TPDB";setOnClickListener{val token=tokenField.text.toString().trim();if(token.isBlank()){status.text="Entre d'abord le token TPDB.";return@setOnClickListener};prefs.edit().putString("api_token",token).apply();runSearch(token)}}
-        val content=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;val p=(16*resources.displayMetrics.density).toInt();setPadding(p,p,p,p);addView(TextView(context).apply{text="Test TPDB\n$filename";textSize=18f});addView(tokenField);addView(search);addView(status);addView(image,LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT))}
+        val content=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;val p=(16*resources.displayMetrics.density).toInt();setPadding(p,p,p,p);addView(TextView(context).apply{text="Test TPDB\n\nFichier : $filename\nTitre recherché : ${parsed.title}${parsed.year?.let { "\nAnnée : $it" } ?: ""}";textSize=18f});addView(tokenField);addView(search);addView(status);addView(image,LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.WRAP_CONTENT))}
         setContentView(ScrollView(this).apply{addView(content)});if(tokenField.text.isNotBlank()&&filename.isNotBlank())runSearch(tokenField.text.toString().trim())
     }
 
-    private fun runSearch(token:String){status.text="Recherche…";image.setImageDrawable(null);lifecycleScope.launch{val result=runCatching{withContext(Dispatchers.IO){searchTpdb(filename,token)}};result.fold(onSuccess={r->if(r==null)status.text="Aucune image trouvée." else{status.text="Trouvé : ${r.title}\nRecherche : ${r.query}"+(r.year?.let{" ($it)"}?:"")+"\nType : film";lifecycleScope.launch{val bitmap=withContext(Dispatchers.IO){URL(r.imageUrl).openStream().use(BitmapFactory::decodeStream)};image.setImageBitmap(bitmap)}}},onFailure={status.text="Erreur TPDB : ${it.message?:it.javaClass.simpleName}"})}}
+    private fun runSearch(token:String){val parsed=parseFilename(filename);status.text="Recherche…\nTitre envoyé à TPDB : ${parsed.title}${parsed.year?.let { " ($it)" } ?: ""}";image.setImageDrawable(null);lifecycleScope.launch{val result=runCatching{withContext(Dispatchers.IO){searchTpdb(filename,token)}};result.fold(onSuccess={r->if(r==null)status.text="Aucune image trouvée.\nTitre envoyé à TPDB : ${parsed.title}${parsed.year?.let { " ($it)" } ?: ""}" else{status.text="Trouvé : ${r.title}\nTitre envoyé à TPDB : ${r.query}"+(r.year?.let{" ($it)"}?:"")+"\nType : film";lifecycleScope.launch{val bitmap=withContext(Dispatchers.IO){URL(r.imageUrl).openStream().use(BitmapFactory::decodeStream)};image.setImageBitmap(bitmap)}}},onFailure={status.text="Erreur TPDB : ${it.message?:it.javaClass.simpleName}\nTitre envoyé à TPDB : ${parsed.title}${parsed.year?.let { " ($it)" } ?: ""}"})}}
 
     private fun searchTpdb(filename:String,token:String):Result?{
         val parsed=parseFilename(filename)
