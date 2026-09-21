@@ -5,19 +5,15 @@
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- Dès Android 14, permissions affinées par type -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.INTERNET" />
 
-        <queries>
-        <intent>
-            <action android:name="android.intent.action.VIEW" />
-            <data android:mimeType="*/*" />
-        </intent>
+    <queries>
+        <intent><action android:name="android.intent.action.VIEW" /><data android:mimeType="*/*" /></intent>
     </queries>
 
-<application
+    <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -27,79 +23,33 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.DossierTau"
         android:name=".TauApp">
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:label="@string/app_name"
-            android:theme="@style/Theme.DossierTau">
+
+        <activity android:name=".TpdbTestActivity" android:exported="false" android:theme="@style/Theme.DossierTau" />
+
+        <activity android:name=".MainActivity" android:exported="true" android:label="@string/app_name" android:theme="@style/Theme.DossierTau">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".usecases.playing.support.DeepLinkActivity"
-            android:exported="true">
-
-            <!-- Intent filter pour les deep links / intents externes -->
+        <activity android:name=".usecases.playing.support.DeepLinkActivity" android:exported="true">
             <intent-filter>
-                <!-- Action la plus courante pour ouvrir un contenu -->
-                <action android:name="android.intent.action.VIEW" />
-
-                <!-- Catégories requises pour les deep links -->
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-
-                <!-- Vos contraintes de données -->
-                <data
-                    android:scheme="myapp"
-                    android:host="playvideo"
-                    android:pathPrefix="/kiwi" />
-                <!--
-                  Exemples valides d’URI correspondant :
-                  YOUR_SCHEME://YOUR_HOST/YOUR_PATH_PREFIX
-                  YOUR_SCHEME://YOUR_HOST/YOUR_PATH_PREFIX/xyz
-                -->
-            </intent-filter>
-
-            <!-- (Facultatif) Variante HTTPS si vous supportez aussi https -->
-            <!--
-            <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="https"
-                    android:host="YOUR_HOST"
-                    android:pathPrefix="/YOUR_PATH_PREFIX" />
+                <data android:scheme="myapp" android:host="playvideo" android:pathPrefix="/kiwi" />
             </intent-filter>
-            -->
         </activity>
 
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.provider"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths" />
+        <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.provider" android:exported="false" android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
 
-        <service
-            android:name=".data.intelligenceService.CIA"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="dataSync"/>
+        <service android:name=".data.intelligenceService.CIA" android:enabled="true" android:exported="false" android:foregroundServiceType="dataSync"/>
 
         <receiver android:name=".BootReceiver" android:exported="false">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
+            <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter>
         </receiver>
-
     </application>
-
 </manifest>
