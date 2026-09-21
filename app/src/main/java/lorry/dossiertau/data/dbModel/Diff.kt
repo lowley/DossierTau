@@ -35,7 +35,9 @@ sealed class TauEntity() {
         val correlationId: String?, val op_type: String, val full_path: String,
         val modifiedAtIso: Instant?, val item_type: String, val parentPath: String,
         val fileId: FileId = FileId.EMPTY, val pictureData: ByteArray? = null
-    ) : TauEntity() { fun display() = "⏵ $op_type ↈ $item_type ↈ $full_path ↈ $modifiedAtIso ↈ 🖽 ${pictureData != null} ⏴" }
+    ) : TauEntity() {
+        fun display(): String = "⏵ $op_type ↈ $item_type ↈ $full_path ↈ $modifiedAtIso ↈ 🖽 ${pictureData != null} ⏴"
+    }
 
     @Entity(tableName = "folder_content")
     data class Content(
@@ -44,32 +46,22 @@ sealed class TauEntity() {
     ) : TauEntity() {
         @Ignore var items: List<ContentItem> = emptyList()
         @Ignore constructor(contentId: Long = 0L, correlationId: String?, full_path: String, modifiedAtIso: Instant?, items: List<ContentItem>) : this(contentId, correlationId, full_path, modifiedAtIso) { this.items = items }
-        fun display() = "⏵ $full_path ↈ $modifiedAtIso ↈ ⌸ {${items.size} ⏴"
+        fun display(): String = "⏵ $full_path ↈ $modifiedAtIso ↈ ⌸ {${items.size} ⏴"
     }
 
     @Entity(tableName = "content_items", foreignKeys = [ForeignKey(entity = Content::class, parentColumns = ["contentId"], childColumns = ["parentContentId"], onDelete = ForeignKey.CASCADE)], indices = [Index("parentContentId")])
     data class ContentItem(
         @PrimaryKey(autoGenerate = true) val itemId: Long = 0L,
-        val parentContentId: Long, val id: String?, val name: String,
-        val picture: ByteArray? = null, val memo: String?, val modificationDate: Instant?,
-        val fileId: FileId = FileId.EMPTY, val type: ItemType
+        val parentContentId: Long,
+        val id: String?,
+        val name: String,
+        val picture: ByteArray? = null,
+        val memo: String?,
+        val modificationDate: Instant?,
+        val fileId: FileId = FileId.EMPTY,
+        val type: ItemType
     ) : TauEntity()
 }
-
-/** Metadata légère utilisée pour afficher un dossier.
- * La colonne picture est volontairement exclue : les BLOB sont lus individuellement
- * à la demande par le chargeur progressif de miniatures.
- */
-data class ContentItemMetadata(
-    val itemId: Long,
-    val parentContentId: Long,
-    val id: String?,
-    val name: String,
-    val memo: String?,
-    val modificationDate: Instant?,
-    val fileId: FileId,
-    val type: ItemType,
-)
 
 @OptIn(ExperimentalUuidApi::class)
 suspend fun DbCommand.toDiff(correlationId: String? = null): TauEntity.Diff? {
@@ -89,7 +81,12 @@ suspend fun DbCommand.toDiff(correlationId: String? = null): TauEntity.Diff? {
 }
 
 @OptIn(ExperimentalUuidApi::class)
-suspend fun DbCommand.GlobalRefresh.toEntity(correlationId: String? = null): TauEntity.Content = TauEntity.Content(correlationId = correlationId, full_path = path.path, modifiedAtIso = Instant.ofEpochMilli(refreshDate.value), items = items.map { it.toContentItem(0L) })
+suspend fun DbCommand.GlobalRefresh.toEntity(correlationId: String? = null): TauEntity.Content = TauEntity.Content(
+    correlationId = correlationId,
+    full_path = path.path,
+    modifiedAtIso = Instant.ofEpochMilli(refreshDate.value),
+    items = items.map { it.toContentItem(0L) }
+)
 
 @OptIn(ExperimentalUuidApi::class)
 fun TauEntity.Diff.toTauItem(): TauItem = when (op_type) {
@@ -101,10 +98,16 @@ fun TauEntity.Diff.toTauItem(): TauItem = when (op_type) {
     else -> TauFile.EMPTY
 }
 
-enum class OpType(val text: String) { CreateItem("CREATE_ITEM"), DeleteItem("DELETE_ITEM"), ModifyItem("MODIFY_ITEM"), FolderRefresh("GLOBAL_REFRESH") }
+enum class OpType(val text: String) {
+    CreateItem("CREATE_ITEM"), DeleteItem("DELETE_ITEM"), ModifyItem("MODIFY_ITEM"), FolderRefresh("GLOBAL_REFRESH")
+}
+
 val dateTimePattern = "dd/MM/yyyy HH:mm:ss + AAAA"
 fun Long.epochMillisToDateTime(zone: ZoneId = ZoneId.systemDefault()): String = Instant.ofEpochMilli(this).atZone(zone).format(DateTimeFormatter.ofPattern(dateTimePattern))
-fun String.dateTimetoEpochMillis(zone: ZoneId = ZoneId.systemDefault()): Long { val ldt = LocalDateTime.parse(this, DateTimeFormatter.ofPattern(dateTimePattern)); return ldt.atZone(zone).toInstant().toEpochMilli() }
+fun String.dateTimetoEpochMillis(zone: ZoneId = ZoneId.systemDefault()): Long {
+    val ldt = LocalDateTime.parse(this, DateTimeFormatter.ofPattern(dateTimePattern))
+    return ldt.atZone(zone).toInstant().toEpochMilli()
+}
 
 data class ContentWithItems(
     @Embedded val content: TauEntity.Content,
@@ -114,5 +117,5 @@ data class ContentWithItems(
         entity = TauEntity.ContentItem::class,
         projection = ["itemId", "parentContentId", "id", "name", "memo", "modificationDate", "fileId", "type"]
     )
-    val items: List<ContentItemMetadata>
+    val items: List<TauEntity.ContentItem>
 )
