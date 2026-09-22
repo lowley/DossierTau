@@ -20,7 +20,6 @@ import java.net.HttpURLConnection
 import java.net.URLEncoder
 import java.net.URL
 import java.text.Normalizer
-import kotlin.math.max
 
 class TpdbTestActivity : ComponentActivity() {
     private lateinit var tokenField: EditText
@@ -99,7 +98,23 @@ class TpdbTestActivity : ComponentActivity() {
         return ascii.lowercase().replace("&"," and ").replace(Regex("[^a-z0-9]+")," ").trim().replace(Regex("\\s+")," ")
     }
 
-    private fun parseFilename(filename:String):Parsed{var s=filename.substringAfterLast('/').trim();s=s.replace(Regex("(?i)\\.(mp4|mkv|avi|mov|wmv|m4v|webm|ts|m3u8)$"),"");s=s.replace(Regex("\\s*\\(\\d+\\)\\s*$"),"");s=s.replace(Regex("(?i)\\bVol\\.\\s*(\\d+)"),"Vol $1");val yearMatch=Regex("\\((19|20)\\d{2}\\)").find(s);val year=yearMatch?.value?.filter(Char::isDigit)?.toIntOrNull();s=s.replace(Regex("\\s*\\((19|20)\\d{2}\\)\\s*")," ");s=s.replace(Regex("(?i)\\s+by\\s+.*$"),"");s=s.substringBefore('.');val the=Regex("(?i)^(.+),\\s*The$").matchEntire(s.trim());if(the!=null)s="The ${the.groupValues[1]}";s=s.replace('_',' ').replace(Regex("\\s+")," ").trim();return Parsed(s,year)}
+    private fun parseFilename(filename:String):Parsed{
+        var s=filename.substringAfterLast('/').trim()
+        s=s.replace(Regex("(?i)\\.(mp4|mkv|avi|mov|wmv|m4v|webm|ts|m3u8)$"),"")
+        // A trailing (1), (2), ... is a duplicate suffix; do not confuse it with a 4-digit year.
+        s=s.replace(Regex("\\s*\\(\\d{1,3}\\)\\s*$"),"")
+        val yearMatch=Regex("\\((19|20)\\d{2}\\)").find(s)
+        val year=yearMatch?.value?.filter(Char::isDigit)?.toIntOrNull()
+        // Structural title boundary: year first, otherwise " by ". Never use a dot as a title boundary:
+        // dots may legitimately belong to titles such as L.S.D.
+        val byMatch=Regex("(?i)\\s+by\\s+").find(s)
+        val titleEnd=yearMatch?.range?.first ?: byMatch?.range?.first ?: s.length
+        s=s.substring(0,titleEnd).trim()
+        s=s.replace(Regex("(?i)\\bVol\\.\\s*(\\d+)"),"Vol $1")
+        val the=Regex("(?i)^(.+),\\s*The$").matchEntire(s.trim());if(the!=null)s="The ${the.groupValues[1]}"
+        s=s.replace('_',' ').replace(Regex("\\s+")," ").trim()
+        return Parsed(s,year)
+    }
     private data class Parsed(val title:String,val year:Int?)
     private data class Result(val title:String,val imageUrl:String,val query:String,val score:Int,val tpdbYear:Int?,val site:String?,val imageSource:String)
     companion object{const val EXTRA_FILENAME="filename"}
