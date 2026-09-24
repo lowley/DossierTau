@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
@@ -208,10 +209,17 @@ open class FolderCompo(
     }
 
     private suspend fun collectDiffs() {
+        val selectedFolderContentFlow = spy.observedFolderFlow
+            .filter { it != TauPath.EMPTY }
+            .distinctUntilChanged()
+            .flatMapLatest { folderPath ->
+                fileDiffDAO.getContentFlow(folderPath.path)
+            }
+            .distinctUntilChanged()
+
         merge(
             fileDiffDAO.diffFlow().drop(1).filterNotNull(),
-            folderPathFlow.drop(1),
-            fileDiffDAO.getAllContentFlow().distinctUntilChanged().filterNotNull()
+            selectedFolderContentFlow
         ).transform { change ->
             when (change) {
                 is TauPath -> Unit
