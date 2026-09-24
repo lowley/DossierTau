@@ -1,6 +1,7 @@
 package lorry.dossiertau
 
 import androidx.lifecycle.ViewModel
+import android.content.Context
 import androidx.lifecycle.viewModelScope
 import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.nl.translate.TranslateLanguage
@@ -36,7 +37,15 @@ open class TauViewModel(
         _selectedItem.update { item }
     }
 
+    private val navigationPreferences by lazy {
+        TauApp.instance.getSharedPreferences(NAVIGATION_PREFS, Context.MODE_PRIVATE)
+    }
+
     fun setTauFolder(folderPath: TauPath){
+        navigationPreferences.edit()
+            .putString(LAST_FOLDER_KEY, folderPath.path)
+            .apply()
+
         folderCompo.setFolderFlow(folderPath)
         if (!spy.enabledFlow.value)
             spy.startSurveillance()
@@ -66,11 +75,21 @@ open class TauViewModel(
 
     //#[[tauViewModelInit]]
     init{
-        val pathInit = "/storage/emulated/0/Movies/sexe".toTauPath()
-        println("TauViewModel: init{} appelle setTauFolder")
+        val defaultPath = "/storage/emulated/0/Movies/sexe"
+        val restoredPath = navigationPreferences
+            .getString(LAST_FOLDER_KEY, null)
+            ?.takeIf { it.isNotBlank() }
+
+        val pathInit = (restoredPath ?: defaultPath).toTauPath()
+        println("TauViewModel: init{} restaure le dossier: ${pathInit.path}")
         setTauFolder(pathInit)
 
         configureTranslation()
+    }
+
+    companion object {
+        private const val NAVIGATION_PREFS = "tau_navigation"
+        private const val LAST_FOLDER_KEY = "last_folder_path"
     }
 
     private fun configureTranslation() {
