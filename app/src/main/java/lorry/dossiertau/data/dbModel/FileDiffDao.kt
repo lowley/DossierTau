@@ -54,7 +54,8 @@ interface FileDiffDao {
 
     @Transaction
     @Query("""SELECT * FROM folder_content
-        WHERE modifiedAtIso <> '1970-01-01T00:00:00Z'
+        WHERE full_path = :folderPath
+          AND modifiedAtIso <> '1970-01-01T00:00:00Z'
         ORDER BY contentId DESC limit 1""")
-    fun getAllContentFlow(): Flow<List<ContentWithItems>>
+    fun getContentFlow(folderPath: String): Flow<List<ContentWithItems>>
 }
