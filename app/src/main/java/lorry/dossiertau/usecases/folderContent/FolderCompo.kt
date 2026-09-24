@@ -31,7 +31,6 @@ import lorry.dossiertau.data.dbModel.OpType
 import lorry.dossiertau.data.dbModel.TauEntity
 import lorry.dossiertau.data.dbModel.toTauItem
 import lorry.dossiertau.data.intelligenceService.ISpy
-import lorry.dossiertau.data.diskTransfer.toTauItems
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
 import lorry.dossiertau.data.model.TauFile
@@ -136,27 +135,6 @@ open class FolderCompo(
 
     override fun setFolderFlow(folderFullPath: TauPath) {
         scope.launch(dispatcher) {
-            // L'affichage initial d'un dossier ne doit pas dépendre de la chaîne
-            // Spy -> CIA -> AirForce -> Room. On lit d'abord directement le disque
-            // afin que l'explorateur affiche immédiatement le contenu réel.
-            val diskItems = folderRepo
-                .getItemsInFullPath(folderFullPath)
-                .filter { !it.name.value.startsWith(".") }
-                .toTauItems()
-
-            val folderFromDisk = TauFolder.Data(
-                id = TauIdentifier.random(),
-                parentPath = folderFullPath.tauPathParentPath ?: TauPath.EMPTY,
-                name = folderFullPath.name,
-                picture = TauPicture.NONE,
-                fileId = FileId.EMPTY,
-                children = diskItems
-            ) as TauFolder
-
-            println("FOLDERCOMPO: chargement direct disque ${folderFullPath.path}, ${diskItems.size} élément(s)")
-            changeFolderFlow(folderFromDisk.toOption())
-
-            // Ensuite seulement on branche la surveillance et la persistance.
             spy.setObservedFolder(folderFullPath)
         }
     }
