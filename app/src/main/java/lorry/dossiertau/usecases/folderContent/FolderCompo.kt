@@ -149,7 +149,6 @@ open class FolderCompo(
                 parentPath = folderFullPath.tauPathParentPath ?: TauPath.EMPTY,
                 name = folderFullPath.name,
                 picture = TauPicture.NONE,
-                modificationDate = null,
                 fileId = FileId.EMPTY,
                 children = diskItems
             ) as TauFolder
