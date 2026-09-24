@@ -222,15 +222,18 @@ open class Spy(
 
     override val spyLevelFlow: SharedFlow<List<ISpyLevel>> = _spyLevelFlow.asSharedFlow()
 
+    // Les événements passent d'abord par une file persistante en mémoire.
+    // Cela évite de perdre le snapshot initial si CIA n'a pas encore commencé
+    // à collecter spyLevelFlow au moment où le premier dossier est sélectionné.
+    private val spyEventChannel = Channel<List<ISpyLevel>>(Channel.UNLIMITED)
+
     override fun emitSpyLevel(event: ISpyLevel) {
-        scope.launch(dispatcher) {
-            _spyLevelFlow.tryEmit(listOf(event))
-        }
+        spyEventChannel.trySend(listOf(event))
     }
 
     override fun emitSpyLevels(events: List<ISpyLevel>) {
-        scope.launch(dispatcher) {
-            _spyLevelFlow.tryEmit(events)
+        if (events.isNotEmpty()) {
+            spyEventChannel.trySend(events)
         }
     }
 
@@ -337,6 +340,18 @@ open class Spy(
     }
 
     init {
+        // Un seul convoyeur pour les événements Spy.
+        // Il conserve l'ordre et attend qu'un consommateur (CIA) soit réellement
+        // abonné avant d'émettre. Aucun événement de démarrage n'est donc perdu.
+        scope.launch(dispatcher) {
+            for (events in spyEventChannel) {
+                _spyLevelFlow.subscriptionCount.first { subscriberCount ->
+                    subscriberCount > 0
+                }
+                _spyLevelFlow.emit(events)
+            }
+        }
+
         // Le SEUL endroit où l'on traite les snapshots
         // Cette coroutine tourne en boucle et traite les messages un par un
         scope.launch(dispatcher) {
