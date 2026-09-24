@@ -13,10 +13,12 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -53,18 +55,19 @@ class CIA() : LifecycleService() {
     val _ciaDecisions = MutableSharedFlow<List<CIALevel>>()
     val ciaDecisions: SharedFlow<List<CIALevel>> = _ciaDecisions.asSharedFlow()
 
+    // Même protection qu'entre Spy et CIA : une décision CIA ne doit jamais
+    // disparaître simplement parce qu'AirForce n'a pas encore commencé à écouter.
+    private val ciaDecisionChannel = Channel<List<CIALevel>>(Channel.UNLIMITED)
+
     fun emitCIALevel(decision: CIALevel) {
         updateActivity()
-        scope.launch(dispatcher) {
-            _ciaDecisions.emit(listOf(decision))
-        }
+        ciaDecisionChannel.trySend(listOf(decision))
     }
 
     fun emitCIALevels(decisions: List<CIALevel>) {
+        if (decisions.isEmpty()) return
         updateActivity()
-        scope.launch(dispatcher) {
-            _ciaDecisions.emit(decisions)
-        }
+        ciaDecisionChannel.trySend(decisions)
     }
 
     private fun updateActivity() {
@@ -98,6 +101,17 @@ class CIA() : LifecycleService() {
 
         airForce.cia = this
         airForce.startListeningForCIADecisions()
+
+        // Convoyeur fiable CIA -> AirForce. Il attend qu'AirForce soit abonné
+        // avant de publier la première décision (notamment le GlobalRefresh initial).
+        lifecycleScope.launch(dispatcher) {
+            for (decisions in ciaDecisionChannel) {
+                _ciaDecisions.subscriptionCount.first { subscriberCount ->
+                    subscriberCount > 0
+                }
+                _ciaDecisions.emit(decisions)
+            }
+        }
 
         if (eventsJob?.isActive != true) {
             eventsJob = spy.spyLevelFlow
