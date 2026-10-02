@@ -31,7 +31,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -40,9 +39,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.graphics.asImageBitmap
-import coil.compose.AsyncImage
-import coil.compose.SubcomposeAsyncImage
-import coil.request.ImageRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import lorry.dossiertau.MainActivity
@@ -92,19 +88,15 @@ fun MainActivity.DisplayedItem(
         ////////////////
         // zone image //
         ////////////////
-        var imageSize by remember(item) { mutableStateOf<IntSize?>(null) }
         var containerSize by remember { mutableStateOf(IntSize(borderSize, borderSize)) }
+        val bitmap = remember(item.picture) { item.picture.toBitmap() }
 
-        // On essaie de déterminer si on a besoin du maillage dès le début si le bitmap est déjà là
-        val initialImageSize = remember(item.picture) {
-            (item.picture as? TauPicture.Bitmap)?.bitmap?.let {
-                IntSize(it.width, it.height)
-            }
+        val initialImageSize = remember(bitmap) {
+            bitmap?.let { IntSize(it.width, it.height) }
         }
 
-        // Le calcul reste le même, il sera relancé quand imageSize changera
-        val shouldShowMesh = remember(imageSize, initialImageSize, containerSize) {
-            val size = imageSize ?: initialImageSize
+        val shouldShowMesh = remember(initialImageSize, containerSize) {
+            val size = initialImageSize
             if (size != null && containerSize.width > 0 && containerSize.height > 0) {
                 !doesImageFillBox(
                     containerWidth = containerSize.width,
@@ -146,45 +138,29 @@ fun MainActivity.DisplayedItem(
                 )
             }
 
-            SubcomposeAsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(item.picture.toBitmap())
-                    .crossfade(false)
-                    .build(),
-                contentDescription = "miniature",
-                contentScale = ContentScale.Fit,
-                modifier = Modifier
-                    .size(borderSizeDp)
-                    .clip(shape = RoundedCornerShape(8.dp))
-                    .then(
-                        if (!shouldShowMesh) Modifier.border(
-                            1.dp,
-                            Color.DarkGray,
-                            shape = RoundedCornerShape(8.dp)
-                        ) else Modifier
-                    ),
-                loading = {
-                    // Si on a déjà un bitmap initial, on l'affiche pendant le chargement Coil
-                    // pour éviter que l'image disparaisse si Coil décide de vider le slot
-                    item.picture.toBitmap()?.let {
-                        Image(
-                            bitmap = it.asImageBitmap(),
-                            contentDescription = null,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                },
-                onSuccess = { successState ->
-                    val drawable = successState.result.drawable
-                    imageSize = IntSize(
-                        drawable.intrinsicWidth,
-                        drawable.intrinsicHeight
-                    )
-                }
-            )
+            val imageModifier = Modifier
+                .size(borderSizeDp)
+                .clip(shape = RoundedCornerShape(8.dp))
+                .then(
+                    if (!shouldShowMesh) Modifier.border(
+                        1.dp,
+                        Color.DarkGray,
+                        shape = RoundedCornerShape(8.dp)
+                    ) else Modifier
+                )
 
-            CornerSupplement(
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap.asImageBitmap(),
+                    contentDescription = "miniature",
+                    contentScale = ContentScale.Fit,
+                    modifier = imageModifier
+                )
+            } else {
+                Box(modifier = imageModifier)
+            }
+
+CornerSupplement(
                 item = item,
                 modifier = Modifier,
                 getInfos = { currentItem ->
