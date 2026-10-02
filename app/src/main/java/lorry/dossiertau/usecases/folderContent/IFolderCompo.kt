@@ -5,12 +5,14 @@ import kotlinx.coroutines.flow.StateFlow
 import lorry.dossiertau.data.model.TauFolder
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.support.littleClasses.TauPath
+import lorry.dossiertau.support.littleClasses.TauPicture
 
 interface IFolderCompo {
     val folderFlow: StateFlow<Option<TauFolder>>
     fun setFolderFlow(folder: TauPath)
     fun setFolderOrdering(ordering: Boolean)
     val folderPathFlow: StateFlow<Option<TauPath>>
+    val thumbnailPictures: StateFlow<Map<String, TauPicture>>
 
     fun changeFolderFlow(folder: Option<TauFolder>)
     val ordering: StateFlow<Boolean>
