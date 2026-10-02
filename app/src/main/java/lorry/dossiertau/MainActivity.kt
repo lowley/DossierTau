@@ -378,6 +378,8 @@ class MainActivity() : ComponentActivity() {
                 }
                     .distinctUntilChanged()
                     .collectLatest { (isScrolling, visibleRange) ->
+                        folderCompo.setThumbnailWorkPaused(isScrolling)
+
                         if (isScrolling || visibleRange == null) return@collectLatest
 
                         // Le fling est réellement terminé. On laisse encore quelques
