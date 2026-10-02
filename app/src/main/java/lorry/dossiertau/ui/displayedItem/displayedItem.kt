@@ -1,5 +1,6 @@
 package lorry.dossiertau.ui.displayedItem
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -77,10 +78,12 @@ fun MainActivity.DisplayedItem(
             .clip(RoundedCornerShape(8.dp))
             .combinedClickable(
                 onClick = {
-                    if (item.isFolder())
+                    if (item.isFolder()) {
+                        Log.d("TauNavigation", "CLICK FOLDER : ${item.fullPath.path}")
                         setCurrentFolder(item.fullPath)
-                    else
+                    } else {
                         onClick(item.fullPath)
+                    }
                 },
                 onLongClick = { onLongClick(item) }
             )
