@@ -185,6 +185,16 @@ class BreadcrumbComponent @Inject constructor() {
 
             delay(atomicDuration)
         }
+
+        // Important : la boucle ci-dessus anime la disparition de l'ancien
+        // segment, mais l'ancien code ne publiait jamais le chemin raccourci.
+        // On fixe donc explicitement l'état final du breadcrumb.
+        state.update {
+            it.with(
+                currentList.joinToString("/"),
+                animation = Animation.APPEAR
+            )
+        }
     }
 }
 
