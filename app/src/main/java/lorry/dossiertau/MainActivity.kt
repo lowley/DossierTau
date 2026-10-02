@@ -368,17 +368,21 @@ class MainActivity() : ComponentActivity() {
             LaunchedEffect(state, itemPaths) {
                 snapshotFlow {
                     val visibleItems = state.layoutInfo.visibleItemsInfo
-                    if (visibleItems.isEmpty()) null
-                    else visibleItems.minOf { it.index } to visibleItems.maxOf { it.index }
+                    val visibleRange = if (visibleItems.isEmpty()) {
+                        null
+                    } else {
+                        visibleItems.minOf { it.index } to visibleItems.maxOf { it.index }
+                    }
+
+                    state.isScrollInProgress to visibleRange
                 }
                     .distinctUntilChanged()
-                    .collectLatest { visibleRange ->
-                        visibleRange ?: return@collectLatest
+                    .collectLatest { (isScrolling, visibleRange) ->
+                        if (isScrolling || visibleRange == null) return@collectLatest
 
-                        // Pendant un scroll rapide, chaque nouvelle plage visible annule
-                        // ce délai. On ne lance donc le travail coûteux qu'une fois
-                        // l'affichage stabilisé pendant un très court instant.
-                        delay(90)
+                        // Le fling est réellement terminé. On laisse encore quelques
+                        // frames tranquilles avant de reprendre les décodages.
+                        delay(180)
 
                         folderCompo.requestThumbnails(
                             items = latestItems,
