@@ -39,6 +39,9 @@ class ThumbnailLoadScheduler(
     @Volatile
     private var generation = 0L
 
+    @Volatile
+    private var paused = false
+
     init {
         repeat(parallelism.coerceAtLeast(1)) {
             scope.launch { workerLoop() }
@@ -50,6 +53,15 @@ class ThumbnailLoadScheduler(
      * obsolètes. Les travaux déjà en cours ne sont pas brutalement annulés : les lecteurs de
      * fichiers/capsules existants n'ont ainsi pas besoin d'être rendus annulables.
      */
+    fun setPaused(paused: Boolean) {
+        this.paused = paused
+        if (paused) {
+            generation++
+            pending.clear()
+        }
+        signal.trySend(Unit)
+    }
+
     fun newViewportGeneration() {
         generation++
         pending.entries.removeIf { it.value.generation < generation }
@@ -90,6 +102,8 @@ class ThumbnailLoadScheduler(
             signal.receive()
 
             while (true) {
+                if (paused) break
+
                 val next = pending.values.minWithOrNull(
                     compareBy<Request> { it.priority.rank }
                         .thenByDescending { it.generation }
