@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
@@ -394,50 +395,53 @@ open class Spy(
             }
         }
 
-        // 3) Le flow "folder changé" ne fait plus que: watcher add/remove + snapshot initial + event global
-        observedFolderFlow
-            .onEach { println("nouvelle valeur de folderFlow: ${it.path}") }
-            .filter { it != TauPath.EMPTY }     // ✅ on ignore le “dossier” EMPTY comme cible
-            .distinctUntilChanged()
-            .runningFold<TauPath, PrevCurr<TauPath>>(
-                PrevCurr(
-                    prev = TauPath.EMPTY,
-                    curr = TauPath.EMPTY
-                )
-            ) { acc, curr ->
-                PrevCurr(prev = acc.curr, curr = curr)
-            }
-            .drop(1)
-            .onEach { (previousFolderPath, currentFolderPath) ->
-                println("[SPY $instanceId] entrée dans bloc exécution folderFlow: ${currentFolderPath.path}")
+        // 3) Navigation : le dernier dossier demandé gagne toujours.
+        // collectLatest annule le snapshot du dossier précédent si l'utilisateur
+        // navigue ailleurs avant la fin du chargement.
+        scope.launch(dispatcher) {
+            var previousFolderPath = TauPath.EMPTY
 
-                if (previousFolderPath?.value?.isRight() == true)
-                    scope.launch(dispatcher) {
-                        watcher.remove(previousFolderPath.path)
+            observedFolderFlow
+                .filter { it != TauPath.EMPTY }
+                .distinctUntilChanged()
+                .collectLatest { currentFolderPath ->
+                    println("[SPY $instanceId] NAVIGATION : ${currentFolderPath.path}")
+
+                    val previous = previousFolderPath
+                    previousFolderPath = currentFolderPath
+
+                    if (previous != TauPath.EMPTY) {
+                        println("[SPY $instanceId] watcher.remove : ${previous.path}")
+                        watcher.remove(previous.path)
                     }
 
-                scope.launch(dispatcher) {
+                    println("[SPY $instanceId] watcher.add : ${currentFolderPath.path}")
                     watcher.add(currentFolderPath.path)
+
+                    val favoris = appliFavos.appliFavorites.value
+                    val cachedSnapshot = snapshotsAtomic.get()[currentFolderPath]
+
+                    if (
+                        currentFolderPath.path in favoris.map { it.fullPath.path } &&
+                        cachedSnapshot != null
+                    ) {
+                        println("[SPY $instanceId] SNAPSHOT CACHE : ${currentFolderPath.path}")
+                        emitSpyLevel(makeGlobalSpyLevelFrom(cachedSnapshot))
+                    } else {
+                        println("[SPY $instanceId] SNAPSHOT START : ${currentFolderPath.path}")
+
+                        val initialSnapshot = fileRepo.createSnapshotFor(currentFolderPath)
+
+                        println(
+                            "[SPY $instanceId] SNAPSHOT END : ${currentFolderPath.path} " +
+                                "(${initialSnapshot.entries.size} éléments)"
+                        )
+
+                        setStoredSnapshot(initialSnapshot)
+                        emitSpyLevel(makeGlobalSpyLevelFrom(initialSnapshot))
+                    }
                 }
-
-                val favoris = appliFavos.appliFavorites.value
-                val sn = snapshotsAtomic.get()[currentFolderPath]
-                if (currentFolderPath.path in favoris.map { it.fullPath.path } &&
-                    sn != null) {
-
-                    emitSpyLevel(makeGlobalSpyLevelFrom(sn))
-                } else {
-
-                    // snapshot initial du folder courant
-                    println("[SPY ${Thread.currentThread().name}] appel à createSnapshotFor (${currentFolderPath.path})")
-                    val initialSnapshot = fileRepo.createSnapshotFor(currentFolderPath)
-                    println("from observedFolderFlow: setLastSnapshot[SN ${initialSnapshot.instanceId}](${initialSnapshot.entries.size})")
-                    setStoredSnapshot(initialSnapshot)
-                    emitSpyLevel(makeGlobalSpyLevelFrom(initialSnapshot))
-                }
-
-            }
-            .launchIn(scope)
+        }
 
         //////////////////////////////////////////////////////////
         // les favoris sont à tout moment suivis par le watcher //
