@@ -80,7 +80,7 @@ open class FolderCompo(
 
     val appliFavos: AppliFavos by inject(AppliFavos::class.java)
     private val scope = CoroutineScope(dispatcher + SupervisorJob())
-    private val thumbnailScheduler = ThumbnailLoadScheduler(parallelism = 3)
+    private val thumbnailScheduler = ThumbnailLoadScheduler(parallelism = 1)
     private val thumbnailPersistenceChannel = Channel<suspend () -> Unit>(Channel.BUFFERED)
 
     private val _ordering = MutableStateFlow(true)
