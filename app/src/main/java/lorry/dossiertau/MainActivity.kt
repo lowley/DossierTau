@@ -84,6 +84,8 @@ import arrow.core.None
 import arrow.core.Option
 import arrow.core.Some
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -370,8 +372,14 @@ class MainActivity() : ComponentActivity() {
                     else visibleItems.minOf { it.index } to visibleItems.maxOf { it.index }
                 }
                     .distinctUntilChanged()
-                    .collect { visibleRange ->
-                        visibleRange ?: return@collect
+                    .collectLatest { visibleRange ->
+                        visibleRange ?: return@collectLatest
+
+                        // Pendant un scroll rapide, chaque nouvelle plage visible annule
+                        // ce délai. On ne lance donc le travail coûteux qu'une fois
+                        // l'affichage stabilisé pendant un très court instant.
+                        delay(90)
+
                         folderCompo.requestThumbnails(
                             items = latestItems,
                             firstVisibleIndex = visibleRange.first,
