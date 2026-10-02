@@ -8,6 +8,7 @@ import android.graphics.Paint
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -94,6 +95,7 @@ import lorry.dossiertau.data.model.isFile
 import lorry.dossiertau.data.model.name
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.path
+import lorry.dossiertau.support.littleClasses.parentPath
 import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.ui.theme.DossierTauTheme
 import lorry.dossiertau.usecases.generateHTMLs.Links
@@ -265,6 +267,11 @@ class MainActivity() : ComponentActivity() {
         val currentFolderPath by folderCompo.folderPathFlow.collectAsState()
         val state = rememberLazyGridState()
         val currentFolder by folderCompo.folderFlow.collectAsState()
+        val parentFolderPath = currentFolderPath.getOrNull()?.parentPath ?: TauPath.EMPTY
+
+        BackHandler(enabled = parentFolderPath != TauPath.EMPTY) {
+            setCurrentFolder(parentFolderPath)
+        }
 
         LaunchedEffect(currentFolderPath) {
             if (currentFolderPath.isSome()) state.scrollToItem(0)
