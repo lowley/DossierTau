@@ -135,6 +135,8 @@ open class FolderCompo(
     }
 
     override fun setFolderFlow(folderFullPath: TauPath) {
+        println("TauNavigation: setFolderFlow demandé : ${folderFullPath.path}")
+
         scope.launch(dispatcher) {
             spy.setObservedFolder(folderFullPath)
         }
