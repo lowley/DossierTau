@@ -88,6 +88,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import lorry.dossiertau.data.intelligenceService.CIA
 import lorry.dossiertau.data.model.children
+import lorry.dossiertau.data.model.copy
 import lorry.dossiertau.data.model.fullPath
 import lorry.dossiertau.data.model.isFile
 import lorry.dossiertau.data.model.name
@@ -352,6 +353,7 @@ class MainActivity() : ComponentActivity() {
             )
 
             val allItems = currentFolder.getOrNull()!!.children
+            val thumbnailPictures by folderCompo.thumbnailPictures.collectAsState()
             val latestItems by rememberUpdatedState(allItems)
             val itemPaths = remember(allItems) { allItems.map { it.fullPath.path } }
 
@@ -377,10 +379,17 @@ class MainActivity() : ComponentActivity() {
                 state = state,
                 columns = GridCells.Adaptive(150.dp)
             ) {
-                items(count = allItems.size) { index ->
+                items(
+                    count = allItems.size,
+                    key = { index -> allItems[index].fullPath.path }
+                ) { index ->
                     val item = allItems[index]
+                    val displayItem = thumbnailPictures[item.fullPath.path]
+                        ?.let { picture -> item.copy(picture = picture) }
+                        ?: item
+
                     DisplayedItem(
-                        item = item,
+                        item = displayItem,
                         setCurrentFolder = setCurrentFolder,
                         onClick = { filePath ->
                             Log.d("DossierTauClick", "Clic fichier: ${filePath.path}")
