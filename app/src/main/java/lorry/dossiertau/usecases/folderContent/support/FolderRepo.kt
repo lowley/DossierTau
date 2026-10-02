@@ -93,6 +93,71 @@ open class FolderRepo(
         memo = null,
     )
 
+    private fun decodeThumbnail(bytes: ByteArray, targetPx: Int = 320): Bitmap? {
+        if (bytes.isEmpty()) return null
+
+        val bounds = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+        }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+        var sampleSize = 1
+        while (
+            bounds.outWidth / (sampleSize * 2) >= targetPx &&
+            bounds.outHeight / (sampleSize * 2) >= targetPx
+        ) {
+            sampleSize *= 2
+        }
+
+        val options = BitmapFactory.Options().apply {
+            inSampleSize = sampleSize
+            inPreferredConfig = Bitmap.Config.RGB_565
+        }
+
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+    }
+
+    private fun scaleThumbnail(bitmap: Bitmap, targetPx: Int = 320): Bitmap {
+        if (bitmap.width <= targetPx && bitmap.height <= targetPx) return bitmap
+
+        val ratio = minOf(
+            targetPx.toFloat() / bitmap.width,
+            targetPx.toFloat() / bitmap.height,
+        )
+
+        val width = (bitmap.width * ratio).toInt().coerceAtLeast(1)
+        val height = (bitmap.height * ratio).toInt().coerceAtLeast(1)
+        val scaled = Bitmap.createScaledBitmap(bitmap, width, height, true)
+
+        if (scaled !== bitmap) bitmap.recycle()
+        return scaled
+    }
+
+    private fun decodeBase64Thumbnail(base64: String, targetPx: Int = 320): Bitmap? =
+        runCatching {
+            decodeThumbnail(base64ToByteArray(base64), targetPx)
+        }.getOrNull()
+
+    private suspend fun extractThumbnailFromHtml(
+        html: TauPath,
+        targetPx: Int = 320,
+    ): Bitmap? {
+        val htmlFile = html.toFile().getOrNull() ?: return null
+        if (!withContext(Dispatchers.IO) { htmlFile.exists() }) return null
+
+        val htmlContent = withContext(Dispatchers.IO) { htmlFile.readText() }
+        val regex = Regex("""<img\s+[^>]*src\s*=\s*"data:image/[^;]+;base64,([^"]+)"""")
+        val match = regex.find(htmlContent) ?: return null
+
+        return withContext(Dispatchers.Default) {
+            runCatching {
+                val imageBytes = Base64.decode(match.groupValues[1], Base64.DEFAULT)
+                decodeThumbnail(imageBytes, targetPx)
+            }.getOrNull()
+        }
+    }
+
     private suspend fun loadCapsuleData(file: File): Pair<Bitmap?, String?> {
         val filePath = file.path
         return if (file.isFile) {
@@ -119,7 +184,28 @@ open class FolderRepo(
     override suspend fun loadThumbnail(itemPath: TauPath): TauPicture? = withContext(Dispatchers.IO) {
         val file = itemPath.toFile().getOrNull() ?: return@withContext null
         if (!file.exists()) return@withContext null
-        loadCapsuleData(file).first?.toTauPicture()
+
+        val targetPx = 320
+
+        val bitmap = if (file.isFile) {
+            val capsule = FileCapsuleManager(file.path, useOld = false).getCapsule()
+            capsule.initialPicture
+                ?.let { decodeBase64Thumbnail(it, targetPx) }
+                ?: if (file.extension.lowercase() == "html") {
+                    extractThumbnailFromHtml(itemPath, targetPx)
+                } else {
+                    null
+                }
+        } else {
+            val manager = FolderCapsuleManager(itemPath, useOld = false)
+            manager.getFolderBitmap()
+                ?.let { scaleThumbnail(it, targetPx) }
+                ?: manager.getCapsule(loadBitmaps = true)
+                    ?.initialPicture
+                    ?.let { decodeBase64Thumbnail(it, targetPx) }
+        }
+
+        bitmap?.toTauPicture()
     }
 
     // Conservé pour les usages qui auraient besoin d'un snapshot entièrement enrichi.
