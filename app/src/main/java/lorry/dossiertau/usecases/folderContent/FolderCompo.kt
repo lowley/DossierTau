@@ -286,7 +286,10 @@ open class FolderCompo(
                     val newChildren = content.items
                         .filter { !it.name.startsWith(".") }
                         .map { item ->
-                            val itemPicture = item.picture?.toBitmap()?.toTauPicture() ?: TauPicture.NONE
+                            // Les miniatures restent hors de folderFlow : elles sont
+                            // chargées à la demande par thumbnailFlow(), même si Room possède
+                            // déjà des octets d'image. On évite ainsi de décoder tout le dossier.
+                            val itemPicture = TauPicture.NONE
                             when (item.type) {
                                 ItemType.FILE -> TauFile.Data(
                                     id = TauIdentifier.random(),
