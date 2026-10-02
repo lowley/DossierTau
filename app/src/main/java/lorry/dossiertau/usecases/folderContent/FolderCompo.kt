@@ -1,6 +1,7 @@
 package lorry.dossiertau.usecases.folderContent
 
 import android.graphics.Bitmap
+import android.os.Process
 import arrow.core.None
 import arrow.core.Option
 import arrow.core.getOrElse
@@ -11,6 +12,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -67,6 +69,7 @@ import lorry.dossiertau.usecases.generateHTMLs.toBitmap
 import org.koin.java.KoinJavaComponent.inject
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
 
 open class FolderCompo(
     open val folderRepo: IFolderRepo,
@@ -81,7 +84,23 @@ open class FolderCompo(
 
     val appliFavos: AppliFavos by inject(AppliFavos::class.java)
     private val scope = CoroutineScope(dispatcher + SupervisorJob())
-    private val thumbnailScheduler = ThumbnailLoadScheduler(parallelism = 1)
+
+    // Décodage des miniatures sur un thread dédié de faible priorité :
+    // le rendu et les gestes UI doivent toujours passer avant ce travail.
+    private val thumbnailDecodeDispatcher = Executors.newSingleThreadExecutor { runnable ->
+        Thread {
+            Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND)
+            runnable.run()
+        }.apply {
+            name = "TauThumbnailDecode"
+            isDaemon = true
+        }
+    }.asCoroutineDispatcher()
+
+    private val thumbnailScheduler = ThumbnailLoadScheduler(
+        dispatcher = thumbnailDecodeDispatcher,
+        parallelism = 1,
+    )
     private val thumbnailPersistenceChannel = Channel<suspend () -> Unit>(Channel.BUFFERED)
     private val thumbnailWorkPaused = MutableStateFlow(false)
 
