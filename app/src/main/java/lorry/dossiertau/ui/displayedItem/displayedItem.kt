@@ -187,13 +187,10 @@ fun MainActivity.DisplayedItem(
             CornerSupplement(
                 item = item,
                 modifier = Modifier,
-                getInfoSup = { item ->
-                    displayRepo.getInfoSup(item)
+                getInfos = { currentItem ->
+                    displayRepo.getInfos(currentItem)
                 },
-                getInfoInf = { item ->
-                    displayRepo.getInfoInf(item)
-                },
-                onTopLeftPanelClick = { item -> },
+                onTopLeftPanelClick = { currentItem -> },
             )
         }
 
@@ -221,18 +218,17 @@ context(BoxScope)
 fun CornerSupplement(
     modifier: Modifier = Modifier,
     item: TauItem,
-    getInfoSup: suspend (TauItem) -> String?,
-    getInfoInf: suspend (TauItem) -> String?,
+    getInfos: suspend (TauItem) -> Pair<String, String>,
     onTopLeftPanelClick: (TauItem) -> Unit,
 ) {
-    //Ajout à l'image
-    val infoSup = produceState<String?>(initialValue = null, item) {
-        value = withContext(Dispatchers.IO) { getInfoSup(item) }
+    // Les infos ne dépendent pas du thumbnail : on les recalcule uniquement
+    // si le chemin de l'élément change, pas à chaque arrivée d'image.
+    val infos = produceState<Pair<String, String>?>(initialValue = null, item.fullPath.path) {
+        value = withContext(Dispatchers.IO) { getInfos(item) }
     }.value
 
-    val infoInf = produceState<String?>(initialValue = null, item) {
-        value = withContext(Dispatchers.IO) { getInfoInf(item) }
-    }.value
+    val infoSup = infos?.first
+    val infoInf = infos?.second
 //
     if (infoSup == null || infoInf == null) {
 //                        CircularProgressIndicator()
