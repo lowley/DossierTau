@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
@@ -82,6 +83,7 @@ open class FolderCompo(
     private val scope = CoroutineScope(dispatcher + SupervisorJob())
     private val thumbnailScheduler = ThumbnailLoadScheduler(parallelism = 1)
     private val thumbnailPersistenceChannel = Channel<suspend () -> Unit>(Channel.BUFFERED)
+    private val thumbnailWorkPaused = MutableStateFlow(false)
 
     private val _ordering = MutableStateFlow(true)
     override val ordering = _ordering.asStateFlow()
@@ -102,6 +104,11 @@ open class FolderCompo(
 
     override fun thumbnailFlow(path: TauPath): StateFlow<TauPicture?> =
         thumbnailStates.computeIfAbsent(path.path) { MutableStateFlow(null) }.asStateFlow()
+
+    override fun setThumbnailWorkPaused(paused: Boolean) {
+        thumbnailWorkPaused.value = paused
+        thumbnailScheduler.setPaused(paused)
+    }
     override val folderFlow = combine(
         _folderFlow,
         _ordering,
@@ -187,6 +194,10 @@ open class FolderCompo(
                 val picture = folderRepo.loadThumbnail(item.fullPath) ?: return@request
                 val bitmap = picture.toBitmap() ?: return@request
 
+                // Si le scroll a commencé pendant le décodage, on ne touche pas
+                // à l'état Compose à ce moment-là. L'item sera redemandé au repos.
+                if (thumbnailWorkPaused.value) return@request
+
                 thumbnailStates
                     .computeIfAbsent(item.fullPath.path) { MutableStateFlow(null) }
                     .value = picture
@@ -213,7 +224,13 @@ open class FolderCompo(
         // Un seul worker sérialise compression PNG + écriture Room en arrière-plan.
         scope.launch(dispatcher) {
             for (persist in thumbnailPersistenceChannel) {
-                persist()
+                thumbnailWorkPaused.first { paused -> !paused }
+                kotlinx.coroutines.delay(350)
+                if (!thumbnailWorkPaused.value) {
+                    persist()
+                } else {
+                    thumbnailPersistenceChannel.trySend(persist)
+                }
             }
         }
 
