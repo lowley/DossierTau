@@ -55,6 +55,7 @@ import lorry.dossiertau.data.model.name
 import lorry.dossiertau.data.model.picture
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
+import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.ui.displayedItem.support.DisplayItemRepo
 import org.koin.android.ext.android.get
 import org.koin.android.ext.android.inject

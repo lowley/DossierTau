@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import lorry.dossiertau.data.intelligenceService.ISpy
 import lorry.dossiertau.data.model.TauItem
 import lorry.dossiertau.support.littleClasses.TauPath
+import lorry.dossiertau.support.littleClasses.path
 import lorry.dossiertau.support.littleClasses.toTauPath
 import lorry.dossiertau.usecases.folderContent.IFolderCompo
 import lorry.dossiertau.usecases.generateHTMLs.Links
