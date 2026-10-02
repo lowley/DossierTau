@@ -70,6 +70,9 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.awaitPointerEvent
+import androidx.compose.ui.input.pointer.awaitPointerEventScope
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
@@ -395,7 +398,26 @@ class MainActivity() : ComponentActivity() {
             }
 
             LazyVerticalGrid(
-                modifier = modifier,
+                modifier = modifier.pointerInput(state) {
+                    awaitPointerEventScope {
+                        var pointerWasDown = false
+
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val pointerIsDown = event.changes.any { it.pressed }
+
+                            if (pointerIsDown && !pointerWasDown) {
+                                // Plus tôt que isScrollInProgress : dès le contact du doigt.
+                                folderCompo.setThumbnailWorkPaused(true)
+                            } else if (!pointerIsDown && pointerWasDown && !state.isScrollInProgress) {
+                                // Un simple tap ne doit pas laisser les miniatures en pause.
+                                folderCompo.setThumbnailWorkPaused(false)
+                            }
+
+                            pointerWasDown = pointerIsDown
+                        }
+                    }
+                },
                 state = state,
                 columns = GridCells.Adaptive(150.dp)
             ) {
