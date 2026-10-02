@@ -65,6 +65,7 @@ import lorry.dossiertau.usecases.folderContent.support.ThumbnailViewport
 import lorry.dossiertau.usecases.generateHTMLs.toBitmap
 import org.koin.java.KoinJavaComponent.inject
 import java.io.ByteArrayOutputStream
+import java.util.concurrent.ConcurrentHashMap
 
 open class FolderCompo(
     open val folderRepo: IFolderRepo,
@@ -97,8 +98,10 @@ open class FolderCompo(
     }
 
     private val _folderFlow = MutableStateFlow<Option<TauFolder>>(None)
-    private val _thumbnailPictures = MutableStateFlow<Map<String, TauPicture>>(emptyMap())
-    override val thumbnailPictures = _thumbnailPictures.asStateFlow()
+    private val thumbnailStates = ConcurrentHashMap<String, MutableStateFlow<TauPicture?>>()
+
+    override fun thumbnailFlow(path: TauPath): StateFlow<TauPicture?> =
+        thumbnailStates.computeIfAbsent(path.path) { MutableStateFlow(null) }.asStateFlow()
     override val folderFlow = combine(
         _folderFlow,
         _ordering,
@@ -141,24 +144,23 @@ open class FolderCompo(
 
     override fun setFolderFlow(folderFullPath: TauPath) {
         println("TauNavigation: setFolderFlow demandé : ${folderFullPath.path}")
-        _thumbnailPictures.value = emptyMap()
+        thumbnailStates.clear()
 
         scope.launch(dispatcher) {
             spy.setObservedFolder(folderFullPath)
         }
     }
 
-    override val folderPathFlow: StateFlow<Option<TauPath>>
-        get() = folderFlow.map {
-            it.fold(
-                ifEmpty = { None },
-                ifSome = { it.fullPath.toOption() }
+    override val folderPathFlow: StateFlow<Option<TauPath>> =
+        spy.observedFolderFlow
+            .map { path ->
+                if (path == TauPath.EMPTY) None else path.toOption()
+            }
+            .stateIn(
+                scope = scope,
+                started = SharingStarted.Eagerly,
+                initialValue = None
             )
-        }.stateIn(
-            scope = scope,
-            started = SharingStarted.Eagerly,
-            initialValue = Option.fromNullable(null)
-        )
 
     override fun requestThumbnails(
         items: List<TauItem>,
@@ -176,7 +178,7 @@ open class FolderCompo(
         items.forEachIndexed { index, item ->
             val priority = viewport.priorityOf(index) ?: return@forEachIndexed
             if (item.picture != TauPicture.NONE) return@forEachIndexed
-            if (_thumbnailPictures.value.containsKey(item.fullPath.path)) return@forEachIndexed
+            if (thumbnailStates[item.fullPath.path]?.value != null) return@forEachIndexed
 
             thumbnailScheduler.request(
                 key = item.fullPath.path,
@@ -185,9 +187,9 @@ open class FolderCompo(
                 val picture = folderRepo.loadThumbnail(item.fullPath) ?: return@request
                 val bitmap = picture.toBitmap() ?: return@request
 
-                _thumbnailPictures.update { current ->
-                    current + (item.fullPath.path to picture)
-                }
+                thumbnailStates
+                    .computeIfAbsent(item.fullPath.path) { MutableStateFlow(null) }
+                    .value = picture
 
                 thumbnailPersistenceChannel.trySend {
                     val bytes = ByteArrayOutputStream().use { output ->
