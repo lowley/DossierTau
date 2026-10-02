@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -79,6 +80,7 @@ open class FolderCompo(
     val appliFavos: AppliFavos by inject(AppliFavos::class.java)
     private val scope = CoroutineScope(dispatcher + SupervisorJob())
     private val thumbnailScheduler = ThumbnailLoadScheduler(parallelism = 3)
+    private val thumbnailPersistenceChannel = Channel<suspend () -> Unit>(Channel.BUFFERED)
 
     private val _ordering = MutableStateFlow(true)
     override val ordering = _ordering.asStateFlow()
@@ -187,22 +189,32 @@ open class FolderCompo(
                     current + (item.fullPath.path to picture)
                 }
 
-                val bytes = ByteArrayOutputStream().use { output ->
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
-                    output.toByteArray()
-                }
-                item.parentPath?.let { parentPath ->
-                    fileDiffDAO.updateLatestContentItemPicture(
-                        folderPath = parentPath.path,
-                        itemName = item.name.value,
-                        picture = bytes,
-                    )
+                thumbnailPersistenceChannel.trySend {
+                    val bytes = ByteArrayOutputStream().use { output ->
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
+                        output.toByteArray()
+                    }
+                    item.parentPath?.let { parentPath ->
+                        fileDiffDAO.updateLatestContentItemPicture(
+                            folderPath = parentPath.path,
+                            itemName = item.name.value,
+                            picture = bytes,
+                        )
+                    }
                 }
             }
         }
     }
 
     init {
+        // La persistance des miniatures ne doit pas bloquer le scheduler d'affichage.
+        // Un seul worker sérialise compression PNG + écriture Room en arrière-plan.
+        scope.launch(dispatcher) {
+            for (persist in thumbnailPersistenceChannel) {
+                persist()
+            }
+        }
+
         if (!collectFillLaunched) {
             collectFillLaunched = true
             scope.launch(dispatcher) {
