@@ -12,6 +12,18 @@ import java.io.File
 
 class DisplayItemRepo {
 
+    suspend fun getInfos(item: TauItem): Pair<String, String> = withContext(Dispatchers.IO) {
+        if (item is TauFolder) {
+            val folder = item.fullPath.toFile().getOrNull() ?: return@withContext "" to ""
+            val (fileCount, folderCount) = countFilesAndFolders(folder)
+            fileCount.toString() to folderCount.toString()
+        } else {
+            val file = item.fullPath.toFile().getOrNull() ?: return@withContext "" to ""
+            val extension = item.name.value.substringAfterLast(".").toUpperCase(Locale.current)
+            extension to formatFileSizeShort(file.length())
+        }
+    }
+
     suspend fun getInfoSup(item: TauItem): String {
         return withContext(Dispatchers.IO) {
             val infos = if (item is TauFolder)
