@@ -360,7 +360,6 @@ class MainActivity() : ComponentActivity() {
             )
 
             val allItems = currentFolder.getOrNull()!!.children
-            val thumbnailPictures by folderCompo.thumbnailPictures.collectAsState()
             val latestItems by rememberUpdatedState(allItems)
             val itemPaths = remember(allItems) { allItems.map { it.fullPath.path } }
 
@@ -391,7 +390,10 @@ class MainActivity() : ComponentActivity() {
                     key = { index -> allItems[index].fullPath.path }
                 ) { index ->
                     val item = allItems[index]
-                    val displayItem = thumbnailPictures[item.fullPath.path]
+                    val thumbnail by folderCompo
+                        .thumbnailFlow(item.fullPath)
+                        .collectAsState()
+                    val displayItem = thumbnail
                         ?.let { picture -> item.copy(picture = picture) }
                         ?: item
 
