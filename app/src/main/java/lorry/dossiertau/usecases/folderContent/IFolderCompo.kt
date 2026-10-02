@@ -13,6 +13,7 @@ interface IFolderCompo {
     fun setFolderOrdering(ordering: Boolean)
     val folderPathFlow: StateFlow<Option<TauPath>>
     fun thumbnailFlow(path: TauPath): StateFlow<TauPicture?>
+    fun setThumbnailWorkPaused(paused: Boolean)
 
     fun changeFolderFlow(folder: Option<TauFolder>)
     val ordering: StateFlow<Boolean>
