@@ -94,6 +94,8 @@ open class FolderCompo(
     }
 
     private val _folderFlow = MutableStateFlow<Option<TauFolder>>(None)
+    private val _thumbnailPictures = MutableStateFlow<Map<String, TauPicture>>(emptyMap())
+    override val thumbnailPictures = _thumbnailPictures.asStateFlow()
     override val folderFlow = combine(
         _folderFlow,
         _ordering,
@@ -136,6 +138,7 @@ open class FolderCompo(
 
     override fun setFolderFlow(folderFullPath: TauPath) {
         println("TauNavigation: setFolderFlow demandé : ${folderFullPath.path}")
+        _thumbnailPictures.value = emptyMap()
 
         scope.launch(dispatcher) {
             spy.setObservedFolder(folderFullPath)
@@ -170,6 +173,7 @@ open class FolderCompo(
         items.forEachIndexed { index, item ->
             val priority = viewport.priorityOf(index) ?: return@forEachIndexed
             if (item.picture != TauPicture.NONE) return@forEachIndexed
+            if (_thumbnailPictures.value.containsKey(item.fullPath.path)) return@forEachIndexed
 
             thumbnailScheduler.request(
                 key = item.fullPath.path,
@@ -178,12 +182,8 @@ open class FolderCompo(
                 val picture = folderRepo.loadThumbnail(item.fullPath) ?: return@request
                 val bitmap = picture.toBitmap() ?: return@request
 
-                val currentFolder = _folderFlow.value.getOrNull()
-                if (currentFolder != null && currentFolder.fullPath == item.parentPath) {
-                    val children = currentFolder.children.map { child ->
-                        if (child.fullPath == item.fullPath) child.copy(picture = picture) else child
-                    }
-                    changeFolderFlow((currentFolder.copy(items = children) as TauFolder).toOption())
+                _thumbnailPictures.update { current ->
+                    current + (item.fullPath.path to picture)
                 }
 
                 val bytes = ByteArrayOutputStream().use { output ->
