@@ -77,16 +77,22 @@ fun TauItem.sameAs(other: TauItem): Boolean {
             id = TauIdentifier(Uuid.NIL),
             children = emptyList()
         )
-        val neutral2 = folder1.asData?.copy(
+        val neutral2 = folder2.asData?.copy(
             id = TauIdentifier(Uuid.NIL),
             children = emptyList())
 
         result = result && neutral1 == neutral2
         return result
 
-    } else
-    //TauFile n'override aucune propriété
-        return true
+    } else {
+        val file1 = (this as TauFile).asData
+        val file2 = (other as TauFile).asData
+
+        if (file1 == null || file2 == null) return file1 == file2
+
+        return file1.copy(id = TauIdentifier(Uuid.NIL)) ==
+            file2.copy(id = TauIdentifier(Uuid.NIL))
+    }
 }
 
 inline val TauItem.asDataCommon: TauDataCommon?
