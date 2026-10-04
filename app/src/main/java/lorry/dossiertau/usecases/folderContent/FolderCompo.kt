@@ -104,7 +104,7 @@ open class FolderCompo(
     private val thumbnailPersistenceChannel = Channel<suspend () -> Unit>(Channel.BUFFERED)
     private val thumbnailWorkPaused = MutableStateFlow(false)
 
-    private val _ordering = MutableStateFlow(true)
+    private val _ordering = MutableStateFlow(false)
     override val ordering = _ordering.asStateFlow()
 
     private val _foldersFirst = MutableStateFlow(false)
