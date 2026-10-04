@@ -332,8 +332,12 @@ open class FolderCompo(
                             }
                         }
 
-                    if (folderFlow.value.getOrNull()?.children?.sameContentAs(newChildren) == true) {
-                        println("COLLECTDIFFS: Ignoré car le contenu est identique.")
+                    val currentFolder = folderFlow.value.getOrNull()
+                    if (
+                        currentFolder?.fullPath == contentPath &&
+                        currentFolder.children.sameContentAs(newChildren)
+                    ) {
+                        println("COLLECTDIFFS: Ignoré car le contenu du même répertoire est identique.")
                         return@transform
                     }
 
