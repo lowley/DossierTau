@@ -36,6 +36,7 @@ import lorry.dossiertau.data.dbModel.FileDiffDao
 import lorry.dossiertau.data.dbModel.OpType
 import lorry.dossiertau.data.dbModel.TauEntity
 import lorry.dossiertau.data.dbModel.toTauItem
+import lorry.dossiertau.data.diskTransfer.toTauItems
 import lorry.dossiertau.data.intelligenceService.ISpy
 import lorry.dossiertau.data.intelligenceService.utils.events.ItemType
 import lorry.dossiertau.data.intelligenceService.utils2.repo.FileId
@@ -51,6 +52,7 @@ import lorry.dossiertau.data.model.name
 import lorry.dossiertau.data.model.parentPath
 import lorry.dossiertau.data.model.picture
 import lorry.dossiertau.data.model.sameContentAs
+import lorry.dossiertau.support.littleClasses.TauDate
 import lorry.dossiertau.support.littleClasses.TauIdentifier
 import lorry.dossiertau.support.littleClasses.TauPath
 import lorry.dossiertau.support.littleClasses.TauPicture
@@ -173,7 +175,36 @@ open class FolderCompo(
         thumbnailStates.clear()
 
         scope.launch(dispatcher) {
+            // Le chemin observé change immédiatement (breadcrumb, surveillance, Room).
             spy.setObservedFolder(folderFullPath)
+
+            // La navigation visuelle ne dépend plus de la chaîne
+            // Spy -> CIA -> AirForce -> Room -> collectDiffs.
+            // On affiche tout de suite une vue structurelle légère du dossier demandé.
+            val children = folderRepo
+                .getItemsInFullPath(folderFullPath)
+                .filter { !it.name.value.startsWith(".") }
+                .toTauItems()
+
+            // Si l'utilisateur a déjà demandé un autre dossier pendant la lecture,
+            // ne jamais publier ce résultat devenu obsolète.
+            if (spy.observedFolderFlow.value != folderFullPath) {
+                println("TauNavigation: affichage structurel abandonné : ${folderFullPath.path}")
+                return@launch
+            }
+
+            val structuralFolder = TauFolder.Data(
+                id = TauIdentifier.random(),
+                parentPath = folderFullPath.tauPathParentPath ?: TauPath.EMPTY,
+                name = folderFullPath.name,
+                picture = TauPicture.NONE,
+                modificationDate = TauDate.now(),
+                fileId = FileId.EMPTY,
+                children = children,
+            ) as TauFolder
+
+            println("TauNavigation: affichage structurel immédiat : ${structuralFolder.fullPath}")
+            changeFolderFlow(structuralFolder.toOption())
         }
     }
 
