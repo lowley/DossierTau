@@ -1,6 +1,7 @@
 package lorry.dossiertau.usecases.folderContent
 
 import android.graphics.Bitmap
+import lorry.dossiertau.TauApp
 import android.os.Process
 import arrow.core.None
 import arrow.core.Option
@@ -106,18 +107,38 @@ open class FolderCompo(
     private val thumbnailPersistenceChannel = Channel<suspend () -> Unit>(Channel.BUFFERED)
     private val thumbnailWorkPaused = MutableStateFlow(false)
 
+    // A separate, persistent sort configuration for every directory.
+    private val sortPrefs by lazy {
+        TauApp.instance.getSharedPreferences("folder_sort_settings", android.content.Context.MODE_PRIVATE)
+    }
+    private var activeSortPath: String? = null
     private val _ordering = MutableStateFlow(false)
     override val ordering = _ordering.asStateFlow()
-
     private val _foldersFirst = MutableStateFlow(false)
     override val foldersFirst = _foldersFirst.asStateFlow()
 
+    private fun restoreSort(path: String) {
+        activeSortPath = path
+        _ordering.value = sortPrefs.getBoolean("date:$path", false)
+        _foldersFirst.value = sortPrefs.getBoolean("folders:$path", false)
+    }
+
+    private fun saveSort() {
+        val path = activeSortPath ?: return
+        sortPrefs.edit()
+            .putBoolean("date:$path", _ordering.value)
+            .putBoolean("folders:$path", _foldersFirst.value)
+            .apply()
+    }
+
     override fun setOrdering(value: Boolean) {
         _ordering.value = value
+        saveSort()
     }
 
     override fun toggleFoldersFirst() {
         _foldersFirst.value = !_foldersFirst.value
+        saveSort()
     }
 
     private val _folderFlow = MutableStateFlow<Option<TauFolder>>(None)
@@ -162,7 +183,7 @@ open class FolderCompo(
         )
 
     override fun setFolderOrdering(ordering: Boolean) {
-        _ordering.value = ordering
+        setOrdering(ordering)
     }
 
     override fun changeFolderFlow(folder: Option<TauFolder>) {
@@ -172,6 +193,7 @@ open class FolderCompo(
 
     override fun setFolderFlow(folderFullPath: TauPath) {
         println("TauNavigation: setFolderFlow demandé : ${folderFullPath.path}")
+        restoreSort(folderFullPath.path)
         thumbnailStates.clear()
 
         scope.launch(dispatcher) {
