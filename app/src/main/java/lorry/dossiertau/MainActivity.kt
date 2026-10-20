@@ -32,6 +32,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ripple.RippleAlpha
 import androidx.compose.material3.Button
@@ -124,6 +126,15 @@ class MainActivity() : ComponentActivity() {
 
     val bsVM: SheetVM by inject()
     val folderCompo = viewModel.folderCompo
+
+    // Positions propres à chaque dossier (conservées tant que l'activité existe).
+    private val folderScrollPositions = mutableMapOf<String, Pair<Int, Int>>()
+    private var scrollResetRequest by mutableIntStateOf(0)
+
+    private fun resetCurrentFolderScroll() {
+        folderCompo.folderPathFlow.value.getOrNull()?.path?.let { folderScrollPositions[it] = 0 to 0 }
+        scrollResetRequest++
+    }
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -268,7 +279,22 @@ class MainActivity() : ComponentActivity() {
         setAppliSheetVisible: () -> Unit
     ) {
         val currentFolderPath by folderCompo.folderPathFlow.collectAsState()
-        val state = rememberLazyGridState()
+        val folderKey = currentFolderPath.getOrNull()?.path.orEmpty()
+        val state = remember(folderKey) {
+            val saved = folderScrollPositions[folderKey]
+            LazyGridState(
+                firstVisibleItemIndex = saved?.first ?: 0,
+                firstVisibleItemScrollOffset = saved?.second ?: 0
+            )
+        }
+        DisposableEffect(folderKey, state) {
+            onDispose {
+                if (folderKey.isNotEmpty()) {
+                    folderScrollPositions[folderKey] =
+                        state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset
+                }
+            }
+        }
         val currentFolder by folderCompo.folderFlow.collectAsState()
         val parentFolderPath = currentFolderPath.getOrNull()?.parentPath ?: TauPath.EMPTY
 
@@ -276,8 +302,9 @@ class MainActivity() : ComponentActivity() {
             setCurrentFolder(parentFolderPath)
         }
 
-        LaunchedEffect(currentFolderPath) {
-            if (currentFolderPath.isSome()) state.scrollToItem(0)
+        // Un changement de tri demande explicitement de revenir en haut.
+        LaunchedEffect(scrollResetRequest) {
+            if (scrollResetRequest > 0) state.scrollToItem(0)
         }
 
         Box(
@@ -600,7 +627,10 @@ class MainActivity() : ComponentActivity() {
                     modifier = Modifier
                         .size(46.dp)
                         .padding(end = 8.dp)
-                        .clickable { folderCompo.toggleFoldersFirst() },
+                        .clickable {
+                            resetCurrentFolderScroll()
+                            folderCompo.toggleFoldersFirst()
+                        },
                     tint = if (foldersFirst) Color.Unspecified else Color.DarkGray
                 )
 
@@ -610,7 +640,10 @@ class MainActivity() : ComponentActivity() {
                     modifier = Modifier
                         .size(46.dp)
                         .padding(end = 8.dp)
-                        .clickable { folderCompo.setOrdering(true) },
+                        .clickable {
+                            resetCurrentFolderScroll()
+                            folderCompo.setOrdering(true)
+                        },
                     tint = if (ordering) Color.Unspecified else Color.DarkGray
                 )
 
@@ -620,7 +653,10 @@ class MainActivity() : ComponentActivity() {
                     modifier = Modifier
                         .size(42.dp)
                         .padding(end = 8.dp)
-                        .clickable { folderCompo.setOrdering(false) },
+                        .clickable {
+                            resetCurrentFolderScroll()
+                            folderCompo.setOrdering(false)
+                        },
                     tint = if (!ordering) Color.Unspecified else Color.DarkGray
                 )
             }
