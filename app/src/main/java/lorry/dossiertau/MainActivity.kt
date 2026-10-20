@@ -32,7 +32,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ripple.RippleAlpha
@@ -287,15 +286,25 @@ class MainActivity() : ComponentActivity() {
                 firstVisibleItemScrollOffset = saved?.second ?: 0
             )
         }
-        DisposableEffect(folderKey, state) {
-            onDispose {
-                if (folderKey.isNotEmpty()) {
-                    folderScrollPositions[folderKey] =
-                        state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset
+        val currentFolder by folderCompo.folderFlow.collectAsState()
+        // folderPathFlow can change before folderFlow finishes loading the new folder.
+        // Never attach the new folder's scroll state to the previous folder's items.
+        val contentMatchesPath =
+            currentFolder.getOrNull()?.fullPath?.path == folderKey
+
+        // Save positions while the *correct* folder is displayed. Saving in onDispose
+        // was unreliable: the grid could already have been reset/clamped.
+        LaunchedEffect(folderKey, state, contentMatchesPath) {
+            if (folderKey.isNotEmpty() && contentMatchesPath) {
+                snapshotFlow {
+                    state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset
+                }.collect { position ->
+                    if (state.layoutInfo.totalItemsCount > 0) {
+                        folderScrollPositions[folderKey] = position
+                    }
                 }
             }
         }
-        val currentFolder by folderCompo.folderFlow.collectAsState()
         val parentFolderPath = currentFolderPath.getOrNull()?.parentPath ?: TauPath.EMPTY
 
         BackHandler(enabled = parentFolderPath != TauPath.EMPTY) {
@@ -327,7 +336,7 @@ class MainActivity() : ComponentActivity() {
             }
 
             if (shortcutMakingState.value == GROUND) {
-                if (currentFolder.isSome()) {
+                if (currentFolder.isSome() && contentMatchesPath) {
                     ItemGrid(
                         modifier = Modifier,
                         currentFolder = currentFolder,
