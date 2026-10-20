@@ -279,7 +279,9 @@ class MainActivity() : ComponentActivity() {
     ) {
         val currentFolderPath by folderCompo.folderPathFlow.collectAsState()
         val folderKey = currentFolderPath.getOrNull()?.path.orEmpty()
-        val state = remember(folderKey) {
+        // Changing sort creates a fresh grid state at the top, rather than
+        // scrolling the old grid before its reordered items have arrived.
+        val state = remember(folderKey, scrollResetRequest) {
             val saved = folderScrollPositions[folderKey]
             LazyGridState(
                 firstVisibleItemIndex = saved?.first ?: 0,
@@ -309,11 +311,6 @@ class MainActivity() : ComponentActivity() {
 
         BackHandler(enabled = parentFolderPath != TauPath.EMPTY) {
             setCurrentFolder(parentFolderPath)
-        }
-
-        // Un changement de tri demande explicitement de revenir en haut.
-        LaunchedEffect(scrollResetRequest) {
-            if (scrollResetRequest > 0) state.scrollToItem(0)
         }
 
         Box(
